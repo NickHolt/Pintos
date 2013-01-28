@@ -100,6 +100,10 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
+    /* Owned by thread.c. */
+    struct list donor_list;             /* Threads currently donating to this
+                                           thread. */
   };
 
 /* If false (default), use round-robin scheduler.
