@@ -104,6 +104,7 @@ struct thread
     /* Owned by thread.c. */
     struct list donor_list;             /* Threads currently donating to this
                                            thread. */
+    struct list_elem donorelem;         /* List element for domors list. */
   };
 
 /* If false (default), use round-robin scheduler.

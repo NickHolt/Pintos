@@ -350,7 +350,19 @@ thread_set_priority (int new_priority)
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  struct thread *cur = thread_current ();
+  int effective_priority = cur->priority;
+
+  struct list_elem *e;
+
+  for (e = list_begin (&cur->donor_list); e != list_end (&cur->donor_list);
+       e = list_next (e))
+    {
+      struct thread *donor = list_entry (e, struct thread, donorelem);
+      effective_priority += donor->priority;
+    }
+
+  return effective_priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
