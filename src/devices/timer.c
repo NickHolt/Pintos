@@ -94,6 +94,20 @@ timer_sleep (int64_t ticks)
   ASSERT (intr_get_level () == INTR_ON);
   while (timer_elapsed (start) < ticks) 
     thread_yield ();
+
+  /*
+    - Make thread THREAD_BLOCKED
+    - Instead of looping, we need an interrupt handler to awaken thread
+
+      timer interrupt needs to wake up sleeping threads after <ticks> timer ticks:
+  
+        use thread_unblock() to make thread THREAD_READY
+        need to get thread to pass to thread unblock
+
+    - Check for negative values
+    - Somehow we must allow other threads to run - this is done with an interrupt
+  */
+
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
