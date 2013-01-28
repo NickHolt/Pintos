@@ -346,23 +346,37 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority;
 }
 
-/* Returns the current thread's priority. */
+static bool
+priority_less_func (const struct list_elem *a_, const struct list_elem *b_,
+                    void *aux UNUSED)
+{
+  struct thread *a = list_entry (a_, struct thread, donorelem);
+  struct thread *b = list_entry (b_, struct thread, donorelem);
+
+  return a->priority < b->priority;
+}
+
+/* Returns the current thread's effective priority. */
 int
 thread_get_priority (void) 
 {
   struct thread *cur = thread_current ();
-  int effective_priority = cur->priority;
+  int base_priority = cur->priority;
 
-  struct list_elem *e;
-
-  for (e = list_begin (&cur->donor_list); e != list_end (&cur->donor_list);
-       e = list_next (e))
+  if (list_empty (&cur->donor_list))
     {
-      struct thread *donor = list_entry (e, struct thread, donorelem);
-      effective_priority += donor->priority;
+      return base_priority;
     }
+  else
+    {
+      struct list_elem *max_donor_elem = list_max (&cur->donor_list,
+                                                   priority_less_func, NULL);
 
-  return effective_priority;
+      struct thread *max_donor = list_entry (max_donor_elem, struct thread,
+                                             donorelem);
+
+      return base_priority + max_donor->priority;
+    }
 }
 
 /* Sets the current thread's nice value to NICE. */
