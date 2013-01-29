@@ -108,6 +108,9 @@ struct thread
     struct list donor_list;             /* Threads currently donating to this
                                            thread. */
     struct list_elem donorelem;         /* List element for domors list. */
+
+    /* Used by advanced scheduler to check thread 'niceness' */
+    int niceness;
   };
 
 /* If false (default), use round-robin scheduler.
