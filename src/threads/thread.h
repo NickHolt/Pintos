@@ -109,8 +109,10 @@ struct thread
                                            thread. */
     struct list_elem donorelem;         /* List element for domors list. */
 
-    /* Used by advanced scheduler to check thread 'niceness' */
-    int niceness;
+    /* Used by advanced scheduler */
+    int niceness;                       /* The thread's niceness value */
+
+    int recent_cpu;                     /* Estimate of recent cpu time */
   };
 
 /* If false (default), use round-robin scheduler.
@@ -148,5 +150,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+void thread_update_load_average (void);
+void thread_update_recent_cpu (struct thread *t, void *aux UNUSED);
 
 #endif /* threads/thread.h */

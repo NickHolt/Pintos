@@ -183,6 +183,27 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_tick ();
 
   thread_foreach (check_thread, NULL);
+
+  /* Timings for advanced scheduler. Every tick that 
+     timer_ticks () % TIMER_FREQ == 0, we must recalculate recent_cpu
+     for all threads, and the global load_average is also updated. Every 
+     fourth tick we must update the priority for all threads. */
+  if (thread_mlfqs)
+    {
+      if (timer_ticks () % TIMER_FREQ == 0)
+        {
+          // Im not sure which way round these should go...
+
+          thread_update_load_average ();
+
+          thread_foreach (thread_update_recent_cpu, NULL);
+        }
+
+      if (timer_ticks () % 4 == 0)
+        {
+          // update priorities
+        }
+    }
 }
 
 /* Check if the thread is blocked and time_to_sleep is positive. If

@@ -50,6 +50,8 @@ static long long idle_ticks;    /* # of timer ticks spent idle. */
 static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
 
+static int load_avg;            /* system wide load average */ 
+
 /* Scheduling. */
 #define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
@@ -98,6 +100,8 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  initial_thread->niceness = 0;
+  initial_thread->recent_cpu = 0;
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -183,6 +187,11 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
+
+  /* Advanced scheduler - Need to work out a way to know parent's info
+  t->niceness = PARENT_NICENESS
+  t->recent_cpu = PARENT_RECENT_CPU 
+  */
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -384,6 +393,16 @@ void
 thread_set_nice (int nice) 
 {
   thread_current ()->niceness = nice;
+
+  // TODO: recalculate priority and yield if necessary
+
+  
+
+  /* 
+    What happens:
+      - Call some method to calculate the new priority of the current thread
+
+   */
 }
 
 /* Returns the current thread's nice value. */
@@ -391,26 +410,37 @@ int
 thread_get_nice (void) 
 {
   return thread_current ()->niceness;
-
-  // TODO: recalculate priority and yeild if necessary
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return load_avg * 100;
+}
+
+/* Updates the current load average with the new value every second */
+void
+thread_update_load_average ()
+{
+  // TODO: This needs to be done with the fixed point maths stuff. Also need to
+  //       work out a way to do this every second.
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  return thread_current ()->recent_cpu;
 }
-
+
+/* Updates the recent_cpu field of the current thread every second */
+void
+thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
+{
+  // TODO: It's the same theory as update_load_average
+}
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
