@@ -103,6 +103,11 @@ struct thread
 
     /* Used by timer.c to check if thread should be blocked or unblocked */
     uint64_t time_to_sleep;
+
+    /* Owned by thread.c. */
+    struct list donor_list;             /* Threads currently donating to this
+                                           thread. */
+    struct list_elem donorelem;         /* List element for domors list. */
   };
 
 /* If false (default), use round-robin scheduler.

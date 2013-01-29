@@ -346,11 +346,37 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority;
 }
 
-/* Returns the current thread's priority. */
+static bool
+priority_less_func (const struct list_elem *a_, const struct list_elem *b_,
+                    void *aux UNUSED)
+{
+  struct thread *a = list_entry (a_, struct thread, donorelem);
+  struct thread *b = list_entry (b_, struct thread, donorelem);
+
+  return a->priority < b->priority;
+}
+
+/* Returns the current thread's effective priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  struct thread *cur = thread_current ();
+  int base_priority = cur->priority;
+
+  if (list_empty (&cur->donor_list))
+    {
+      return base_priority;
+    }
+  else
+    {
+      struct list_elem *max_donor_elem = list_max (&cur->donor_list,
+                                                   priority_less_func, NULL);
+
+      struct thread *max_donor = list_entry (max_donor_elem, struct thread,
+                                             donorelem);
+
+      return base_priority + max_donor->priority;
+    }
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -471,6 +497,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+  list_init (&t->donor_list);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
