@@ -101,7 +101,8 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-    uint64_t time_to_sleep;             /* Time to sleep */
+    /* Used by timer.c to check if thread should be blocked or unblocked */
+    uint64_t time_to_sleep;
   };
 
 /* If false (default), use round-robin scheduler.

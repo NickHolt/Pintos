@@ -85,14 +85,12 @@ timer_elapsed (int64_t then)
   return timer_ticks () - then;
 }
 
-/* Sleeps for approximately TICKS timer ticks.  Interrupts must
-   be turned on.
-   Disable interrupts, block the thread, then re-enable interrupts. */
+/* Sleeps for approximately TICKS timer ticks. Interrupts must
+   be turned on, hence the assertion. Then we disable interrupts,
+   block the thread, then re-enable interrupts. */
 void
 timer_sleep (int64_t ticks)
 {
-  // TODO - clean up comments and test thouroughly
-
   if (ticks > 0)
     {
       ASSERT (INTR_ON == intr_get_level ());
@@ -100,13 +98,9 @@ timer_sleep (int64_t ticks)
       thread_current ()->time_to_sleep = ticks;
       intr_set_level (INTR_OFF);
 
-      thread_block();
+      thread_block ();
 
       intr_set_level (INTR_ON);
-    }
-  else
-    {
-      // I don't think we want a busy-wait loop here, maybe we just do nothing
     }
 }
 
@@ -180,8 +174,8 @@ timer_print_stats (void)
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
 
-/* Timer interrupt handler. Increments the timer tick value, then goes through
-   the threads to see if any need unblocking */
+/* Timer interrupt handler. Increments the timer tick value, then
+   goes through the threads to see if any need unblocking */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
@@ -191,8 +185,9 @@ timer_interrupt (struct intr_frame *args UNUSED)
   thread_foreach (check_thread, NULL);
 }
 
-/* Check if the thread is blocked and time_to_sleep is positive. If it is then
-   decrement the time_to_sleep value and then unblock if time_to_sleep is 0 */
+/* Check if the thread is blocked and time_to_sleep is positive. If
+   it is then decrement the time_to_sleep value and then unblock if
+   time_to_sleep is 0 */
 static void
 check_thread (struct thread *t, void *aux UNUSED)
 {
