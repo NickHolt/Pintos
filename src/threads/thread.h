@@ -24,6 +24,10 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* Macros for fixed point representations of 59/60 and 1/60 */
+#define FIFTY_NINE_SIXTY 16111
+#define ONE_SIXTY 273
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
