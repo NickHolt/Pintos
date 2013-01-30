@@ -420,11 +420,20 @@ thread_get_recent_cpu (void)
   return fp_to_int_rtn (mul_two_fps (thread_current ()->recent_cpu, 100));
 }
 
-/* Updates the recent_cpu field of the current thread every second */
+/* Updates the recent_cpu field of the current thread every second.
+   Timer interrupt handler deals with the execution
+   The formula for updating the value is:
+   recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu + niceness */
 void
 thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 {
-  // TODO: It's the same theory as update_load_average
+  fixed_point_t 2load = mul_two_fps (2, load_avg);
+  fixed_point_t plusone = sum_int_fp (1, int_to_fp (2load));
+
+  fixed_point_t coeff = div_two_fps (2load, plusone);
+  coeff = mul_int_fp (recent_cpu, coeff);
+
+  t->recent_cpu = fp_to_int_rtn ( sum_int_fp (t->niceness, coeff));
 }
 
 /* Returns 100 times the system load average. */
