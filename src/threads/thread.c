@@ -70,8 +70,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static bool thread_sort_func (const struct list_elem *a_, 
-                                const struct list_elem *b_, void *aux UNUSED);
 static void print_ready_list(void);
 
 /* Initializes the threading system by transforming the code
@@ -250,10 +248,10 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_insert_ordered (&ready_list, &t->elem, thread_sort_func, NULL);
   t->status = THREAD_READY;
-  intr_set_level (old_level);
   if(thread_current () != idle_thread) {
     if (thread_get_priority () < t->priority) thread_yield ();
   }
+  intr_set_level (old_level);
 }
 
 /* Returns the name of the running thread. */
@@ -368,11 +366,11 @@ thread_set_priority (int new_priority)
   struct thread *t = next_thread_to_run ();
   ASSERT(t != NULL);
   if(t != idle_thread) list_push_front(&ready_list, &t->elem);
-  if(thread_get_priority () <= t->priority) thread_yield ();
+  if(thread_get_priority () < t->priority) thread_yield ();
 }
 
 /*sorting function for ready_list, highest at the front */
-static bool
+bool
 thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
                     void *aux UNUSED)
 {
