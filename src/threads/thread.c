@@ -70,7 +70,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static bool priority_less_func (const struct list_elem *a_, 
+static bool thread_sort_func (const struct list_elem *a_, 
                                 const struct list_elem *b_, void *aux UNUSED);
 static void print_ready_list(void);
 
@@ -248,7 +248,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_insert_ordered (&ready_list, &t->elem, priority_less_func, NULL);
+  list_insert_ordered (&ready_list, &t->elem, thread_sort_func, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
   if(thread_current () != idle_thread) {
@@ -315,7 +315,7 @@ print_ready_list(void)
 {
   printf("----THREAD LIST----\n");
   printf("name pri Status (0Running/1Ready/2Blocked/3Dying)\n");
-  printf("Running thread: %s\n", running_thread ()->name);
+  printf("Running thread: %s, priority: %i\n", running_thread ()->name, running_thread ()->priority);
   struct list_elem *e;
   for(e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
     struct thread *t = list_entry (e, struct thread, elem);
@@ -330,8 +330,6 @@ print_ready_list(void)
 void
 thread_yield (void) 
 {
-  printf("yield called by %s\n", thread_current() -> name);
-  print_ready_list ();
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
@@ -339,11 +337,10 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_insert_ordered (&ready_list, &cur->elem, priority_less_func, NULL);
+    list_insert_ordered (&ready_list, &cur->elem, thread_sort_func, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
-  printf("Running thread: %s after yield\n", running_thread ()->name);
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
@@ -369,19 +366,20 @@ thread_set_priority (int new_priority)
 {
   thread_current ()->priority = new_priority;
   struct thread *t = next_thread_to_run ();
+  ASSERT(t != NULL);
   if(t != idle_thread) list_push_front(&ready_list, &t->elem);
-  ASSERT(t != NULL) 
   if(thread_get_priority () <= t->priority) thread_yield ();
 }
 
+/*sorting function for ready_list, highest at the front */
 static bool
-priority_less_func (const struct list_elem *a_, const struct list_elem *b_,
+thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
                     void *aux UNUSED)
 {
-  struct thread *a = list_entry (a_, struct thread, donorelem);
-  struct thread *b = list_entry (b_, struct thread, donorelem);
+  struct thread *a = list_entry (a_, struct thread, elem);
+  struct thread *b = list_entry (b_, struct thread, elem);
 
-  return a->priority < b->priority;
+  return a->priority > b->priority;
 }
 
 /* Returns the current thread's effective priority. */
@@ -398,7 +396,7 @@ thread_get_priority (void)
   else
     {
       struct list_elem *max_donor_elem = list_max (&cur->donor_list,
-                                                   priority_less_func, NULL);
+                                                   thread_sort_func, NULL);
 
       struct thread *max_donor = list_entry (max_donor_elem, struct thread,
                                              donorelem);
