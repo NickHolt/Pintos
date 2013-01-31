@@ -340,6 +340,7 @@ print_ready_list(void)
 void
 thread_yield (void)
 {
+  printf("%i\n", load_avg);
   struct thread *cur = thread_current ();
   enum intr_level old_level;
 
@@ -423,15 +424,9 @@ thread_set_nice (int nice)
 {
   thread_current ()->niceness = nice;
 
-  // TODO: recalculate priority and yield if necessary
+  thread_calculate_priority_mlfqs (thread_current ());
 
-
-
-  /*
-    What happens:
-      - Call some method to calculate the new priority of the current thread
-
-   */
+  thread_yield ();
 }
 
 /* Calculates the new priority of a thread, for use in the advanced 
@@ -484,6 +479,16 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 int
 thread_get_load_avg (void)
 {
+  int ready_threads = (int) list_size (&ready_list);
+
+  // Check to see if the current thread should be in the ready count
+  if (thread_current () != idle_thread)
+    {
+      ready_threads++;
+    }
+
+  printf("ready threads = %i\n", ready_threads);
+
   return fp_to_int_rtn (mul_int_fp (load_avg, 100));
 }
 
@@ -503,9 +508,9 @@ thread_update_load_average (void)
 
   /* We update according to the formula:
      load_avg = (59/60)*load_avg + (1/60)*ready_threads */
-  int lhs = fp_to_int_rtn (mul_two_fps (FIFTY_NINE_SIXTY, load_avg));
+  fixed_point_t lhs = mul_two_fps (FIFTY_NINE_SIXTY, load_avg);
 
-  int rhs = fp_to_int_rtn (mul_two_fps (ONE_SIXTY, ready_threads));
+  fixed_point_t rhs = mul_int_fp (ONE_SIXTY, ready_threads);
 
   load_avg = lhs + rhs;
 }
