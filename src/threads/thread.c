@@ -73,6 +73,9 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+static bool thread_sort_func (const struct list_elem *a_, 
+                                const struct list_elem *b_, void *aux UNUSED);
+static void print_ready_list(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -255,9 +258,12 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered (&ready_list, &t->elem, thread_sort_func, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
+  if(thread_current () != idle_thread) {
+    if (thread_get_priority () < t->priority) thread_yield ();
+  }
 }
 
 /* Returns the name of the running thread. */
@@ -314,6 +320,21 @@ thread_exit (void)
   NOT_REACHED ();
 }
 
+static void
+print_ready_list(void) 
+{
+  printf("----THREAD LIST----\n");
+  printf("name pri Status (0Running/1Ready/2Blocked/3Dying)\n");
+  printf("Running thread: %s, priority: %i\n", running_thread ()->name, running_thread ()->priority);
+  struct list_elem *e;
+  for(e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
+    struct thread *t = list_entry (e, struct thread, elem);
+    printf("%s  %i    %i\n", t->name, t->priority, t->status);
+  }
+  printf("-------------------\n");
+}
+
+
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
 void
@@ -325,8 +346,10 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread)
-    list_push_back (&ready_list, &cur->elem);
+
+  if (cur != idle_thread) 
+    list_insert_ordered (&ready_list, &cur->elem, thread_sort_func, NULL);
+
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -354,16 +377,21 @@ void
 thread_set_priority (int new_priority)
 {
   thread_current ()->priority = new_priority;
+  struct thread *t = next_thread_to_run ();
+  ASSERT(t != NULL);
+  if(t != idle_thread) list_push_front(&ready_list, &t->elem);
+  if(thread_get_priority () <= t->priority) thread_yield ();
 }
 
+/*sorting function for ready_list, highest at the front */
 static bool
-priority_less_func (const struct list_elem *a_, const struct list_elem *b_,
+thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
                     void *aux UNUSED)
 {
-  struct thread *a = list_entry (a_, struct thread, donorelem);
-  struct thread *b = list_entry (b_, struct thread, donorelem);
+  struct thread *a = list_entry (a_, struct thread, elem);
+  struct thread *b = list_entry (b_, struct thread, elem);
 
-  return a->priority < b->priority;
+  return a->priority > b->priority;
 }
 
 /* Returns the current thread's effective priority. */
@@ -380,7 +408,7 @@ thread_get_priority (void)
   else
     {
       struct list_elem *max_donor_elem = list_max (&cur->donor_list,
-                                                   priority_less_func, NULL);
+                                                   thread_sort_func, NULL);
 
       struct thread *max_donor = list_entry (max_donor_elem, struct thread,
                                              donorelem);
@@ -444,7 +472,8 @@ thread_get_load_avg (void)
 }
 
 /* Updates the current load average with the new value every second
-   Executing this method every second is handled by the timer interrupt handler.*/
+   Executing this method every second is handled by the timer interrupt 
+   handler. */
 void
 thread_update_load_average ()
 {
