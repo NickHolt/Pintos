@@ -434,6 +434,22 @@ thread_set_nice (int nice)
    */
 }
 
+/* Calculates the new priority of a thread, for use in the advanced 
+   scheduler. Uses the following formula:
+   priority = PRI_MAX - (recent_cpu / 4) - (nice * 2) */
+void
+thread_calculate_priority_mlfqs (struct thread *t)
+{
+  fixed_point_t recent = div_int_fp (t->recent_cpu, 4);
+  fixed_point_t nice = mul_int_fp (t->niceness, 2);
+
+  fixed_point_t new_priority = diff_two_fps (int_to_fp (PRI_MAX), recent);
+  new_priority = diff_two_fps (new_priority, nice);
+
+  /* Truncate the fixed point result to the nearest integer */
+  t->priority = fp_to_int_rt0 (new_priority);
+}
+
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void)
@@ -445,7 +461,7 @@ thread_get_nice (void)
 int
 thread_get_recent_cpu (void)
 {
-  return fp_to_int_rtn (mul_two_fps (thread_current ()->recent_cpu, 100));
+  return fp_to_int_rtn (mul_int_fp (thread_current ()->recent_cpu, 100));
 }
 
 /* Updates the recent_cpu field of the current thread every second.
@@ -455,11 +471,11 @@ thread_get_recent_cpu (void)
 void
 thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 {
-  fixed_point_t 2load = mul_two_fps (2, load_avg);
-  fixed_point_t plusone = sum_int_fp (1, int_to_fp (2load));
+  fixed_point_t load = mul_two_fps (load_avg, 2);
+  fixed_point_t plusone = sum_int_fp (load, 1);
 
-  fixed_point_t coeff = div_two_fps (2load, plusone);
-  coeff = mul_int_fp (recent_cpu, coeff);
+  fixed_point_t coeff = div_two_fps (load, plusone);
+  coeff = mul_int_fp (t->recent_cpu, coeff);
 
   t->recent_cpu = fp_to_int_rtn ( sum_int_fp (t->niceness, coeff));
 }
@@ -468,19 +484,19 @@ thread_update_recent_cpu (struct thread *t, void *aux UNUSED)
 int
 thread_get_load_avg (void)
 {
-  return fp_to_int_rtn (mul_two_fps (load_avg, 100));
+  return fp_to_int_rtn (mul_int_fp (load_avg, 100));
 }
 
 /* Updates the current load average with the new value every second
    Executing this method every second is handled by the timer interrupt 
    handler. */
 void
-thread_update_load_average ()
+thread_update_load_average (void)
 {
   int ready_threads = (int) list_size (&ready_list);
 
   // Check to see if the current thread should be in the ready count
-  if (thread_current () != idle_thread ())
+  if (thread_current () != idle_thread)
     {
       ready_threads++;
     }

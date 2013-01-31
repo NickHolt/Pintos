@@ -13,20 +13,20 @@ typedef int32_t fixed_point_t;
 
 /* Conversion methods */
 fixed_point_t int_to_fp (int32_t i);
-int32_t fp_to_int_rt0 (fixed_point_t x);
-int32_t fp_to_int_rtn (fixed_point_t x);
+int fp_to_int_rt0 (fixed_point_t x);
+int fp_to_int_rtn (fixed_point_t x);
 
 /* Arithmetic operations */
 fixed_point_t sum_two_fps (fixed_point_t x, fixed_point_t y);
-fixed_point_t sum_int_fp (int32_t i, fixed_point_t fp);
+fixed_point_t sum_int_fp (fixed_point_t fp, int32_t i);
 
 fixed_point_t diff_two_fps (fixed_point_t x, fixed_point_t y);
-fixed_point_t diff_int_fp (int32_t i, fixed_point_t fp);
+fixed_point_t diff_int_fp (fixed_point_t fp, int32_t i);
 
 fixed_point_t mul_two_fps (fixed_point_t x, fixed_point_t y);
-fixed_point_t mul_int_fp (int32_t i, fixed_point_t fp);
+fixed_point_t mul_int_fp (fixed_point_t fp, int32_t i);
 
 fixed_point_t div_two_fps (fixed_point_t x, fixed_point_t y);
-fixed_point_t div_int_fp (int32_t i, fixed_point_t fp);
+fixed_point_t div_int_fp (fixed_point_t fp, int32_t i);
 
 #endif
