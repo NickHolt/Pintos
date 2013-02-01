@@ -117,7 +117,6 @@ sema_up (struct semaphore *sema)
   if (!list_empty (&sema->waiters)) {
     struct thread *t = list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem);
-    //printf("Wake up %s\n", t->name);
     thread_unblock (t);
   }
   sema->value++;
@@ -268,10 +267,23 @@ cond_init (struct condition *cond)
   list_init (&cond->waiters);
 }
 
+bool
+sema_sort_func (const struct list_elem *a_, const struct list_elem *sema_elem_,
+                    void *aux)
+{
+  int thread_priority = (int) aux;
+
+  struct semaphore_elem *sema_elem = list_entry (sema_elem_, 
+                                                  struct semaphore_elem, elem);
+  struct thread *t = list_entry(list_front(&sema_elem->semaphore.waiters), 
+                                                  struct thread, elem);
+  return thread_priority >= t->priority;
+}
+
 /* Atomically releases LOCK and waits for COND to be signaled by
    some other piece of code.  After COND is signaled, LOCK is
    reacquired before returning.  LOCK must be held before calling
-   this function.
+   this functio
 
    The monitor implemented by this function is "Mesa" style, not
    "Hoare" style, that is, sending and receiving a signal are not
@@ -299,7 +311,9 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
-  list_insert_ordered (&cond->waiters, &waiter.elem, thread_sort_func, NULL);
+  list_insert_ordered (&cond->waiters, &waiter.elem, &sema_sort_func, (void *) thread_get_priority ());
+  //needs to go get cond->waiters->semaphore->waiters list of threads (with list 
+  //entry and stuff.
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
