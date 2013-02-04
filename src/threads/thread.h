@@ -5,6 +5,9 @@
 #include <list.h>
 #include <stdint.h>
 
+/* Included for use of fixed_point_t and associated methods */
+#include "arithmetic.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -116,7 +119,7 @@ struct thread
     /* Used by advanced scheduler */
     int niceness;                       /* The thread's niceness value */
 
-    int recent_cpu;                     /* Estimate of recent cpu time */
+    fixed_point_t recent_cpu;                     /* Estimate of recent cpu time */
   };
 
 /* If false (default), use round-robin scheduler.
@@ -149,7 +152,7 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
-void thread_calculate_priority_mlfqs (struct thread *t);
+void thread_calculate_priority_mlfqs (struct thread *t, void *aux UNUSED);
 
 int thread_get_nice (void);
 void thread_set_nice (int);

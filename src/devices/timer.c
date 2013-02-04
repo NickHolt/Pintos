@@ -190,6 +190,9 @@ timer_interrupt (struct intr_frame *args UNUSED)
      fourth tick we must update the priority for all threads. */
   if (thread_mlfqs)
     {
+
+      thread_current ()->recent_cpu++;
+
       if (timer_ticks () % TIMER_FREQ == 0)
         {
           // Im not sure which way round these should go...
@@ -202,6 +205,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
       if (timer_ticks () % 4 == 0)
         {
           // update priorities
+
+          thread_foreach (thread_calculate_priority_mlfqs, NULL);
         }
     }
 }
