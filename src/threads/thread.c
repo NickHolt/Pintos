@@ -72,7 +72,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static bool thread_sort_func (const struct list_elem *a_, 
+static bool thread_sort_func (const struct list_elem *a_,
                                 const struct list_elem *b_, void *aux UNUSED);
 static void print_ready_list(void);
 
@@ -257,7 +257,7 @@ thread_unblock (struct thread *t)
   intr_set_level (old_level);
   if(thread_current () != idle_thread)
     {
-      if (thread_get_priority () < t->priority) 
+      if (thread_get_priority () < t->priority)
         thread_yield ();
     }
 }
@@ -317,7 +317,7 @@ thread_exit (void)
 }
 
 static void
-print_ready_list(void) 
+print_ready_list(void)
 {
   printf("----THREAD LIST----\n");
   printf("name pri Status (0Running/1Ready/2Blocked/3Dying)\n");
@@ -343,7 +343,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
 
-  if (cur != idle_thread) 
+  if (cur != idle_thread)
     list_insert_ordered (&ready_list, &cur->elem, thread_sort_func, NULL);
 
   cur->status = THREAD_READY;
@@ -372,12 +372,12 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority)
 {
-  if (!thread_mlfqs) 
+  if (!thread_mlfqs)
     {
       thread_current ()->priority = new_priority;
       struct thread *t = next_thread_to_run ();
       ASSERT(t != NULL);
-      if(t != idle_thread) 
+      if(t != idle_thread)
         list_push_front(&ready_list, &t->elem);
       if(thread_get_priority () <= t->priority)
         thread_yield ();
@@ -402,7 +402,7 @@ thread_get_priority (void)
   struct thread *cur = thread_current ();
   int base_priority = cur->priority;
 
-  if (!thread_mlfqs) 
+  if (!thread_mlfqs)
     {
       if (list_empty (&cur->donor_list))
         {
@@ -434,7 +434,7 @@ thread_set_nice (int nice)
   thread_yield ();
 }
 
-/* Calculates the new priority of a thread, for use in the advanced 
+/* Calculates the new priority of a thread, for use in the advanced
    scheduler. Uses the following formula:
    priority = PRI_MAX - (recent_cpu / 4) - (nice * 2) */
 void
@@ -456,8 +456,6 @@ thread_calculate_priority_mlfqs (struct thread *t, void *aux UNUSED)
 
   /* Truncate the fixed point result to the nearest integer */
   t->priority = unadjusted_priority;
-
-  printf("%s - %i\n", t->name, t->priority);
 }
 
 /* Returns the current thread's nice value. */
@@ -471,7 +469,7 @@ thread_get_nice (void)
 int
 thread_get_recent_cpu (void)
 {
-  return thread_current ()->recent_cpu * 100;
+  return fp_to_int_rtn (mul_int_fp (thread_current ()->recent_cpu, 100));
 }
 
 /* Updates the recent_cpu field of the current thread every second.
@@ -498,7 +496,7 @@ thread_get_load_avg (void)
 }
 
 /* Updates the current load average with the new value every second
-   Executing this method every second is handled by the timer interrupt 
+   Executing this method every second is handled by the timer interrupt
    handler. */
 void
 thread_update_load_average (void)

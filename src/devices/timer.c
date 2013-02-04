@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include "threads/arithmetic.h"
 
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -184,14 +185,14 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
   thread_foreach (check_thread, NULL);
 
-  /* Timings for advanced scheduler. Every tick that 
+  /* Timings for advanced scheduler. Every tick that
      timer_ticks () % TIMER_FREQ == 0, we must recalculate recent_cpu
-     for all threads, and the global load_average is also updated. Every 
+     for all threads, and the global load_average is also updated. Every
      fourth tick we must update the priority for all threads. */
   if (thread_mlfqs)
     {
-
-      thread_current ()->recent_cpu++;
+      thread_current ()->recent_cpu =
+        sum_int_fp (thread_current ()->recent_cpu, 1);
 
       if (timer_ticks () % TIMER_FREQ == 0)
         {
@@ -205,7 +206,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
       if (timer_ticks () % 4 == 0)
         {
           // update priorities
-
           thread_foreach (thread_calculate_priority_mlfqs, NULL);
         }
     }
