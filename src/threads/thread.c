@@ -243,13 +243,18 @@ thread_unblock (struct thread *t)
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
-
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   t->status = THREAD_READY;
   list_insert_ordered (&ready_list, &t->elem, thread_sort_func, NULL);
-  if(thread_current () != idle_thread) {
-    if (thread_get_priority () < t->priority) thread_yield ();
+  struct thread *cur = thread_current ();
+  if(cur != idle_thread) {
+    //printf("unblock %s, status %i\n", t->name, t->status);
+    //if (thread_get_priority () < t->priority) {
+      cur->status = THREAD_READY;
+      list_insert_ordered (&ready_list, &cur->elem, thread_sort_func, NULL);
+      schedule ();
+    //}
   }
   intr_set_level (old_level);
 }
@@ -365,7 +370,7 @@ thread_set_priority (int new_priority)
   thread_current ()->priority = new_priority;
   struct thread *t = next_thread_to_run ();
   ASSERT(t != NULL);
-  if(t != idle_thread) list_push_front(&ready_list, &t->elem);
+  if(t != idle_thread) list_insert_ordered(&ready_list, &t->elem, thread_sort_func, NULL);
   if(thread_get_priority () < t->priority) thread_yield ();
 }
 
