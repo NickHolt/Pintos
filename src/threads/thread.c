@@ -427,7 +427,10 @@ thread_get_priority (void)
           struct thread *max_donor = list_entry (max_donor_elem, struct thread,
                                                  donorelem);
 
-          return max_donor->priority;
+          int donor_priority = max_donor->priority;
+
+          return (base_priority > donor_priority) ? base_priority :
+                                                    donor_priority;
         }
     }
 
