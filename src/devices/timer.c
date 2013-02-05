@@ -97,11 +97,10 @@ timer_sleep (int64_t ticks)
       ASSERT (INTR_ON == intr_get_level ());
 
       thread_current ()->time_to_sleep = ticks;
-      intr_set_level (INTR_OFF);
 
+      enum intr_level old_level = intr_disable ();
       thread_block ();
-
-      intr_set_level (INTR_ON);
+      intr_set_level (old_level);
     }
 }
 
@@ -181,7 +180,6 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-  thread_tick ();
 
   thread_foreach (check_thread, NULL);
 
@@ -209,6 +207,8 @@ timer_interrupt (struct intr_frame *args UNUSED)
           thread_foreach (thread_calculate_priority_mlfqs, NULL);
         }
     }
+
+  thread_tick ();
 }
 
 /* Check if the thread is blocked and time_to_sleep is positive. If

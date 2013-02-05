@@ -258,7 +258,12 @@ thread_unblock (struct thread *t)
   if(thread_current () != idle_thread)
     {
       if (thread_get_priority () < t->priority)
-        thread_yield ();
+        {
+          if (!intr_context ())
+              thread_yield ();
+          else
+              intr_yield_on_return ();
+        }
     }
 }
 
@@ -337,6 +342,7 @@ void
 thread_yield (void)
 {
   struct thread *cur = thread_current ();
+
   enum intr_level old_level;
 
   ASSERT (!intr_context ());
@@ -380,7 +386,12 @@ thread_set_priority (int new_priority)
       if(t != idle_thread)
         list_push_front(&ready_list, &t->elem);
       if(thread_get_priority () <= t->priority)
-        thread_yield ();
+        {
+          if (!intr_context ())
+            thread_yield ();
+          else
+            intr_yield_on_return ();
+        }
     }
 }
 
@@ -431,7 +442,10 @@ thread_set_nice (int nice)
 
   thread_calculate_priority_mlfqs (thread_current (), NULL);
 
-  thread_yield ();
+  if (!intr_context ())
+    thread_yield ();
+  else
+    intr_yield_on_return ();
 }
 
 /* Calculates the new priority of a thread, for use in the advanced
