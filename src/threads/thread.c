@@ -255,7 +255,7 @@ thread_unblock (struct thread *t)
   list_insert_ordered (&ready_list, &t->elem, thread_sort_func, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
-  if(thread_current () != idle_thread)
+  if (thread_current () != idle_thread)
     {
       if (thread_get_priority () < t->priority)
         {
@@ -383,9 +383,9 @@ thread_set_priority (int new_priority)
       thread_current ()->priority = new_priority;
       struct thread *t = next_thread_to_run ();
       ASSERT(t != NULL);
-      if(t != idle_thread)
+      if (t != idle_thread)
         list_push_front(&ready_list, &t->elem);
-      if(thread_get_priority () <= t->priority)
+      if (thread_get_priority () <= t->priority)
         {
           if (!intr_context ())
             thread_yield ();
@@ -427,7 +427,7 @@ thread_get_priority (void)
           struct thread *max_donor = list_entry (max_donor_elem, struct thread,
                                                  donorelem);
 
-          return base_priority + max_donor->priority;
+          return max_donor->priority;
         }
     }
 
