@@ -113,12 +113,15 @@ sema_up (struct semaphore *sema)
 
   ASSERT (sema != NULL);
 
+  struct list_elem *front;
+  struct thread *t = NULL;
+
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) {
 
-    struct list_elem *front = list_pop_front (&sema->waiters);
+    front = list_pop_front (&sema->waiters);
 
-    struct thread *t = list_entry (front, struct thread, elem);
+    t = list_entry (front, struct thread, elem);
 
     list_remove (front);
 
@@ -127,7 +130,22 @@ sema_up (struct semaphore *sema)
   sema->value++;
   intr_set_level (old_level);
 
-  thread_yield ();
+  /* Yield the CPU if t was given a value and the priority was high
+     enough to require yielding */
+  if (!list_empty (&sema->waiters))
+    {
+      if (t->priority >= thread_get_priority ())
+      {
+        if (!intr_context ())
+          thread_yield ();
+        else
+          intr_yield_on_return ();
+      }
+    }
+  else
+    {
+      thread_yield ();
+    }
 }
 
 static void sema_test_helper (void *sema_);
