@@ -12,23 +12,23 @@ Things to do:
     * `thread_set_priority()` in `threads/thread.c`
     * `thread_get_priority()` also in `threads/thread.c`
 * Advanced Scheduler - 3.2.5
-    * Floating point maths
+    * Floating point maths - seems to work
     * BSD Scheduler - see Appendix B for more
-    * Passes fairness tests
+    * Passes all but mlfqs-block (not a advanced scheduler problem I think)
 
 Full details on pages 16-26 of spec, in the sections listed.
 
 Who will do what?
 -----------------
-* Owen is doing Alarm clock, floating point maths stuff
+* Owen is doing Alarm clock, floating point maths stuff, advanced scheduler
 * Dan is doing Priority scheduling
 * Charlie is doing Priority Donation
-* We can start work on Advanced Scheduler when we're done (this will probably be mostly Owen since Alarm clock should be quite short)
 
 Branch off to do your appropriate work and pull back into master every now and then. We should use pull requests on github to get eachother's branches if we need them (I think).
 
 Current test status
--------------------
+-----------
+
 pass tests/threads/alarm-single  
 pass tests/threads/alarm-multiple  
 pass tests/threads/alarm-simultaneous  
@@ -47,13 +47,13 @@ pass tests/threads/priority-preempt
 FAIL tests/threads/priority-sema  
 FAIL tests/threads/priority-condvar  
 FAIL tests/threads/priority-donate-chain  
-FAIL tests/threads/mlfqs-load-1  
-FAIL tests/threads/mlfqs-load-60  
-FAIL tests/threads/mlfqs-load-avg  
-FAIL tests/threads/mlfqs-recent-1  
+pass tests/threads/mlfqs-load-1  
+pass tests/threads/mlfqs-load-60  
+pass tests/threads/mlfqs-load-avg  
+pass tests/threads/mlfqs-recent-1  
 pass tests/threads/mlfqs-fair-2  
 pass tests/threads/mlfqs-fair-20  
-FAIL tests/threads/mlfqs-nice-2  
-FAIL tests/threads/mlfqs-nice-10  
+pass tests/threads/mlfqs-nice-2  
+pass tests/threads/mlfqs-nice-10  
 FAIL tests/threads/mlfqs-block  
-16 of 27 tests failed.
+10 of 27 tests failed.

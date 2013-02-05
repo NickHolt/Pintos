@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include "threads/arithmetic.h"
 
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -96,11 +97,10 @@ timer_sleep (int64_t ticks)
       ASSERT (INTR_ON == intr_get_level ());
 
       thread_current ()->time_to_sleep = ticks;
-      intr_set_level (INTR_OFF);
 
+      enum intr_level old_level = intr_disable ();
       thread_block ();
-
-      intr_set_level (INTR_ON);
+      intr_set_level (old_level);
     }
 }
 
@@ -180,9 +180,35 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-  thread_tick ();
 
   thread_foreach (check_thread, NULL);
+
+  /* Timings for advanced scheduler. Every tick that
+     timer_ticks () % TIMER_FREQ == 0, we must recalculate recent_cpu
+     for all threads, and the global load_average is also updated. Every
+     fourth tick we must update the priority for all threads. */
+  if (thread_mlfqs)
+    {
+      thread_current ()->recent_cpu =
+        sum_int_fp (thread_current ()->recent_cpu, 1);
+
+      if (timer_ticks () % TIMER_FREQ == 0)
+        {
+          // Im not sure which way round these should go...
+
+          thread_update_load_average ();
+
+          thread_foreach (thread_update_recent_cpu, NULL);
+        }
+
+      if (timer_ticks () % 4 == 0)
+        {
+          // update priorities
+          thread_foreach (thread_calculate_priority_mlfqs, NULL);
+        }
+    }
+
+  thread_tick ();
 }
 
 /* Check if the thread is blocked and time_to_sleep is positive. If

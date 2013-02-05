@@ -14,13 +14,13 @@ fixed_point_t int_to_fp (int32_t i)
 }
 
 /* Convert an fixed point number to an integer, rounding down to 0 always */
-int32_t fp_to_int_rt0 (fixed_point_t x)
+int fp_to_int_rt0 (fixed_point_t x)
 {
     return x / F;
 }
 
 /* Convert fixed point to integer, rounding to nearest */
-fixed_point_t fp_to_int_rtn (fixed_point_t x)
+int fp_to_int_rtn (fixed_point_t x)
 {
     if (x > 0)
         return (x + F / 2) / F;
@@ -35,7 +35,7 @@ fixed_point_t sum_two_fps (fixed_point_t x, fixed_point_t y)
 }
 
 /* Sum an integer I with a fixed point number FP */
-fixed_point_t sum_int_fp (int32_t i, fixed_point_t fp)
+fixed_point_t sum_int_fp (fixed_point_t fp, int32_t i)
 {
     return fp + i * F;
 }
@@ -47,7 +47,7 @@ fixed_point_t diff_two_fps (fixed_point_t x, fixed_point_t y)
 }
 
 /* Subtract integer I from fixed point FP */
-fixed_point_t diff_int_fp (int32_t i, fixed_point_t fp)
+fixed_point_t diff_int_fp (fixed_point_t fp, int32_t i)
 {
     return fp - i * F;
 }
@@ -59,7 +59,7 @@ fixed_point_t mul_two_fps (fixed_point_t x, fixed_point_t y)
 }
 
 /* Multiply an integer I by a fixed point number FP */
-fixed_point_t mul_int_fp (int32_t i, fixed_point_t fp)
+fixed_point_t mul_int_fp (fixed_point_t fp, int32_t i)
 {
     return i * fp;
 }
@@ -71,7 +71,7 @@ fixed_point_t div_two_fps (fixed_point_t x, fixed_point_t y)
 }
 
 /* Divide a floating point number FP by an integer I */
-fixed_point_t div_int_fp (int32_t i, fixed_point_t fp)
+fixed_point_t div_int_fp (fixed_point_t fp, int32_t i)
 {
     return fp / i;
 }

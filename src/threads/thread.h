@@ -5,6 +5,9 @@
 #include <list.h>
 #include <stdint.h>
 
+/* Included for use of fixed_point_t and associated methods */
+#include "arithmetic.h"
+
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -23,6 +26,10 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+/* Macros for fixed point representations of 59/60 and 1/60 */
+#define FIFTY_NINE_SIXTY 16111
+#define ONE_SIXTY 273
 
 /* A kernel thread or user process.
 
@@ -108,6 +115,11 @@ struct thread
     struct list donor_list;             /* Threads currently donating to this
                                            thread. */
     struct list_elem donorelem;         /* List element for domors list. */
+
+    /* Used by advanced scheduler */
+    int niceness;                       /* The thread's niceness value */
+
+    fixed_point_t recent_cpu;                     /* Estimate of recent cpu time */
   };
 
 /* If false (default), use round-robin scheduler.
@@ -140,10 +152,13 @@ void thread_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
 void thread_set_priority (int);
+void thread_calculate_priority_mlfqs (struct thread *t, void *aux UNUSED);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+void thread_update_load_average (void);
+void thread_update_recent_cpu (struct thread *t, void *aux UNUSED);
 
 #endif /* threads/thread.h */
