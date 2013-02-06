@@ -224,8 +224,31 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
+  enum intr_level old_level = intr_disable ();
+
+  struct thread *holder = lock->holder;
+
+  // holder->priority should really be its effective priority, I think?
+  // might need to rework donation system so that the integer field represents
+  //   effective priority, or alternatively write a get_priority() method for
+  //   an arbitrary thread
+  if (holder != NULL && holder->priority < thread_get_priority ())
+    {
+      // donate from current to holder
+      // printf("Donating from %s to %s\n", thread_current ()->name, holder->name);
+      list_push_back (&holder->donor_list, &thread_current ()->donorelem);
+
+      if (holder->status == THREAD_BLOCKED)
+        {
+          // what is holder waiting on? donate to that, too
+          printf("Holder is waiting on something\n");
+        }
+    }
+
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
+
+  intr_set_level (old_level);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -293,7 +316,7 @@ cond_init (struct condition *cond)
 }
 
 bool
-sema_sort_func (const struct list_elem *a_, const struct list_elem *sema_elem_,
+sema_sort_func (const struct list_elem *a_ UNUSED, const struct list_elem *sema_elem_,
                     void *aux)
 {
   int thread_priority = (int) aux;

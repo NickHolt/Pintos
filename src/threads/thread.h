@@ -119,7 +119,7 @@ struct thread
     /* Used by advanced scheduler */
     int niceness;                       /* The thread's niceness value */
 
-    fixed_point_t recent_cpu;                     /* Estimate of recent cpu time */
+    fixed_point_t recent_cpu;           /* Estimate of recent cpu time */
   };
 
 /* If false (default), use round-robin scheduler.

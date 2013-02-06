@@ -419,7 +419,9 @@ thread_get_priority (void)
         }
       else
         {
-          struct list_elem *max_donor_elem = list_max (&cur->donor_list,
+          // TODO: make donor_list ordered, then just pull max off the front
+          //       (or back, whichever is correct)
+          struct list_elem *max_donor_elem = list_min (&cur->donor_list,
                                                        thread_sort_func, NULL);
 
           struct thread *max_donor = list_entry (max_donor_elem, struct thread,
