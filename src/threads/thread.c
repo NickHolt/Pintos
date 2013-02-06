@@ -319,21 +319,6 @@ thread_exit (void)
   NOT_REACHED ();
 }
 
-static void
-print_ready_list(void)
-{
-  printf("----THREAD LIST----\n");
-  printf("name pri Status (0Running/1Ready/2Blocked/3Dying)\n");
-  printf("Running thread: %s, priority: %i\n", running_thread ()->name, running_thread ()->priority);
-  struct list_elem *e;
-  for(e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
-    struct thread *t = list_entry (e, struct thread, elem);
-    printf("%s  %i    %i\n", t->name, t->priority, t->status);
-  }
-  printf("-------------------\n");
-}
-
-
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
 void
@@ -393,7 +378,7 @@ thread_set_priority (int new_priority)
     }
 }
 
-/*sorting function for ready_list, highest at the front */
+/* sorting function for ready_list, highest at the front */
 bool
 thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
                     void *aux UNUSED)
@@ -419,11 +404,7 @@ thread_get_priority (void)
         }
       else
         {
-          // TODO: make donor_list ordered, then just pull max off the front
-          //       (or back, whichever is correct)
-          struct list_elem *max_donor_elem = list_min (&cur->donor_list,
-                                                       thread_sort_func, NULL);
-
+          struct list_elem *max_donor_elem = list_front (&cur->donor_list);
           struct thread *max_donor = list_entry (max_donor_elem, struct thread,
                                                  donorelem);
 

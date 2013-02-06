@@ -236,7 +236,8 @@ lock_acquire (struct lock *lock)
     {
       // donate from current to holder
       // printf("Donating from %s to %s\n", thread_current ()->name, holder->name);
-      list_push_back (&holder->donor_list, &thread_current ()->donorelem);
+      list_insert_ordered (&holder->donor_list, &thread_current ()->donorelem,
+                           thread_sort_func, NULL);
 
       if (holder->status == THREAD_BLOCKED)
         {
