@@ -161,4 +161,7 @@ int thread_get_load_avg (void);
 void thread_update_load_average (void);
 void thread_update_recent_cpu (struct thread *t, void *aux UNUSED);
 
+bool thread_sort_func (const struct list_elem *a_,
+                                const struct list_elem *b_, void *aux UNUSED);
+
 #endif /* threads/thread.h */
