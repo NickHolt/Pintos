@@ -340,19 +340,18 @@ thread_exit (void)
 void
 thread_yield (void)
 {
-  struct thread *cur = thread_current ();
-
-  enum intr_level old_level;
-
   ASSERT (!intr_context ());
 
-  old_level = intr_disable ();
+  struct thread *cur = thread_current ();
+
+  enum intr_level old_level = intr_disable ();
 
   if (cur != idle_thread)
     list_insert_ordered (&ready_list, &cur->elem, thread_sort_func, NULL);
 
   cur->status = THREAD_READY;
   schedule ();
+
   intr_set_level (old_level);
 }
 
@@ -403,6 +402,17 @@ thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
   struct thread *b = list_entry (b_, struct thread, elem);
 
   return a->priority > b->priority;
+}
+
+/* sorting function for ready_list, highest at the front */
+static bool
+thread_sort_func2 (const struct list_elem *a_, const struct list_elem *b_,
+                    void *aux UNUSED)
+{
+  struct thread *a = list_entry (a_, struct thread, elem);
+  struct thread *b = list_entry (b_, struct thread, elem);
+
+  return thread_given_get_priority(a) > thread_given_get_priority(b);
 }
 
 /* Returns the given thread's effective priority. */
@@ -657,7 +667,11 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    {
+      // stupid, I know, but just to check.
+      list_sort (&ready_list, thread_sort_func2, NULL);
+      return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    }
 }
 
 /* Completes a thread switch by activating the new thread's page
