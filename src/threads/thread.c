@@ -335,10 +335,6 @@ thread_exit (void)
   NOT_REACHED ();
 }
 
-<<<<<<< HEAD
-=======
-
->>>>>>> a429622722f2fe58d14b56179a45f9668f80d2f2
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
 void
