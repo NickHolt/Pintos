@@ -228,16 +228,16 @@ lock_acquire (struct lock *lock)
 
   struct thread *holder = lock->holder;
 
-  // holder->priority should really be its effective priority, I think?
-  // might need to rework donation system so that the integer field represents
-  //   effective priority, or alternatively write a get_priority() method for
-  //   an arbitrary thread
-  if (holder != NULL && holder->priority < thread_get_priority ())
+  if (holder != NULL && thread_given_get_priority (holder) < thread_get_priority ())
     {
-      // donate from current to holder
-      // printf("Donating from %s to %s\n", thread_current ()->name, holder->name);
+      // Donate from current to holder
+
+      // list_push_back (&thread_current ()->waiting_on, &lock->elem);
+
       list_insert_ordered (&holder->donor_list, &thread_current ()->donorelem,
                            thread_sort_func, NULL);
+
+      // printf("%i", list_size (&holder->donor_list));
 
       if (holder->status == THREAD_BLOCKED)
         {
@@ -297,7 +297,7 @@ lock_held_by_current_thread (const struct lock *lock)
 
   return lock->holder == thread_current ();
 }
-
+
 /* One semaphore in a list. */
 struct semaphore_elem
   {

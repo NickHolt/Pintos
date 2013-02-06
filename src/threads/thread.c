@@ -72,7 +72,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static void print_ready_list(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -389,22 +388,21 @@ thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
   return a->priority > b->priority;
 }
 
-/* Returns the current thread's effective priority. */
+/* Returns the given thread's effective priority. */
 int
-thread_get_priority (void)
+thread_given_get_priority (struct thread *t)
 {
-  struct thread *cur = thread_current ();
-  int base_priority = cur->priority;
+  int base_priority = t->priority;
 
   if (!thread_mlfqs)
     {
-      if (list_empty (&cur->donor_list))
+      if (list_empty (&t->donor_list))
         {
           return base_priority;
         }
       else
         {
-          struct list_elem *max_donor_elem = list_front (&cur->donor_list);
+          struct list_elem *max_donor_elem = list_front (&t->donor_list);
           struct thread *max_donor = list_entry (max_donor_elem, struct thread,
                                                  donorelem);
 
@@ -416,6 +414,13 @@ thread_get_priority (void)
     }
 
     return base_priority;
+}
+
+/* Returns the current thread's effective priority. */
+int
+thread_get_priority (void)
+{
+  return thread_given_get_priority (thread_current ());
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -564,7 +569,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void)
@@ -720,7 +725,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
