@@ -312,6 +312,23 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+
+  // Remove thread from any donor_lists it's still in
+  struct list_elem *e, *f;
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, allelem);
+
+      for (f = list_begin (&t->donor_list); f != list_end (&t->donor_list);
+           f = list_next (f))
+        {
+          struct thread *donor = list_entry (f, struct thread, donorelem);
+          if (donor == thread_current ())
+            list_remove (f);
+        }
+    }
+
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();

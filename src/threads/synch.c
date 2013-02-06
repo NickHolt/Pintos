@@ -237,8 +237,6 @@ lock_acquire (struct lock *lock)
       list_insert_ordered (&holder->donor_list, &thread_current ()->donorelem,
                            thread_sort_func, NULL);
 
-      // printf("%i", list_size (&holder->donor_list));
-
       if (holder->status == THREAD_BLOCKED)
         {
           // what is holder waiting on? donate to that, too
