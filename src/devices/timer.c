@@ -194,8 +194,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
       if (timer_ticks () % TIMER_FREQ == 0)
         {
-          // Im not sure which way round these should go...
-
           thread_update_load_average ();
 
           thread_foreach (thread_update_recent_cpu, NULL);
