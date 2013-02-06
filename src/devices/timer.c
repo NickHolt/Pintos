@@ -18,6 +18,8 @@
 #error TIMER_FREQ <= 1000 recommended
 #endif
 
+#define TIME_SLICE 4 
+
 /* Number of timer ticks since OS booted. */
 static int64_t ticks;
 
@@ -189,21 +191,22 @@ timer_interrupt (struct intr_frame *args UNUSED)
      fourth tick we must update the priority for all threads. */
   if (thread_mlfqs)
     {
+      /* Increment recent_cpu for the current thread every tick */
       thread_current ()->recent_cpu =
         sum_int_fp (thread_current ()->recent_cpu, 1);
 
+      /* Update the load average and the value of recent_cpu for every thread 
+         every second */
       if (timer_ticks () % TIMER_FREQ == 0)
         {
-          // Im not sure which way round these should go...
-
           thread_update_load_average ();
 
           thread_foreach (thread_update_recent_cpu, NULL);
         }
 
-      if (timer_ticks () % 4 == 0)
+      /* Update the priority for all threads every time slice */
+      if (timer_ticks () % TIME_SLICE == 0)
         {
-          // update priorities
           thread_foreach (thread_calculate_priority_mlfqs, NULL);
         }
     }
