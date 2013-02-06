@@ -111,16 +111,15 @@ struct thread
     /* Used by timer.c to check if thread should be blocked or unblocked */
     uint64_t time_to_sleep;
 
-    /* Owned by thread.c. */
+    /* Priority donation. */
     struct list donor_list;             /* Threads currently donating to this
                                            thread. */
     struct list_elem donorelem;         /* List element for donors list. */
-    // struct list waiting_on;             /* Locks this thread is currently
-    //                                         waiting for. */
+    struct list_elem waitelem;          /* List element for lock's waiting
+                                           list. */
 
     /* Used by advanced scheduler */
     int niceness;                       /* The thread's niceness value */
-
     fixed_point_t recent_cpu;           /* Estimate of recent cpu time */
   };
 
