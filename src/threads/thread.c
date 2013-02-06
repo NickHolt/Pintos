@@ -72,7 +72,6 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static void print_ready_list(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -317,20 +316,6 @@ thread_exit (void)
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
-}
-
-static void
-print_ready_list(void)
-{
-  printf("----THREAD LIST----\n");
-  printf("name pri Status (0Running/1Ready/2Blocked/3Dying)\n");
-  printf("Running thread: %s, priority: %i\n", running_thread ()->name, running_thread ()->priority);
-  struct list_elem *e;
-  for(e = list_begin(&ready_list); e != list_end(&ready_list); e = list_next(e)) {
-    struct thread *t = list_entry (e, struct thread, elem);
-    printf("%s  %i    %i\n", t->name, t->priority, t->status);
-  }
-  printf("-------------------\n");
 }
 
 

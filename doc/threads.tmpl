@@ -173,6 +173,41 @@ out method just utilised the thread_block and thread_unblock methods.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct thread
+  {
+    :
+    :
+    snip
+    :
+    :
+
+    /* Used by advanced scheduler */
+    int niceness;                       /* The thread's niceness value */
+
+    fixed_point_t recent_cpu;           /* Estimate of recent cpu time */
+  };
+
+The niceness member keeps track of the thread's niceness value, as detailed in 
+appendix B1 of the specification. 
+
+The recent_cpu member holds the value of the thread's recent cpu usage, which 
+is initialised to 0 when the thread is created. It is stored as a fixed point 
+representation of real number.
+
+
+typedef int32_t fixed_point_t;
+
+This is used by  recent_cpu and load_avg. Although this is just an 
+integer, using this typedef makes the intent of functions and variables much 
+clearer.
+
+
+static fixed_point_t load_avg;
+
+This is the system wide load_avg value, used by all threads to calculate their 
+recent_cpu and priorites.
+
+
 ---- ALGORITHMS ----
 
 >> C2: Suppose threads A, B, and C have nice values 0, 1, and 2.  Each
@@ -183,23 +218,42 @@ out method just utilised the thread_block and thread_unblock methods.
 timer  recent_cpu    priority   thread
 ticks   A   B   C   A   B   C   to run
 -----  --  --  --  --  --  --   ------
- 0
- 4
- 8
-12
-16
-20
-24
-28
-32
-36
+ 0      0   0   0  63  61  59   A
+ 4      4   0   0  62  61  59   A
+ 8      8   0   0  61  61  59   B
+12      8   4   0  61  60  59   A
+16     12   4   0  60  60  59   B
+20     12   8   0  60  59  59   A
+24     16   8   0  59  59  59   C
+28     16   8   4  59  59  58   B
+32     16  12   4  59  58  58   A
+36     20  12   4  58  58  58   C
+
+NB: We have assumed here that a second does not tick over at any point during 
+    the 36 ticks (they are all contained within a second), so  recent_cpu is not 
+    recalculated for all threads and the value of load_avg 
+    is not important.
+
 
 >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behaviour of your scheduler?
 
+TODO
+
+
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
+
+The majority of calculation for thread priorities is done in the timer 
+interrupt, because the values of recent_cpu, load average and thread priority 
+have to be calculated at a certain tick. This is likely to have some impact on 
+performance, but the calculations that need to be performed in the interrupt are
+relatively simple. We avoid doing any CPU yeilding - a resource heavy task - 
+during the timer interrupt by using the intr_yeild_on_return function whenever 
+possible. The mlfqs-load-avg test passes with hardly any discrepency between the
+expected and actual output, so the amount of computation performed in the 
+interrupt handler is clearly suitable.
 
 ---- RATIONALE ----
 
@@ -208,12 +262,36 @@ ticks   A   B   C   A   B   C   to run
 >> time to work on this part of the task, how might you choose to
 >> refine or improve your design?
 
+The design is fairly solid on the whole. The methods that deal with all the 
+calculations for statistics like load average and recent_cpu are split up into 
+smaller steps, as opposed to having one big line of code that computes the 
+entire result. Doing this makes the formulae a lot easier to understand. 
+
+The method names for the fixed point mathematical operations have very clear 
+meaning, which makes understanding what each method and each formula does even 
+easier.
+
+Where possible #define is used to remove any magic numbers from the code and 
+make reading it as easy as possible.
+
+
 >> C6: The assignment explains arithmetic for fixed-point mathematics in
 >> detail, but it leaves it open to you to implement it.  Why did you
 >> decide to implement it the way you did?  If you created an
 >> abstraction layer for fixed-point mathematics, that is, an abstract
 >> data type and/or a set of functions or macros to manipulate
 >> fixed-point numbers, why did you do so?  If not, why not?
+
+The fixed-point mathematics is implemented in a seperate file, arithmetic.c. The
+thread.c file then contains an include for the header file arithmetic.h, which 
+contains the function prototypes. Abstracting the functions in this way makes 
+the code in thread.c a lot simpler and more readable. Having a set of functions 
+reduces code duplication, as functions can be re-used in multiple places. Thanks
+to the typedef fixed_point_t, it is very clear which functions are supposed to 
+convert from integers to fixed point representations and vice-versa. It also is 
+very clear if a variable should be a fixed point representation or and integer, 
+which helped a lot when debugging errors in the formula.
+
 
                SURVEY QUESTIONS
                ================
