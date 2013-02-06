@@ -90,7 +90,7 @@ the advanced scheduler.
 
 The ammount of code in the interrupt handler is very small, especially for the 
 normal scheduler. In the check_thread function, we take advantage of the short-
-circuited && operation to save on valuable computation time. 
+circuited "&&" operation to save on valuable computation time. 
 
 ---- SYNCHRONIZATION ----
 
@@ -117,8 +117,17 @@ conditions in this case.
 We considered maintaining a list of blocked threads, sorted in order of 
 time_to_sleep. Then the front of this list could be peeked at to see if it 
 needed to be unblocked. However, this would require quite a lot of list 
-manipulation within the timer interrput, and needs more space. The method we 
-chose is easy to reason about and simple to implement.
+manipulation within the timer interrput, and needs more space. It's possible 
+that this method could also cause issues if more than one thread was put to 
+sleep at almost exactly the same time: if you only check the front of the list 
+then you could end up un-sleeping a thread too late. To get around this you 
+might have to loop through the list at every timer tick, which becomes even 
+more complicated and wasteful.
+
+The method we chose is easy to reason about was very simple to implement. We 
+didn't need to create any new data structures, which means that space 
+complexity is kept to a minimum. We didn't need to write many new methods, as 
+out method just utilised the thread_block and thread_unblock methods.
 
              PRIORITY SCHEDULING
              ===================
@@ -227,5 +236,8 @@ the quarter.
 
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining tasks?
+
+Most lab helpers need to do some reading/become aquainted with the project 
+before trying to help in labs.
 
 >> Any other comments?
