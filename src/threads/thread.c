@@ -313,22 +313,6 @@ thread_exit (void)
      when it calls thread_schedule_tail(). */
   intr_disable ();
 
-  // Remove thread from any donor_lists it's still in
-  struct list_elem *e, *f;
-  for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, allelem);
-
-      for (f = list_begin (&t->donor_list); f != list_end (&t->donor_list);
-           f = list_next (f))
-        {
-          struct thread *donor = list_entry (f, struct thread, donorelem);
-          if (donor == thread_current ())
-            list_remove (f);
-        }
-    }
-
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -401,18 +385,11 @@ thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
   struct thread *a = list_entry (a_, struct thread, elem);
   struct thread *b = list_entry (b_, struct thread, elem);
 
-  return a->priority > b->priority;
-}
-
-/* sorting function for ready_list, highest at the front */
-static bool
-thread_sort_func2 (const struct list_elem *a_, const struct list_elem *b_,
-                    void *aux UNUSED)
-{
-  struct thread *a = list_entry (a_, struct thread, elem);
-  struct thread *b = list_entry (b_, struct thread, elem);
+  ASSERT (is_thread (a));
+  ASSERT (is_thread (b));
 
   return thread_given_get_priority(a) > thread_given_get_priority(b);
+  // return a->priority > b->priority;
 }
 
 /* Returns the given thread's effective priority. */
@@ -429,6 +406,24 @@ thread_given_get_priority (struct thread *t)
         }
       else
         {
+
+          ASSERT (is_thread (t));
+
+          // printf("%s (%p) has %i donors:\n", t->name, t, list_size (&t->donor_list));
+          int i = list_size (&t->donor_list), j = 0;
+
+          struct list_elem *e;
+          for (e = list_begin (&t->donor_list); e != list_end (&t->donor_list);
+               e = list_next (e))
+            {
+              struct thread *d = list_entry (e, struct thread, donorelem);
+              // printf("%s (%p)\n", d->name, d);
+              ++j;
+            }
+          // printf("\n\n");
+
+          ASSERT (i == j);
+
           struct list_elem *max_donor_elem = list_front (&t->donor_list);
           struct thread *max_donor = list_entry (max_donor_elem, struct thread,
                                                  donorelem);
@@ -667,11 +662,7 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    {
-      // stupid, I know, but just to check.
-      list_sort (&ready_list, thread_sort_func2, NULL);
-      return list_entry (list_pop_front (&ready_list), struct thread, elem);
-    }
+    return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -716,6 +707,25 @@ thread_schedule_tail (struct thread *prev)
   if (prev != NULL && prev->status == THREAD_DYING && prev != initial_thread)
     {
       ASSERT (prev != cur);
+
+      // Remove thread from any donor_lists it's still in
+      struct list_elem *e, *f;
+      for (e = list_begin (&all_list); e != list_end (&all_list);
+           e = list_next (e))
+        {
+          struct thread *t = list_entry (e, struct thread, allelem);
+
+          for (f = list_begin (&t->donor_list); f != list_end (&t->donor_list);
+               f = list_next (f))
+            {
+              struct thread *donor = list_entry (f, struct thread, donorelem);
+              if (donor == prev)
+                {
+                  list_remove (f);
+                }
+            }
+        }
+
       palloc_free_page (prev);
     }
 }
