@@ -3,7 +3,7 @@
             |  TASK 1: THREADS  |
             |  DESIGN DOCUMENT  |
             +-------------------+
-                   
+
 ---- GROUP ----
 
 >> Fill in the names and email addresses of your group members.
@@ -66,7 +66,7 @@ struct thread
   };
 
 The time_to_sleep member has been added to allow each thread to keep track of
-the time that it is required to sleep. Other new members are not relevant to 
+the time that it is required to sleep. Other new members are not relevant to
 this section.
 
 ---- ALGORITHMS ----
@@ -75,22 +75,22 @@ this section.
 >> including the effects of the timer interrupt handler.
 
 In timer_sleep(), we check if the tick value supplied is positive (do nothing
-if it's non-positive), update the time_to_sleep member in the current thread, 
+if it's non-positive), update the time_to_sleep member in the current thread,
 disable interrupts and block the current thread.
 
-In the timer interrupt, we increment the ticks static variable, check if any 
+In the timer interrupt, we increment the ticks static variable, check if any
 thread needs unblocking by calling the check_thread() function. If we are using
-the advanced scheduler, then we update the recent_cpu for the current thread. 
-If we exactly n seconds after boot, then we update the load average and the 
+the advanced scheduler, then we update the recent_cpu for the current thread.
+If we exactly n seconds after boot, then we update the load average and the
 recent_cpu for every thread. Every 4th tick we recalculate thread priority in
 the advanced scheduler.
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
 
-The ammount of code in the interrupt handler is very small, especially for the 
+The ammount of code in the interrupt handler is very small, especially for the
 normal scheduler. In the check_thread function, we take advantage of the short-
-circuited "&&" operation to save on valuable computation time. 
+circuited "&&" operation to save on valuable computation time.
 
 ---- SYNCHRONIZATION ----
 
@@ -98,15 +98,15 @@ circuited "&&" operation to save on valuable computation time.
 >> timer_sleep() simultaneously?
 
 Interrupts are disabled around the call to thread_block (which has to be done
-before this function is called), which completely removes any potential 
+before this function is called), which completely removes any potential
 synchronisation issues and thus avoids the possibility of race conditions.
 
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
 
 Interrupts are disabled during the call to thread_block in timer_sleep(). Since
-the timer interrupt is not a non-maskable external interrupt, it can be 
-postponed by disabling interrupts, and we can avoid the possibility of race 
+the timer interrupt is not a non-maskable external interrupt, it can be
+postponed by disabling interrupts, and we can avoid the possibility of race
 conditions in this case.
 
 ---- RATIONALE ----
@@ -114,19 +114,19 @@ conditions in this case.
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
 
-We considered maintaining a list of blocked threads, sorted in order of 
-time_to_sleep. Then the front of this list could be peeked at to see if it 
-needed to be unblocked. However, this would require quite a lot of list 
-manipulation within the timer interrput, and needs more space. It's possible 
-that this method could also cause issues if more than one thread was put to 
-sleep at almost exactly the same time: if you only check the front of the list 
-then you could end up un-sleeping a thread too late. To get around this you 
-might have to loop through the list at every timer tick, which becomes even 
+We considered maintaining a list of blocked threads, sorted in order of
+time_to_sleep. Then the front of this list could be peeked at to see if it
+needed to be unblocked. However, this would require quite a lot of list
+manipulation within the timer interrput, and needs more space. It's possible
+that this method could also cause issues if more than one thread was put to
+sleep at almost exactly the same time: if you only check the front of the list
+then you could end up un-sleeping a thread too late. To get around this you
+might have to loop through the list at every timer tick, which becomes even
 more complicated and wasteful.
 
-The method we chose is easy to reason about was very simple to implement. We 
-didn't need to create any new data structures, which means that space 
-complexity is kept to a minimum. We didn't need to write many new methods, as 
+The method we chose is easy to reason about was very simple to implement. We
+didn't need to create any new data structures, which means that space
+complexity is kept to a minimum. We didn't need to write many new methods, as
 out method just utilised the thread_block and thread_unblock methods.
 
              PRIORITY SCHEDULING
@@ -187,25 +187,26 @@ struct thread
     fixed_point_t recent_cpu;           /* Estimate of recent cpu time */
   };
 
-The niceness member keeps track of the thread's niceness value, as detailed in 
-appendix B1 of the specification. 
+The niceness member keeps track of the thread's niceness value, as detailed in
+appendix B1 of the specification.
 
-The recent_cpu member holds the value of the thread's recent cpu usage, which 
-is initialised to 0 when the thread is created. It is stored as a fixed point 
+The recent_cpu member holds the value of the thread's recent cpu usage, which
+is initialised to 0 when the thread is created. It is stored as a fixed point
 representation of real number.
 
 
 typedef int32_t fixed_point_t;
 
-This is used by  recent_cpu and load_avg. Although this is just an 
-integer, using this typedef makes the intent of functions and variables much 
+This is used by  recent_cpu and load_avg. Although this is just an
+integer, using this typedef makes the intent of functions and variables much
 clearer.
 
 
 static fixed_point_t load_avg;
 
-This is the system wide load_avg value, used by all threads to calculate their 
+This is the system wide load_avg value, used by all threads to calculate their
 recent_cpu and priorites.
+
 
 
 ---- ALGORITHMS ----
@@ -229,31 +230,41 @@ ticks   A   B   C   A   B   C   to run
 32     16  12   4  59  58  58   A
 36     20  12   4  58  58  58   C
 
-NB: We have assumed here that a second does not tick over at any point during 
-    the 36 ticks (they are all contained within a second), so  recent_cpu is not 
-    recalculated for all threads and the value of load_avg 
-    is not important.
 
 
 >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behaviour of your scheduler?
 
-TODO
+Some of the equations given in the fixed point mathematics section could be
+considered ambiguous, depending on whether you read them left-to-right or not.
+For example, the equations to muliply and divide two fixed point numbers could
+be read in two different ways due to lack of bracketing.
+
+In our fixed point methods we left the equations exactly as they were in the #
+specification, with no extra bracketing.
+
+NB: For filling in the values in C2, we have assumed that a second does not
+    tick over at any point during the 36 ticks (they are all contained within a
+    second), so  recent_cpu is not recalculated for all threads and the value
+    of load_avg is therefore not important.
+
 
 
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
 
-The majority of calculation for thread priorities is done in the timer 
-interrupt, because the values of recent_cpu, load average and thread priority 
-have to be calculated at a certain tick. This is likely to have some impact on 
+The majority of calculation for thread priorities is done in the timer
+interrupt, because the values of recent_cpu, load average and thread priority
+have to be calculated at a certain tick. This is likely to have some impact on
 performance, but the calculations that need to be performed in the interrupt are
-relatively simple. We avoid doing any CPU yeilding - a resource heavy task - 
-during the timer interrupt by using the intr_yeild_on_return function whenever 
+relatively simple. We avoid doing any CPU yeilding - a resource heavy task -
+during the timer interrupt by using the intr_yeild_on_return function whenever
 possible. The mlfqs-load-avg test passes with hardly any discrepency between the
-expected and actual output, so the amount of computation performed in the 
+expected and actual output, so the amount of computation performed in the
 interrupt handler is clearly suitable.
+
+
 
 ---- RATIONALE ----
 
@@ -262,17 +273,23 @@ interrupt handler is clearly suitable.
 >> time to work on this part of the task, how might you choose to
 >> refine or improve your design?
 
-The design is fairly solid on the whole. The methods that deal with all the 
-calculations for statistics like load average and recent_cpu are split up into 
-smaller steps, as opposed to having one big line of code that computes the 
-entire result. Doing this makes the formulae a lot easier to understand. 
+The design is fairly solid on the whole. The methods that deal with all the
+calculations for statistics like load average and recent_cpu are split up into
+smaller steps, as opposed to having one big line of code that computes the
+entire result. Doing this makes the formulae a lot easier to understand.
 
-The method names for the fixed point mathematical operations have very clear 
-meaning, which makes understanding what each method and each formula does even 
+The method names for the fixed point mathematical operations have very clear
+meaning, which makes understanding what each method and each formula does even
 easier.
 
-Where possible #define is used to remove any magic numbers from the code and 
+Where possible #define is used to remove any magic numbers from the code and
 make reading it as easy as possible.
+
+We decided that having a queue for each priority was unecessary, and kept a
+single queue as before. The behaviour of the list_insert_ordered function
+means that the multi-level queue system can be implemented in a single queue
+very easily.
+
 
 
 >> C6: The assignment explains arithmetic for fixed-point mathematics in
@@ -283,14 +300,15 @@ make reading it as easy as possible.
 >> fixed-point numbers, why did you do so?  If not, why not?
 
 The fixed-point mathematics is implemented in a seperate file, arithmetic.c. The
-thread.c file then contains an include for the header file arithmetic.h, which 
-contains the function prototypes. Abstracting the functions in this way makes 
-the code in thread.c a lot simpler and more readable. Having a set of functions 
+thread.c file then contains an include for the header file arithmetic.h, which
+contains the function prototypes. Abstracting the functions in this way makes
+the code in thread.c a lot simpler and more readable. Having a set of functions
 reduces code duplication, as functions can be re-used in multiple places. Thanks
-to the typedef fixed_point_t, it is very clear which functions are supposed to 
-convert from integers to fixed point representations and vice-versa. It also is 
-very clear if a variable should be a fixed point representation or and integer, 
+to the typedef fixed_point_t, it is very clear which functions are supposed to
+convert from integers to fixed point representations and vice-versa. It also is
+very clear if a variable should be a fixed point representation or and integer,
 which helped a lot when debugging errors in the formula.
+
 
 
                SURVEY QUESTIONS
@@ -315,7 +333,7 @@ the quarter.
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining tasks?
 
-Most lab helpers need to do some reading/become aquainted with the project 
+Most lab helpers need to do some reading/become aquainted with the project
 before trying to help in labs.
 
 >> Any other comments?
