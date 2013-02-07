@@ -312,12 +312,28 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+
+  // Remove thread from any donor_lists it's still in
+  struct list_elem *e, *f;
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, allelem);
+
+      for (f = list_begin (&t->donor_list); f != list_end (&t->donor_list);
+           f = list_next (f))
+        {
+          struct thread *donor = list_entry (f, struct thread, donorelem);
+          if (donor == thread_current ())
+            list_remove (f);
+        }
+    }
+
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
   NOT_REACHED ();
 }
-
 
 /* Yields the CPU.  The current thread is not put to sleep and
    may be scheduled again immediately at the scheduler's whim. */
@@ -366,10 +382,9 @@ thread_set_priority (int new_priority)
       thread_current ()->priority = new_priority;
       struct thread *t = next_thread_to_run ();
       ASSERT(t != NULL);
-
-      if(t != idle_thread)
+      if (t != idle_thread)
         list_push_front(&ready_list, &t->elem);
-      if(thread_get_priority () <= t->priority)
+      if (thread_get_priority () <= t->priority)
         {
           if (!intr_context ())
             thread_yield ();
@@ -379,7 +394,7 @@ thread_set_priority (int new_priority)
     }
 }
 
-/*sorting function for ready_list, highest at the front */
+/* sorting function for ready_list, highest at the front */
 bool
 thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
                     void *aux UNUSED)
@@ -390,32 +405,39 @@ thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
   return a->priority > b->priority;
 }
 
-/* Returns the current thread's effective priority. */
+/* Returns the given thread's effective priority. */
 int
-thread_get_priority (void)
+thread_given_get_priority (struct thread *t)
 {
-  struct thread *cur = thread_current ();
-  int base_priority = cur->priority;
+  int base_priority = t->priority;
 
   if (!thread_mlfqs)
     {
-      if (list_empty (&cur->donor_list))
+      if (list_empty (&t->donor_list))
         {
           return base_priority;
         }
       else
         {
-          struct list_elem *max_donor_elem = list_max (&cur->donor_list,
-                                                       thread_sort_func, NULL);
-
+          struct list_elem *max_donor_elem = list_front (&t->donor_list);
           struct thread *max_donor = list_entry (max_donor_elem, struct thread,
                                                  donorelem);
 
-          return base_priority + max_donor->priority;
+          int donor_priority = max_donor->priority;
+
+          return (base_priority > donor_priority) ? base_priority :
+                                                    donor_priority;
         }
     }
 
     return base_priority;
+}
+
+/* Returns the current thread's effective priority. */
+int
+thread_get_priority (void)
+{
+  return thread_given_get_priority (thread_current ());
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -564,7 +586,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void)
@@ -720,7 +742,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
