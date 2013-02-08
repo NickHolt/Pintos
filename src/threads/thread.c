@@ -372,20 +372,24 @@ thread_set_priority (int new_priority)
            e = list_next (e))
         {
           struct lock *l = list_entry (e, struct lock, elem);
-          struct list_elem *max_waiter_elem;
-          struct thread *max_waiter;
 
-          max_waiter_elem = list_min (&l->semaphore.waiters, thread_sort_func,
-                                        NULL);
-          max_waiter = list_entry (max_waiter_elem, struct thread, elem);
+          if (!list_empty (&l->semaphore.waiters))
+            {
+              struct list_elem *max_waiter_elem;
+              struct thread *max_waiter;
 
-          if (thread_current ()->priority < max_waiter->priority)
-            thread_current ()->priority = max_waiter->priority;
+              max_waiter_elem = list_min (&l->semaphore.waiters, thread_sort_func,
+                                            NULL);
+              max_waiter = list_entry (max_waiter_elem, struct thread, elem);
+
+              if (thread_current ()->priority < max_waiter->priority)
+                thread_current ()->priority = max_waiter->priority;
+            }
         }
 
       struct thread *t = next_thread_to_run ();
 
-      ASSERT(t != NULL);
+      ASSERT (t != NULL);
 
       if (t != idle_thread)
         list_push_front(&ready_list, &t->elem);
