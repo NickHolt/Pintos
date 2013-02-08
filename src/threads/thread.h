@@ -111,6 +111,12 @@ struct thread
     /* Used by timer.c to check if thread should be blocked or unblocked */
     uint64_t time_to_sleep;
 
+    /* Priority donation */
+    int base_priority;                  /* Pri. thread was initialised with */
+    struct thread *donee;               /* Thread this thread is currently
+                                            donating to */
+    struct list waiting_on;             /* Locks this thread is waiting for */
+
     /* Used by advanced scheduler */
     int niceness;                       /* The thread's niceness value */
     fixed_point_t recent_cpu;           /* Estimate of recent cpu time */
