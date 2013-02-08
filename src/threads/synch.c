@@ -244,11 +244,11 @@ lock_acquire (struct lock *lock)
               t = t->donee;
             }
         }
-
-        list_push_back (&thread_current ()->locks_held, &lock->elem);
     }
 
   sema_down (&lock->semaphore);
+  if (!thread_mlfqs)
+    list_push_back (&thread_current ()->locks_held, &lock->elem);
   lock->holder = thread_current ();
 }
 
@@ -313,9 +313,9 @@ lock_release (struct lock *lock)
 
               if (holder->priority < max_waiter->priority)
                  holder->priority = max_waiter->priority;
-            }
+           }
         }
-      }
+    }
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
