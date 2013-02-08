@@ -362,11 +362,34 @@ thread_set_priority (int new_priority)
 {
   if (!thread_mlfqs)
     {
+      thread_current ()->base_priority = new_priority;
       thread_current ()->priority = new_priority;
+
+      // Add donations back on from any threads currently waiting on my locks
+      struct list_elem *e;
+      for (e = list_begin (&thread_current ()->locks_held);
+           e != list_end (&thread_current ()->locks_held);
+           e = list_next (e))
+        {
+          struct lock *l = list_entry (e, struct lock, elem);
+          struct list_elem *max_waiter_elem;
+          struct thread *max_waiter;
+
+          max_waiter_elem = list_min (&l->semaphore.waiters, thread_sort_func,
+                                        NULL);
+          max_waiter = list_entry (max_waiter_elem, struct thread, elem);
+
+          if (thread_current ()->priority < max_waiter->priority)
+            thread_current ()->priority = max_waiter->priority;
+        }
+
       struct thread *t = next_thread_to_run ();
+
       ASSERT(t != NULL);
+
       if (t != idle_thread)
         list_push_front(&ready_list, &t->elem);
+
       if (thread_get_priority () <= t->priority)
         {
           if (!intr_context ())
@@ -582,8 +605,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
 
   t->base_priority = priority;
-  t->donee = NULL;
-  list_init (&t->waiting_on);
+  list_init (&t->locks_held);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
