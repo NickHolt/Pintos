@@ -114,6 +114,8 @@ struct thread
     /* Priority donation */
     int base_priority;                  /* Pri. thread was initialised with */
     struct list locks_held;             /* Locks this thread holds */
+    struct thread *donee;               /* Thread this thread is currently
+                                            donating to */
 
     /* Used by advanced scheduler */
     int niceness;                       /* The thread's niceness value */

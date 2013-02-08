@@ -226,12 +226,22 @@ lock_acquire (struct lock *lock)
   ASSERT (!lock_held_by_current_thread (lock));
 
   struct thread *curr = thread_current ();
-  struct thread *holder = lock->holder;
+  struct thread *t = lock->holder;
 
-  if (holder != NULL && holder->priority < curr->priority)
+  if (t != NULL && t->priority < curr->priority)
     {
-      // Donate from curr to holder
-      holder->priority = curr->priority;
+      // Donate from curr to t (the current lock holder)
+      curr->donee = t;
+
+      // Pass donation along through chain
+      while (t != NULL)
+        {
+          if (t->priority < curr->priority)
+            {
+              t->priority = curr->priority;
+            }
+          t = t->donee;
+        }
     }
 
   sema_down (&lock->semaphore);
@@ -273,6 +283,8 @@ lock_release (struct lock *lock)
   // Remove all donations
   struct thread *holder = lock->holder;
   holder->priority = holder->base_priority;
+
+  // Can't put this at the bottom, or it'd be included in the loop below
   list_remove (&lock->elem);
 
   // Add back any donations which weren't for this lock

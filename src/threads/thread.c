@@ -378,8 +378,8 @@ thread_set_priority (int new_priority)
               struct list_elem *max_waiter_elem;
               struct thread *max_waiter;
 
-              max_waiter_elem = list_min (&l->semaphore.waiters, thread_sort_func,
-                                            NULL);
+              max_waiter_elem = list_min (&l->semaphore.waiters,
+                                           thread_sort_func, NULL);
               max_waiter = list_entry (max_waiter_elem, struct thread, elem);
 
               if (thread_current ()->priority < max_waiter->priority)
@@ -388,8 +388,6 @@ thread_set_priority (int new_priority)
         }
 
       struct thread *t = next_thread_to_run ();
-
-      ASSERT (t != NULL);
 
       if (t != idle_thread)
         list_push_front(&ready_list, &t->elem);
@@ -610,6 +608,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   t->base_priority = priority;
   list_init (&t->locks_held);
+  t->donee = NULL;
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
