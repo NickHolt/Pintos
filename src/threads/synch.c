@@ -225,27 +225,31 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  struct thread *curr = thread_current ();
-  struct thread *t = lock->holder;
-
-  if (t != NULL && t->priority < curr->priority)
+  if (!thread_mlfqs)
     {
-      // Donate from curr to t (the current lock holder)
-      curr->donee = t;
+      struct thread *curr = thread_current ();
+      struct thread *t = lock->holder;
 
-      // Update t's priority, and pass donation along through chain
-      while (t != NULL)
+      if (t != NULL && t->priority < curr->priority)
         {
-          if (t->priority < curr->priority)
-              t->priority = curr->priority;
+          // Donate from curr to t (the current lock holder)
+          curr->donee = t;
 
-          t = t->donee;
+          // Update t's priority, and pass donation along through chain
+          while (t != NULL)
+            {
+              if (t->priority < curr->priority)
+                  t->priority = curr->priority;
+
+              t = t->donee;
+            }
         }
+
+        list_push_back (&thread_current ()->locks_held, &lock->elem);
     }
 
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
-  list_push_back (&thread_current ()->locks_held, &lock->elem);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -279,36 +283,39 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  // Remove all donations
-  struct thread *holder = lock->holder;
-  holder->priority = holder->base_priority;
-
-  // Can't put this at the bottom, or it'd be included in the loop below
-  list_remove (&lock->elem);
-
-  // Add back any donations which weren't for this lock
-  struct list_elem *e;
-  for (e = list_begin (&holder->locks_held);
-       e != list_end (&holder->locks_held);
-       e = list_next (e))
+  if (!thread_mlfqs)
     {
-      struct lock *l = list_entry (e, struct lock, elem);
-      if (!list_empty (&l->semaphore.waiters))
+      // Remove all donations
+      struct thread *holder = lock->holder;
+      holder->priority = holder->base_priority;
+
+      // Can't put this at the bottom, or it'd be included in the loop below
+      list_remove (&lock->elem);
+
+      // Add back any donations which weren't for this lock
+      struct list_elem *e;
+      for (e = list_begin (&holder->locks_held);
+           e != list_end (&holder->locks_held);
+           e = list_next (e))
         {
-          // TODO: this is pasted from thread.c
-          // Factor into a method?
+          struct lock *l = list_entry (e, struct lock, elem);
+          if (!list_empty (&l->semaphore.waiters))
+            {
+              // TODO: this is pasted from thread.c
+              // Factor into a method?
 
-          struct list_elem *max_waiter_elem;
-          struct thread *max_waiter;
+              struct list_elem *max_waiter_elem;
+              struct thread *max_waiter;
 
-          max_waiter_elem = list_min (&l->semaphore.waiters, thread_sort_func,
-                                        NULL);
-          max_waiter = list_entry (max_waiter_elem, struct thread, elem);
+              max_waiter_elem = list_min (&l->semaphore.waiters, thread_sort_func,
+                                            NULL);
+              max_waiter = list_entry (max_waiter_elem, struct thread, elem);
 
-          if (holder->priority < max_waiter->priority)
-             holder->priority = max_waiter->priority;
+              if (holder->priority < max_waiter->priority)
+                 holder->priority = max_waiter->priority;
+            }
         }
-    }
+      }
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
