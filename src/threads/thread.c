@@ -312,23 +312,6 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-
-  // Remove thread from any donor_lists it's still in
-  struct list_elem *e, *f;
-  for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, allelem);
-
-      for (f = list_begin (&t->donor_list); f != list_end (&t->donor_list);
-           f = list_next (f))
-        {
-          struct thread *donor = list_entry (f, struct thread, donorelem);
-          if (donor == thread_current ())
-            list_remove (f);
-        }
-    }
-
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -405,39 +388,11 @@ thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
   return a->priority > b->priority;
 }
 
-/* Returns the given thread's effective priority. */
-int
-thread_given_get_priority (struct thread *t)
-{
-  int base_priority = t->priority;
-
-  if (!thread_mlfqs)
-    {
-      if (list_empty (&t->donor_list))
-        {
-          return base_priority;
-        }
-      else
-        {
-          struct list_elem *max_donor_elem = list_front (&t->donor_list);
-          struct thread *max_donor = list_entry (max_donor_elem, struct thread,
-                                                 donorelem);
-
-          int donor_priority = max_donor->priority;
-
-          return (base_priority > donor_priority) ? base_priority :
-                                                    donor_priority;
-        }
-    }
-
-    return base_priority;
-}
-
 /* Returns the current thread's effective priority. */
 int
 thread_get_priority (void)
 {
-  return thread_given_get_priority (thread_current ());
+  return thread_current ()->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -625,8 +580,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-
-  list_init (&t->donor_list);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

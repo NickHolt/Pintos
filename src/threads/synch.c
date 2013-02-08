@@ -184,7 +184,7 @@ sema_test_helper (void *sema_)
       sema_up (&sema[1]);
     }
 }
-
+
 /* Initializes LOCK.  A lock can be held by at most a single
    thread at any given time.  Our locks are not "recursive", that
    is, it is an error for the thread currently holding a lock to
@@ -225,42 +225,8 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
 
-  enum intr_level old_level = intr_disable ();
-
-  struct thread *holder = lock->holder;
-
-  if (holder != NULL && thread_given_get_priority (holder) <
-                          thread_get_priority ())
-    {
-      // Donate from current to holder
-
-      list_push_back (&lock->wait_list, &thread_current ()->waitelem);
-
-      list_insert_ordered (&holder->donor_list, &thread_current ()->donorelem,
-                           thread_sort_func, NULL);
-
-      if (holder->status == THREAD_BLOCKED)
-        {
-          // what is holder waiting on? donate to that, too
-          printf("Holder is waiting on something\n");
-        }
-    }
-
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
-
-  // Remove thread_current from lock->wait_list
-  struct list_elem *e;
-  for (e = list_begin (&lock->wait_list); e != list_end (&lock->wait_list);
-       e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, waitelem);
-
-      if (t == thread_current ())
-        list_remove (e);
-    }
-
-  intr_set_level (old_level);
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -293,26 +259,6 @@ lock_release (struct lock *lock)
 {
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
-
-  // Current holder thread loses any donations from threads waiting on this lock
-  struct list_elem *e, *f;
-  for (e = list_begin (&lock->holder->donor_list);
-       e != list_end (&lock->holder->donor_list);
-       e = list_next (e))
-    {
-      struct thread *donor = list_entry (e, struct thread, donorelem);
-
-      // If donor's waitelem is in lock's wait_list, remove it
-      for (f = list_begin (&lock->wait_list);
-           f != list_end (&lock->wait_list);
-           f = list_next (f))
-        {
-          struct thread *waiter = list_entry (f, struct thread, waitelem);
-
-          if (donor == waiter)
-            list_remove(e);
-        }
-    }
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);

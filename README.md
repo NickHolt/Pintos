@@ -37,12 +37,12 @@ pass tests/threads/alarm-priority
 pass tests/threads/alarm-zero  
 pass tests/threads/alarm-negative  
 pass tests/threads/priority-change  
-pass tests/threads/priority-donate-one  
-pass tests/threads/priority-donate-multiple  
+FAIL tests/threads/priority-donate-one  
+FAIL tests/threads/priority-donate-multiple  
 FAIL tests/threads/priority-donate-multiple2  
 FAIL tests/threads/priority-donate-nest  
 FAIL tests/threads/priority-donate-sema  
-pass tests/threads/priority-donate-lower  
+FAIL tests/threads/priority-donate-lower  
 pass tests/threads/priority-fifo  
 pass tests/threads/priority-preempt  
 pass tests/threads/priority-sema  
@@ -57,3 +57,4 @@ pass tests/threads/mlfqs-fair-20
 pass tests/threads/mlfqs-nice-2  
 pass tests/threads/mlfqs-nice-10  
 pass tests/threads/mlfqs-block  
+7 of 27 tests failed.  

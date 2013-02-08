@@ -111,13 +111,6 @@ struct thread
     /* Used by timer.c to check if thread should be blocked or unblocked */
     uint64_t time_to_sleep;
 
-    /* Priority donation. */
-    struct list donor_list;             /* Threads currently donating to this
-                                           thread. */
-    struct list_elem donorelem;         /* List element for donors list. */
-    struct list_elem waitelem;          /* List element for lock's waiting
-                                           list. */
-
     /* Used by advanced scheduler */
     int niceness;                       /* The thread's niceness value */
     fixed_point_t recent_cpu;           /* Estimate of recent cpu time */
@@ -151,7 +144,6 @@ void thread_yield (void);
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
 
-int thread_given_get_priority (struct thread *t);
 int thread_get_priority (void);
 void thread_set_priority (int);
 void thread_calculate_priority_mlfqs (struct thread *t, void *aux UNUSED);
