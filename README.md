@@ -41,7 +41,7 @@ pass tests/threads/priority-donate-one
 pass tests/threads/priority-donate-multiple  
 pass tests/threads/priority-donate-multiple2  
 pass tests/threads/priority-donate-nest  
-FAIL tests/threads/priority-donate-sema  
+pass tests/threads/priority-donate-sema  
 pass tests/threads/priority-donate-lower  
 pass tests/threads/priority-fifo  
 pass tests/threads/priority-preempt  
@@ -57,4 +57,4 @@ pass tests/threads/mlfqs-fair-20
 pass tests/threads/mlfqs-nice-2  
 pass tests/threads/mlfqs-nice-10  
 pass tests/threads/mlfqs-block  
-1 of 27 tests failed.  
+All 27 tests passed.
