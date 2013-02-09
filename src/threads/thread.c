@@ -413,6 +413,22 @@ thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
   return a->priority > b->priority;
 }
 
+static void
+print_priority (struct thread *t, void *aux UNUSED)
+{
+  printf("%s (%i) has priority %i (base priority %i)\n", t->name, t->status, t->priority, t->base_priority);
+}
+
+void
+print_priorities ()
+{
+  enum intr_level old_level = intr_disable ();
+  printf("Priorities:\n---\n");
+  thread_foreach (print_priority, NULL);
+  printf("------\n\n");
+  intr_set_level (old_level);
+}
+
 /* Returns the current thread's effective priority. */
 int
 thread_get_priority (void)
