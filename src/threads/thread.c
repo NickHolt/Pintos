@@ -356,6 +356,10 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+/* Restore a thread's donation after it may have been overwritten.
+   Finds the highest priority theread waiting on a lock held by t, and updates
+     t's priority where necessary.
+  Called by thread_set_priority and lock_release. */
 void thread_restore_donation (struct thread *t)
 {
   struct list_elem *e;
