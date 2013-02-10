@@ -381,7 +381,11 @@ void thread_restore_donation (struct thread *t)
           max_waiter = list_entry (max_waiter_elem, struct thread, elem);
 
           if (t->priority < max_waiter->priority)
-             t->priority = max_waiter->priority;
+            {
+              max_waiter->donee = t;
+              t->active_donee = max_waiter;
+              t->priority = max_waiter->priority
+            }
        }
     }
 }

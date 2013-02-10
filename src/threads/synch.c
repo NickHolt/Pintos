@@ -231,6 +231,7 @@ lock_acquire (struct lock *lock)
         {
           // Donate from curr to t (the current lock holder)
           curr->donee = t;
+          t->active_donor = curr;
 
           // Update t's priority, and pass donation along through chain
           while (t != NULL)
@@ -282,13 +283,16 @@ lock_release (struct lock *lock)
 
   if (!thread_mlfqs)
     {
-      /* Remove all donations. */
+      /* Remove donation, if present. */
       struct thread *holder = lock->holder;
       holder->priority = holder->base_priority;
+      holder->active_donor->donee = NULL;
+      holder->active_donor = NULL;
 
+      /* Remove this lock from holder's locks_held list. */
       list_remove (&lock->elem);
 
-      /* Add back donation which may have been overwritten above. */
+      /* Add back highest donation from anyone else waiting on holder. */
       thread_restore_donation (holder);
     }
 
