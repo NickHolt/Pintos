@@ -286,7 +286,8 @@ lock_release (struct lock *lock)
       /* Remove donation, if present. */
       struct thread *holder = lock->holder;
       holder->priority = holder->base_priority;
-      holder->active_donor->donee = NULL;
+      if (holder->active_donor != NULL)
+        holder->active_donor->donee = NULL;
       holder->active_donor = NULL;
 
       /* Remove this lock from holder's locks_held list. */
