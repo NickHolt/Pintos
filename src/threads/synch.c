@@ -428,7 +428,8 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   if (!list_empty (&cond->waiters))
     {
       struct list_elem *elem_e = list_pop_front (&cond->waiters);
-      struct semaphore_elem *sema_elem = list_entry (elem_e, struct semaphore_elem,
+      struct semaphore_elem *sema_elem = list_entry (elem_e,
+                                                     struct semaphore_elem,
                                                      elem);
       sema_up (&sema_elem->semaphore);
     }
