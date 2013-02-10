@@ -148,6 +148,9 @@ locks_held is a list of all locks currently held by a thread. This is used to
 recalculate a thread's priority after a lock is released, or its base priority
 isupdated.
 
+The donee member is a pointer to the thread (if any) that a thread is currently
+donating its priority to.
+
 
 static struct lock set_pri_lock;  /* Ensures only one thread setting priority
                                      at any given time. */
@@ -161,6 +164,20 @@ answer B6 below.
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
+
+As explained above, the donee member of a thread is a pointer to the thread (if
+any) that a thread is currently donating to. This means that when a donation is
+given in lock_acquire(), the chain can be traversed, passing the donation along
+as long as far as is necessary.
+
+The below diagram shows a nested donation, where pri (h) > pri (m) > pri (l),
+and h's priority has been donated to l. This is modelled on the priority-donate-
+nest test.
+
+ +---------+ donee +---------+ donee +---------+ donee
+ |    h    |------>|    m    |------>|    l    |------> NULL
+ +---------+       +---------+       +---------+
+
 
 ---- ALGORITHMS ----
 
