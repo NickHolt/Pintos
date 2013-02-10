@@ -356,6 +356,29 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+void thread_restore_donation (struct thread *t)
+{
+  struct list_elem *e;
+  for (e = list_begin (&t->locks_held);
+       e != list_end (&t->locks_held);
+       e = list_next (e))
+    {
+      struct lock *l = list_entry (e, struct lock, elem);
+      if (!list_empty (&l->semaphore.waiters))
+        {
+          struct list_elem *max_waiter_elem;
+          struct thread *max_waiter;
+
+          max_waiter_elem = list_min (&l->semaphore.waiters,
+                                      thread_sort_func, NULL);
+          max_waiter = list_entry (max_waiter_elem, struct thread, elem);
+
+          if (t->priority < max_waiter->priority)
+             t->priority = max_waiter->priority;
+       }
+    }
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority)
@@ -366,28 +389,9 @@ thread_set_priority (int new_priority)
       thread_current ()->base_priority = new_priority;
       thread_current ()->priority = new_priority;
 
-      /* Add donations back on to my effective priority from any threads
+      /* Add donation back on to my effective priority from any threads
          currently waiting on my locks. */
-      struct list_elem *e;
-      for (e = list_begin (&thread_current ()->locks_held);
-           e != list_end (&thread_current ()->locks_held);
-           e = list_next (e))
-        {
-          struct lock *l = list_entry (e, struct lock, elem);
-
-          if (!list_empty (&l->semaphore.waiters))
-            {
-              struct list_elem *max_waiter_elem;
-              struct thread *max_waiter;
-
-              max_waiter_elem = list_min (&l->semaphore.waiters,
-                                           thread_sort_func, NULL);
-              max_waiter = list_entry (max_waiter_elem, struct thread, elem);
-
-              if (thread_current ()->priority < max_waiter->priority)
-                thread_current ()->priority = max_waiter->priority;
-            }
-        }
+      thread_restore_donation (thread_current ());
 
       struct thread *t = next_thread_to_run ();
 

@@ -288,36 +288,14 @@ lock_release (struct lock *lock)
 
   if (!thread_mlfqs)
     {
-      // Remove all donations
+      /* Remove all donations. */
       struct thread *holder = lock->holder;
       holder->priority = holder->base_priority;
 
-      // Can't put this at the bottom, or it'd be included in the loop below
       list_remove (&lock->elem);
 
-      // Add back any donations which weren't for this lock
-      struct list_elem *e;
-      for (e = list_begin (&holder->locks_held);
-           e != list_end (&holder->locks_held);
-           e = list_next (e))
-        {
-          struct lock *l = list_entry (e, struct lock, elem);
-          if (!list_empty (&l->semaphore.waiters))
-            {
-              // TODO: this is pasted from thread.c
-              // Factor into a method?
-
-              struct list_elem *max_waiter_elem;
-              struct thread *max_waiter;
-
-              max_waiter_elem = list_min (&l->semaphore.waiters,
-                                          thread_sort_func, NULL);
-              max_waiter = list_entry (max_waiter_elem, struct thread, elem);
-
-              if (holder->priority < max_waiter->priority)
-                 holder->priority = max_waiter->priority;
-           }
-        }
+      /* Add back donation which may have been overwritten above. */
+      thread_restore_donation (holder);
     }
 
   lock->holder = NULL;

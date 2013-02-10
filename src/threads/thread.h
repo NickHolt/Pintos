@@ -149,7 +149,7 @@ void thread_yield (void);
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
-
+void thread_restore_donation (struct thread *t);
 int thread_get_priority (void);
 void thread_set_priority (int);
 void thread_calculate_priority_mlfqs (struct thread *t, void *aux UNUSED);
@@ -161,7 +161,7 @@ int thread_get_load_avg (void);
 void thread_update_load_average (void);
 void thread_update_recent_cpu (struct thread *t, void *aux UNUSED);
 
-bool thread_sort_func (const struct list_elem *a_,
-                                const struct list_elem *b_, void *aux UNUSED);
+bool thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
+                       void *aux UNUSED);
 
 #endif /* threads/thread.h */
