@@ -255,9 +255,10 @@ thread_unblock (struct thread *t)
   enum intr_level old_level;
 
   ASSERT (is_thread (t));
+  ASSERT (t->status == THREAD_BLOCKED);
+
   old_level = intr_disable ();
 
-  ASSERT (t->status == THREAD_BLOCKED);
   list_insert_ordered (&ready_list, &t->elem, thread_sort_func, NULL);
   t->status = THREAD_READY;
 
@@ -312,9 +313,11 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   schedule ();
+
   NOT_REACHED ();
 }
 
@@ -323,19 +326,17 @@ thread_exit (void)
 void
 thread_yield (void)
 {
-  struct thread *cur = thread_current ();
-
-  enum intr_level old_level;
-
   ASSERT (!intr_context ());
 
-  old_level = intr_disable ();
+  struct thread *cur = thread_current ();
+  enum intr_level old_level = intr_disable ();
 
   if (cur != idle_thread)
     list_insert_ordered (&ready_list, &cur->elem, thread_sort_func, NULL);
 
   cur->status = THREAD_READY;
   schedule ();
+
   intr_set_level (old_level);
 }
 
@@ -348,8 +349,7 @@ thread_foreach (thread_action_func *func, void *aux)
 
   ASSERT (intr_get_level () == INTR_OFF);
 
-  for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
+  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e))
     {
       struct thread *t = list_entry (e, struct thread, allelem);
       func (t, aux);
@@ -362,10 +362,12 @@ thread_set_priority (int new_priority)
 {
   if (!thread_mlfqs)
     {
+      // Update thread's effective and base priority to new_priority
       thread_current ()->base_priority = new_priority;
       thread_current ()->priority = new_priority;
 
-      // Add donations back on from any threads currently waiting on my locks
+      /* Add donations back on to my effective priority from any threads
+         currently waiting on my locks. */
       struct list_elem *e;
       for (e = list_begin (&thread_current ()->locks_held);
            e != list_end (&thread_current ()->locks_held);
@@ -411,22 +413,6 @@ thread_sort_func (const struct list_elem *a_, const struct list_elem *b_,
   struct thread *b = list_entry (b_, struct thread, elem);
 
   return a->priority > b->priority;
-}
-
-static void
-print_priority (struct thread *t, void *aux UNUSED)
-{
-  printf("%s (%i) has priority %i (base priority %i)\n", t->name, t->status, t->priority, t->base_priority);
-}
-
-void
-print_priorities ()
-{
-  enum intr_level old_level = intr_disable ();
-  printf("Priorities:\n---\n");
-  thread_foreach (print_priority, NULL);
-  printf("------\n\n");
-  intr_set_level (old_level);
 }
 
 /* Returns the current thread's effective priority. */
