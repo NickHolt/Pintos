@@ -229,11 +229,11 @@ lock_acquire (struct lock *lock)
 
       if (t != NULL && t->priority < curr->priority)
         {
-          // Donate from curr to t (the current lock holder)
+          /* Donate from curr to t (the current lock holder). */
           curr->donee = t;
           t->active_donor = curr;
 
-          // Update t's priority, and pass donation along through chain
+          /* Update t's priority, and pass donation along through chain. */
           while (t != NULL)
             {
               if (t->priority < curr->priority)
@@ -286,7 +286,8 @@ lock_release (struct lock *lock)
       /* Remove donation, if present. */
       struct thread *holder = lock->holder;
       holder->priority = holder->base_priority;
-      holder->active_donor->donee = NULL;
+      if (holder->active_donor != NULL)
+        holder->active_donor->donee = NULL;
       holder->active_donor = NULL;
 
       /* Remove this lock from holder's locks_held list. */

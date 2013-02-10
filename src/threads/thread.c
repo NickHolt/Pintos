@@ -396,9 +396,13 @@ thread_set_priority (int new_priority)
 {
   lock_acquire (&set_pri_lock);
 
-  // Update thread's effective and base priority to new_priority
+  /* Update thread's effective and base priority to new_priority.
+     Remove any donations, we'll add one back on below if necessary. */
   thread_current ()->base_priority = new_priority;
   thread_current ()->priority = new_priority;
+  if (thread_current ()->active_donor != NULL)
+    thread_current ()->active_donor->donee = NULL;
+  thread_current ()->active_donor = NULL;
 
   /* Add donation back on to my effective priority from any threads
      currently waiting on my locks. */
