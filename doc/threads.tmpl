@@ -32,37 +32,20 @@ Charlie Hothersall <cjh111@doc.ic.ac.uk>
 
 struct thread
   {
-    /* Owned by thread.c. */
-    tid_t tid;                          /* Thread identifier. */
-    enum thread_status status;          /* Thread state. */
-    char name[16];                      /* Name (for debugging purposes). */
-    uint8_t *stack;                     /* Saved stack pointer. */
-    int priority;                       /* Effective priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
-
-    /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
-
-#ifdef USERPROG
-    /* Owned by userprog/process.c. */
-    uint32_t *pagedir;                  /* Page directory. */
-#endif
-
-    /* Owned by thread.c. */
-    unsigned magic;                     /* Detects stack overflow. */
+    :
+    :
+    snip
+    :
+    :
 
     /* Used by timer.c to check if thread should be blocked or unblocked */
     uint64_t time_to_sleep;
 
-    /* Priority donation */
-    int base_priority;                  /* Pri. thread was initialised with */
-    struct list locks_held;             /* Locks this thread holds */
-    struct thread *donee;               /* Thread this thread is currently
-                                            donating to */
-
-    /* Used by advanced scheduler */
-    int niceness;                       /* The thread's niceness value */
-    fixed_point_t recent_cpu;           /* Estimate of recent CPU time */
+    :
+    :
+    snip
+    :
+    :
   };
 
 The time_to_sleep member has been added to allow each thread to keep track of
@@ -138,6 +121,43 @@ our method just utilised the thread_block and thread_unblock methods.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct thread
+  {
+    :
+    :
+    snip
+    :
+    :
+
+    /* Priority donation */
+    int base_priority;                  /* Pri. thread was initialised with */
+    struct list locks_held;             /* Locks this thread holds */
+    struct thread *donee;               /* Thread this thread is currently
+                                            donating to */
+    :
+    :
+    snip
+    :
+    :
+  };
+
+The base_priority member keeps track of a thread's base priority, since the
+priority member is now increased whenever a thread receives a priority donation. 
+
+locks_held is a list of all locks currently held by a thread. This is used to
+recalculate a thread's priority after a lock is released, or its base priority
+isupdated.
+
+
+static struct lock set_pri_lock;  /* Ensures only one thread setting priority
+                                     at any given time. */
+
+
+The static variable set_pri_lock is used to ensure that only one call to
+thread_set_priority can take place at any given time. This is explained in
+answer B6 below.
+
+
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
@@ -205,7 +225,6 @@ static fixed_point_t load_avg;
 
 This is the system-wide load_avg value, used by all threads to calculate their
 recent_cpu and priorities.
-
 
 
 ---- ALGORITHMS ----

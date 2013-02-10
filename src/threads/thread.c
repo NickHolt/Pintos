@@ -55,7 +55,7 @@ static fixed_point_t load_avg;            /* system wide load average */
 /* Scheduling. */
 #define TIME_SLICE 4              /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;     /* # of timer ticks since last yield. */
-static struct lock set_pri_lock; /* Ensures only one thread setting priority
+static struct lock set_pri_lock;  /* Ensures only one thread setting priority
                                      at any given time. */
 
 /* If false (default), use round-robin scheduler.
