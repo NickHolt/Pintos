@@ -130,13 +130,7 @@ sema_up (struct semaphore *sema)
   /* Yield the CPU if t was given a value and the priority was high
      enough to require yielding */
 
-  // TODO: What if t (above) was the only element in waiters, therefore list is
-  // now empty, so the below if won't trigger, even though t was indeed given
-  // a value?
-  // Replace with a t != NULL check, maybe?
-  // --Charlie
-
-  if (!list_empty (&sema->waiters))
+  if (t != NULL)
     {
       if (t->priority >= thread_get_priority ())
       {
@@ -378,11 +372,6 @@ cond_wait (struct condition *cond, struct lock *lock)
   list_insert_ordered (&cond->waiters, &waiter.elem, &sema_sort_func,
                        (void *) thread_get_priority ());
 
-  // TODO: what does this comment mean? If needed, make it clearer?
-  // --Charlie
-
-  //needs to go get cond->waiters->semaphore->waiters list of threads (with list
-  //entry and stuff.
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
