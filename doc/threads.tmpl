@@ -37,7 +37,7 @@ struct thread
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
-    int priority;                       /* Priority. */
+    int priority;                       /* Effective priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
@@ -54,15 +54,15 @@ struct thread
     /* Used by timer.c to check if thread should be blocked or unblocked */
     uint64_t time_to_sleep;
 
-    /* Owned by thread.c. */
-    struct list donor_list;             /* Threads currently donating to this
-                                           thread. */
-    struct list_elem donorelem;         /* List element for domors list. */
+    /* Priority donation */
+    int base_priority;                  /* Pri. thread was initialised with */
+    struct list locks_held;             /* Locks this thread holds */
+    struct thread *donee;               /* Thread this thread is currently
+                                            donating to */
 
     /* Used by advanced scheduler */
     int niceness;                       /* The thread's niceness value */
-
-    fixed_point_t recent_cpu;           /* Estimate of recent cpu time */
+    fixed_point_t recent_cpu;           /* Estimate of recent CPU time */
   };
 
 The time_to_sleep member has been added to allow each thread to keep track of
@@ -74,21 +74,21 @@ this section.
 >> A2: Briefly describe what happens in a call to timer_sleep(),
 >> including the effects of the timer interrupt handler.
 
-In timer_sleep(), we check if the tick value supplied is positive (do nothing
+In timer_sleep(), we check that the tick value supplied is positive (do nothing
 if it's non-positive), update the time_to_sleep member in the current thread,
 disable interrupts and block the current thread.
 
-In the timer interrupt, we increment the ticks static variable, check if any
-thread needs unblocking by calling the check_thread() function. If we are using
-the advanced scheduler, then we update the recent_cpu for the current thread.
-If we exactly n seconds after boot, then we update the load average and the
-recent_cpu for every thread. Every 4th tick we recalculate thread priority in
-the advanced scheduler.
+In the timer interrupt, we increment the ticks static variable, then check if
+any thread needs unblocking by calling the check_thread() function. If we are
+using the advanced scheduler, then we update the recent_cpu for the current
+thread. If we are on an exact multiple of a second after boot, then we update
+the load average and the recent_cpu for every thread. Every 4th tick we
+recalculate thread priority in the advanced scheduler.
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
 
-The ammount of code in the interrupt handler is very small, especially for the
+The amount of code in the interrupt handler is very small, especially for the
 normal scheduler. In the check_thread function, we take advantage of the short-
 circuited "&&" operation to save on valuable computation time.
 
@@ -117,7 +117,7 @@ conditions in this case.
 We considered maintaining a list of blocked threads, sorted in order of
 time_to_sleep. Then the front of this list could be peeked at to see if it
 needed to be unblocked. However, this would require quite a lot of list
-manipulation within the timer interrput, and needs more space. It's possible
+manipulation within the timer interrupt, and needs more space. It's possible
 that this method could also cause issues if more than one thread was put to
 sleep at almost exactly the same time: if you only check the front of the list
 then you could end up un-sleeping a thread too late. To get around this you
@@ -127,7 +127,7 @@ more complicated and wasteful.
 The method we chose is easy to reason about was very simple to implement. We
 didn't need to create any new data structures, which means that space
 complexity is kept to a minimum. We didn't need to write many new methods, as
-out method just utilised the thread_block and thread_unblock methods.
+our method just utilised the thread_block and thread_unblock methods.
 
              PRIORITY SCHEDULING
              ===================
@@ -183,29 +183,28 @@ struct thread
 
     /* Used by advanced scheduler */
     int niceness;                       /* The thread's niceness value */
-
     fixed_point_t recent_cpu;           /* Estimate of recent cpu time */
   };
 
 The niceness member keeps track of the thread's niceness value, as detailed in
 appendix B1 of the specification.
 
-The recent_cpu member holds the value of the thread's recent cpu usage, which
+The recent_cpu member holds the value of the thread's recent CPU usage, which
 is initialised to 0 when the thread is created. It is stored as a fixed point
-representation of real number.
+representation of a real number.
 
 
 typedef int32_t fixed_point_t;
 
-This is used by  recent_cpu and load_avg. Although this is just an
+This is used by recent_cpu and load_avg. Although this is just an
 integer, using this typedef makes the intent of functions and variables much
 clearer.
 
 
 static fixed_point_t load_avg;
 
-This is the system wide load_avg value, used by all threads to calculate their
-recent_cpu and priorites.
+This is the system-wide load_avg value, used by all threads to calculate their
+recent_cpu and priorities.
 
 
 
@@ -238,15 +237,15 @@ ticks   A   B   C   A   B   C   to run
 
 Some of the equations given in the fixed point mathematics section could be
 considered ambiguous, depending on whether you read them left-to-right or not.
-For example, the equations to muliply and divide two fixed point numbers could
+For example, the equations to multiply and divide two fixed point numbers could
 be read in two different ways due to lack of bracketing.
 
-In our fixed point methods we left the equations exactly as they were in the #
+In our fixed point methods we left the equations exactly as they were in the
 specification, with no extra bracketing.
 
 NB: For filling in the values in C2, we have assumed that a second does not
     tick over at any point during the 36 ticks (they are all contained within a
-    second), so  recent_cpu is not recalculated for all threads and the value
+    second), so recent_cpu is not recalculated for all threads and the value
     of load_avg is therefore not important.
 
 
@@ -258,9 +257,9 @@ The majority of calculation for thread priorities is done in the timer
 interrupt, because the values of recent_cpu, load average and thread priority
 have to be calculated at a certain tick. This is likely to have some impact on
 performance, but the calculations that need to be performed in the interrupt are
-relatively simple. We avoid doing any CPU yeilding - a resource heavy task -
+relatively simple. We avoid doing any CPU yielding - a resource heavy task -
 during the timer interrupt by using the intr_yeild_on_return function whenever
-possible. The mlfqs-load-avg test passes with hardly any discrepency between the
+possible. The mlfqs-load-avg test passes with hardly any discrepancy between the
 expected and actual output, so the amount of computation performed in the
 interrupt handler is clearly suitable.
 
@@ -273,19 +272,19 @@ interrupt handler is clearly suitable.
 >> time to work on this part of the task, how might you choose to
 >> refine or improve your design?
 
-The design is fairly solid on the whole. The methods that deal with all the
-calculations for statistics like load average and recent_cpu are split up into
-smaller steps, as opposed to having one big line of code that computes the
+The design is fairly solid on the whole. The methods that deal with all of the
+calculations for statistics such as load average and recent_cpu are split up
+into smaller steps, as opposed to having one big line of code that computes the
 entire result. Doing this makes the formulae a lot easier to understand.
 
 The method names for the fixed point mathematical operations have very clear
 meaning, which makes understanding what each method and each formula does even
 easier.
 
-Where possible #define is used to remove any magic numbers from the code and
-make reading it as easy as possible.
+Where possible, #define is used to remove any magic numbers from the code and
+make it as easy to read as possible.
 
-We decided that having a queue for each priority was unecessary, and kept a
+We decided that having a queue for each priority was unnecessary, and kept a
 single queue as before. The behaviour of the list_insert_ordered function
 means that the multi-level queue system can be implemented in a single queue
 very easily.
@@ -299,13 +298,13 @@ very easily.
 >> data type and/or a set of functions or macros to manipulate
 >> fixed-point numbers, why did you do so?  If not, why not?
 
-The fixed-point mathematics is implemented in a seperate file, arithmetic.c. The
+The fixed-point mathematics is implemented in a separate file, arithmetic.c. The
 thread.c file then contains an include for the header file arithmetic.h, which
 contains the function prototypes. Abstracting the functions in this way makes
 the code in thread.c a lot simpler and more readable. Having a set of functions
 reduces code duplication, as functions can be re-used in multiple places. Thanks
 to the typedef fixed_point_t, it is very clear which functions are supposed to
-convert from integers to fixed point representations and vice-versa. It also is
+convert from integers to fixed point representations and vice-versa. It is also
 very clear if a variable should be a fixed point representation or and integer,
 which helped a lot when debugging errors in the formula.
 
@@ -333,7 +332,7 @@ the quarter.
 >> Do you have any suggestions for the TAs to more effectively assist
 >> students, either for future quarters or the remaining tasks?
 
-Most lab helpers need to do some reading/become aquainted with the project
+Most lab helpers need to do some reading/become acquainted with the project
 before trying to help in labs.
 
 >> Any other comments?
