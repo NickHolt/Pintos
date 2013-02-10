@@ -66,12 +66,14 @@ sema_down (struct semaphore *sema)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
+
   while (sema->value == 0)
     {
       list_push_back (&sema->waiters, &thread_current ()->elem);
       thread_block ();
     }
   sema->value--;
+
   intr_set_level (old_level);
 }
 
@@ -83,12 +85,11 @@ sema_down (struct semaphore *sema)
 bool
 sema_try_down (struct semaphore *sema)
 {
-  enum intr_level old_level;
-  bool success;
-
   ASSERT (sema != NULL);
 
-  old_level = intr_disable ();
+  enum intr_level old_level = intr_disable ();
+  bool success;
+
   if (sema->value > 0)
     {
       sema->value--;
@@ -96,6 +97,7 @@ sema_try_down (struct semaphore *sema)
     }
   else
     success = false;
+
   intr_set_level (old_level);
 
   return success;
@@ -108,25 +110,32 @@ sema_try_down (struct semaphore *sema)
 void
 sema_up (struct semaphore *sema)
 {
-  enum intr_level old_level;
-
   ASSERT (sema != NULL);
 
+  enum intr_level old_level = intr_disable ();
+
   struct thread *t = NULL;
+  if (!list_empty (&sema->waiters))
+    {
+      struct list_elem *max = list_min (&sema->waiters, thread_sort_func, NULL);
+      t = list_entry (max, struct thread, elem);
+      list_remove (max);
 
-  old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) {
-    struct list_elem *max = list_min (&sema->waiters, thread_sort_func, NULL);
-    t = list_entry (max, struct thread, elem);
-    list_remove (max);
-
-    thread_unblock (t);
-  }
+      thread_unblock (t);
+    }
   sema->value++;
+
   intr_set_level (old_level);
 
   /* Yield the CPU if t was given a value and the priority was high
      enough to require yielding */
+
+  // TODO: What if t (above) was the only element in waiters, therefore list is
+  // now empty, so the below if won't trigger, even though t was indeed given
+  // a value?
+  // Replace with a t != NULL check, maybe?
+  // --Charlie
+
   if (!list_empty (&sema->waiters))
     {
       if (t->priority >= thread_get_priority ())
@@ -201,7 +210,6 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
 
   lock->holder = NULL;
-  list_init(&lock->wait_list);
   sema_init (&lock->semaphore, 1);
 }
 
@@ -302,8 +310,8 @@ lock_release (struct lock *lock)
               struct list_elem *max_waiter_elem;
               struct thread *max_waiter;
 
-              max_waiter_elem = list_min (&l->semaphore.waiters, thread_sort_func,
-                                            NULL);
+              max_waiter_elem = list_min (&l->semaphore.waiters,
+                                          thread_sort_func, NULL);
               max_waiter = list_entry (max_waiter_elem, struct thread, elem);
 
               if (holder->priority < max_waiter->priority)
@@ -346,15 +354,15 @@ cond_init (struct condition *cond)
 }
 
 bool
-sema_sort_func (const struct list_elem *a_ UNUSED, const struct list_elem *sema_elem_,
-                    void *aux)
+sema_sort_func (const struct list_elem *a_ UNUSED,
+                const struct list_elem *sema_elem_, void *aux)
 {
   int thread_priority = (int) aux;
 
   struct semaphore_elem *sema_elem = list_entry (sema_elem_,
-                                                  struct semaphore_elem, elem);
-  struct thread *t = list_entry(list_front(&sema_elem->semaphore.waiters),
-                                                  struct thread, elem);
+                                                 struct semaphore_elem, elem);
+  struct thread *t = list_entry (list_front (&sema_elem->semaphore.waiters),
+                                             struct thread, elem);
   return thread_priority >= t->priority;
 }
 
@@ -389,7 +397,12 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
 
   sema_init (&waiter.semaphore, 0);
-  list_insert_ordered (&cond->waiters, &waiter.elem, &sema_sort_func, (void *) thread_get_priority ());
+  list_insert_ordered (&cond->waiters, &waiter.elem, &sema_sort_func,
+                       (void *) thread_get_priority ());
+
+  // TODO: what does this comment mean? If needed, make it clearer?
+  // --Charlie
+
   //needs to go get cond->waiters->semaphore->waiters list of threads (with list
   //entry and stuff.
   lock_release (lock);
@@ -412,6 +425,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
+  // TODO: factor this into multiple lines --Charlie
   if (!list_empty (&cond->waiters))
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);

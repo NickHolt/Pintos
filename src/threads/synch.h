@@ -22,7 +22,6 @@ struct lock
   {
     struct thread *holder;      /* Thread holding lock                  */
     struct semaphore semaphore; /* Binary semaphore controlling access. */
-    struct list wait_list;      /* Threads waiting for this lock.       */
     struct list_elem elem;      /* Used in thread's locks_held list.    */
   };
 
