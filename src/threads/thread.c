@@ -399,6 +399,8 @@ thread_set_priority (int new_priority)
   // Update thread's effective and base priority to new_priority
   thread_current ()->base_priority = new_priority;
   thread_current ()->priority = new_priority;
+  thread_current ()->active_donor->donee = NULL;
+  thread_current ()->active_donor = NULL;
 
   /* Add donation back on to my effective priority from any threads
      currently waiting on my locks. */
