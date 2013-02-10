@@ -53,8 +53,10 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 static fixed_point_t load_avg;            /* system wide load average */
 
 /* Scheduling. */
-#define TIME_SLICE 4            /* # of timer ticks to give each thread. */
-static unsigned thread_ticks;   /* # of timer ticks since last yield. */
+#define TIME_SLICE 4              /* # of timer ticks to give each thread. */
+static unsigned thread_ticks;     /* # of timer ticks since last yield. */
+static struct lock *set_pri_lock; /* Ensures only one thread setting priority
+                                     at any given time. */
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -94,6 +96,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  lock_init (&set_pri_lock);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -387,29 +390,30 @@ void thread_restore_donation (struct thread *t)
 void
 thread_set_priority (int new_priority)
 {
-  if (!thread_mlfqs)
+  lock_acquire (set_pri_lock);
+
+  // Update thread's effective and base priority to new_priority
+  thread_current ()->base_priority = new_priority;
+  thread_current ()->priority = new_priority;
+
+  /* Add donation back on to my effective priority from any threads
+     currently waiting on my locks. */
+  thread_restore_donation (thread_current ());
+
+  struct thread *t = next_thread_to_run ();
+
+  if (t != idle_thread)
+    list_push_front(&ready_list, &t->elem);
+
+  if (thread_get_priority () <= t->priority)
     {
-      // Update thread's effective and base priority to new_priority
-      thread_current ()->base_priority = new_priority;
-      thread_current ()->priority = new_priority;
-
-      /* Add donation back on to my effective priority from any threads
-         currently waiting on my locks. */
-      thread_restore_donation (thread_current ());
-
-      struct thread *t = next_thread_to_run ();
-
-      if (t != idle_thread)
-        list_push_front(&ready_list, &t->elem);
-
-      if (thread_get_priority () <= t->priority)
-        {
-          if (!intr_context ())
-            thread_yield ();
-          else
-            intr_yield_on_return ();
-        }
+      if (!intr_context ())
+        thread_yield ();
+      else
+        intr_yield_on_return ();
     }
+
+  lock_release (set_pri_lock);
 }
 
 /* sorting function for ready_list, highest at the front */
