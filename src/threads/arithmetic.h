@@ -1,5 +1,5 @@
-#ifndef FIXED_POINT_ARITMATIC_H
-#define FIXED_POINT_ARITMATIC_H
+#ifndef FIXED_POINT_ARITMETIC_H
+#define FIXED_POINT_ARITMETIC_H
 
 #include <stdint.h>
 

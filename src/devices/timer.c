@@ -192,7 +192,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   if (thread_mlfqs)
     {
       /* Increment recent_cpu for the current thread every tick */
-      thread_current ()->recent_cpu =
+      thread_current ()->recent_cpu = 
         sum_int_fp (thread_current ()->recent_cpu, 1);
 
       /* Update the load average and the value of recent_cpu for every thread 
@@ -200,7 +200,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
       if (timer_ticks () % TIMER_FREQ == 0)
         {
           thread_update_load_average ();
-
           thread_foreach (thread_update_recent_cpu, NULL);
         }
 
@@ -274,6 +273,7 @@ real_time_sleep (int64_t num, int32_t denom)
   int64_t ticks = num * TIMER_FREQ / denom;
 
   ASSERT (intr_get_level () == INTR_ON);
+
   if (ticks > 0)
     {
       /* We're waiting for at least one full timer tick.  Use
@@ -296,5 +296,6 @@ real_time_delay (int64_t num, int32_t denom)
   /* Scale the numerator and denominator down by 1000 to avoid
      the possibility of overflow. */
   ASSERT (denom % 1000 == 0);
+  
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000));
 }
