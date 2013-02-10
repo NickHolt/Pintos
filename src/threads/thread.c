@@ -380,11 +380,22 @@ void thread_restore_donation (struct thread *t)
                                       thread_sort_func, NULL);
           max_waiter = list_entry (max_waiter_elem, struct thread, elem);
 
+          // TODO: this is duplicated in lock_acquire
+
           if (t->priority < max_waiter->priority)
             {
+              /* Donate from max_waiter to t */
               max_waiter->donee = t;
               t->active_donor = max_waiter;
-              t->priority = max_waiter->priority;
+
+              /* Update t's priority, and pass donation along through chain. */
+              while (t != NULL)
+                {
+                  if (t->priority < max_waiter->priority)
+                      t->priority = max_waiter->priority;
+
+                  t = t->donee;
+                }
             }
        }
     }
@@ -396,7 +407,8 @@ thread_set_priority (int new_priority)
 {
   lock_acquire (&set_pri_lock);
 
-  // Update thread's effective and base priority to new_priority
+  /* Update thread's effective and base priority to new_priority.
+     Remove any donations, we'll add one back on below if necessary. */
   thread_current ()->base_priority = new_priority;
   thread_current ()->priority = new_priority;
   if (thread_current ()->active_donor != NULL)

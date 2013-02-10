@@ -229,11 +229,11 @@ lock_acquire (struct lock *lock)
 
       if (t != NULL && t->priority < curr->priority)
         {
-          // Donate from curr to t (the current lock holder)
+          /* Donate from curr to t (the current lock holder). */
           curr->donee = t;
           t->active_donor = curr;
 
-          // Update t's priority, and pass donation along through chain
+          /* Update t's priority, and pass donation along through chain. */
           while (t != NULL)
             {
               if (t->priority < curr->priority)
