@@ -390,6 +390,15 @@ void thread_restore_donation (struct thread *t)
     }
 }
 
+/* Removes a thread's effective donation, if one exists. */
+void thread_remove_donation (struct thread *t)
+{
+  t->priority = t->base_priority;
+  if (t->active_donor != NULL)
+    t->active_donor->donee = NULL;
+  t->active_donor = NULL;
+}
+
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void
 thread_set_priority (int new_priority)
@@ -399,10 +408,7 @@ thread_set_priority (int new_priority)
   /* Update thread's effective and base priority to new_priority.
      Remove any donations, we'll add one back on below if necessary. */
   thread_current ()->base_priority = new_priority;
-  thread_current ()->priority = new_priority;
-  if (thread_current ()->active_donor != NULL)
-    thread_current ()->active_donor->donee = NULL;
-  thread_current ()->active_donor = NULL;
+  thread_remove_donation (thread_current ());
 
   /* Add donation back on to my effective priority from any threads
      currently waiting on my locks. */
