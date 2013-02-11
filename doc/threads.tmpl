@@ -158,15 +158,6 @@ active_donor is a pointer to the donor thread (if any) whose donation to this
 thread is currently in effect.
 
 
-static struct lock set_pri_lock;  /* Ensures only one thread setting priority
-                                     at any given time. */
-
-
-The static variable set_pri_lock is used to ensure that only one call to
-thread_set_priority can take place at any given time. This is explained in
-answer B6 below.
-
-
 >> B2: Explain the data structure used to track priority donation.
 >> Use ASCII art to diagram a nested donation.  (Alternately, submit a
 >> .png file.)
@@ -202,9 +193,9 @@ modelled on the priority-donate-nest test.
 >> a lock, semaphore, or condition variable wakes up first?
 
 When a semaphore is 'upped', the thread with the maximum priority is chosen to
-be woken up by using the list_max function with the thread_sort_func in
+be woken up by using the list_min() function with the thread_sort_func() in
 thread.c. This means even if threads have been donated to since being put in the
-list, sema_up will still wake the highest priority one. We considered using a
+list, sema_up() will still wake the highest priority one. We considered using a
 sorted list and popping threads off the front, but this would not have worked
 as the list would become incorrectly ordered when a thread receives a donation.
 
@@ -240,12 +231,32 @@ highest priority thread waiting on the lock. This thread is unblocked, removed
 from the waiters list, and yielded, since its priority is higher than the
 priority of the currently-running thread.
 
+
 ---- SYNCHRONIZATION ----
 
 >> B6: Describe a potential race in thread_set_priority() and explain
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
+A possible race condition could occur in the scenario where a thread is
+currently updating its own priority with thread_set_priority() at the same time
+that it receives a donation from a different thread. We have protected against
+this by disabling interrupts briefly inside thread_set_priority(). Interrupts
+are disabled whilst the thread's new priority is being set. This ensures that
+a thread is allowed to finish setting its own priority at all times.
+
+Of course, we wanted to avoid disabling interrupts for longer than was
+absolutely necessary, so interrupts are re-enabled in thread_set_priority() as
+soon as is possible. The latter portion of the function does not require
+interrupts to be disabled since its only function is to yield the processor if
+necessary.
+
+In our current implementation, a single static lock inside thread.c cannot be
+used to avoid this race condition, as a donor thread could still manipulate a
+donee's priority field whilst the donee was in the middle of a
+thread_set_priority() call. The only function of the lock would be to prevent
+two simultaneous calls to thread_set_priority() from executing simultaneously,
+which does not avoid the race condition described above.
 
 
 ---- RATIONALE ----
@@ -267,6 +278,11 @@ illustrated in B2. The code is also very easy to follow, and any instances of
 code duplication have been abstracted into methods such as
 thread_remove_donation() for extra clarity.
 
+We chose to implement thread_sort_func() in the 'backwards' manner to keep the
+code changes minimal in thread.c, popping the front off lists. This had the 
+knock on effect of meaning we had to use the 'minimum' of the list in synch.c to
+get the thread with highest priority, which is less intuitive.
+
 An alternative design we considered was for each thread to hold a list of all
 of its donors. The advantage of this would be that no additional integer
 member would have been required inside the thread struct - the priority member
@@ -275,12 +291,12 @@ could have been used to calculate a thread's effective priority on the fly by
 finding its maximum donor.
 
 However, the implementation of this alternative design would have been much more
-complicated, especially when implementing multi-level priority nesting. We
-decided that the space gain of a single integer member was not worth the
-additional complexity in the implementation.
-
-TODO: was going to mention the list design flaw here, but can't actually
-remember what it was?!
+complicated, especially when implementing multi-level priority nesting and
+removing donations, which would have required calls to thread_foreach(), which
+requires interrupts to be disabled. We decided that the space gain of a single
+integer member was not worth the additional complexity in the implementation,
+especially given the performance drawbacks associated with excessive disabling
+of interrupts.
 
 
               ADVANCED SCHEDULER
