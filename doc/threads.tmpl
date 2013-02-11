@@ -212,13 +212,31 @@ as the list would become incorrectly ordered when a thread receives a donation.
 >> causes a priority donation.  How is nested donation handled?
 
 When a lock_acquire() call causes a priority donation, the thread's donee member
-is updated to reflect the donation and its priority is updated. A while loop is
-used to handle nested donation, traversing the chain of donations as illustrated
+is updated to reflect the donation and its priority is updated. The donee's
+active_donor pointer is also set to point to the donor. A while loop is used to
+handle nested donation, traversing the chain of donations as illustrated
 above in B2, updating a thread's priority only when it would lead to an increase
 in its value.
 
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
+
+When lock_release() is called on a lock held by a thread t, any existing
+donation to t is revoked, in case the donation only existed to encourage the
+thread to release its lock. The lock is then removed from the t's locks_held
+list, and its effective priority is recalculated by thread_restore_donation().
+This recalculation takes place in case there are other threads currently
+donating to t (waiting on a different lock), whose donations were worth less
+than the original donation, and therefore were not effective as long as t held
+the lock.
+
+If the lock was being waited on by a higher-priority thread, then the sema_up()
+call at the bottom of lock_acquire() ensures that the correct thread is awakened
+now that the lock has been released. This works by looking at all of the threads
+in the lock's semaphore's waiters list, and using a list function to find the
+highest priority thread waiting on the lock. This thread is unblocked, removed
+from the waiters list, and yielded, since its priority is higher than the
+priority of the currently-running thread.
 
 ---- SYNCHRONIZATION ----
 
