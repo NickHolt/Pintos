@@ -208,6 +208,7 @@ list, sema_up will still wake the highest priority one. We considered using a
 sorted list and popping threads off the front, but this would not have worked
 as the list would become incorrectly ordered when a thread receives a donation.
 
+
 >> B4: Describe the sequence of events when a call to lock_acquire()
 >> causes a priority donation.  How is nested donation handled?
 
@@ -217,6 +218,7 @@ active_donor pointer is also set to point to the donor. A while loop is used to
 handle nested donation, traversing the chain of donations as illustrated
 above in B2, updating a thread's priority only when it would lead to an increase
 in its value.
+
 
 >> B5: Describe the sequence of events when lock_release() is called
 >> on a lock that a higher-priority thread is waiting for.
@@ -244,10 +246,42 @@ priority of the currently-running thread.
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
 
+
+
 ---- RATIONALE ----
 
 >> B7: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+We chose this design because it was fairly simple to implement, whilst fully
+meeting the specification for both priority scheduling and donation.
+
+Very minimal changes to the thread struct were required, which was important so
+that enough space was left for the kernel stack, due to the 4 kB space
+restriction on a thread's memory page. The only additions were an integer
+member, two pointers, and a struct list, which should never grow too large.
+
+Another key advantage of this design is that there is no limit to the depth of
+nested priority donation, thanks to the easily-traversible data structure
+illustrated in B2. The code is also very easy to follow, and any instances of
+code duplication have been abstracted into methods such as
+thread_remove_donation() for extra clarity.
+
+An alternative design we considered was for each thread to hold a list of all
+of its donors. The advantage of this would be that no additional integer
+member would have been required inside the thread struct - the priority member
+could have always contained a thread's base priority, and thread_get_priority()
+could have been used to calculate a thread's effective priority on the fly by
+finding its maximum donor.
+
+However, the implementation of this alternative design would have been much more
+complicated, especially when implementing multi-level priority nesting. We
+decided that the space gain of a single integer member was not worth the
+additional complexity in the implementation.
+
+TODO: was going to mention the list design flaw here, but can't actually
+remember what it was?!
+
 
               ADVANCED SCHEDULER
               ==================
