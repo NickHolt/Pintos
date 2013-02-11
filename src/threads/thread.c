@@ -55,8 +55,6 @@ static fixed_point_t load_avg;            /* system wide load average */
 /* Scheduling. */
 #define TIME_SLICE 4              /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;     /* # of timer ticks since last yield. */
-static struct lock set_pri_lock;  /* Ensures only one thread setting priority
-                                     at any given time. */
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -96,7 +94,6 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-  lock_init (&set_pri_lock);
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -403,7 +400,7 @@ void thread_remove_donation (struct thread *t)
 void
 thread_set_priority (int new_priority)
 {
-  lock_acquire (&set_pri_lock);
+  enum intr_level old_level = intr_disable (); 
 
   /* Update thread's effective and base priority to new_priority.
      Remove any donations, we'll add one back on below if necessary. */
@@ -413,6 +410,8 @@ thread_set_priority (int new_priority)
   /* Add donation back on to my effective priority from any threads
      currently waiting on my locks. */
   thread_restore_donation (thread_current ());
+
+  intr_set_level (old_level);
 
   struct thread *t = next_thread_to_run ();
 
@@ -426,8 +425,6 @@ thread_set_priority (int new_priority)
       else
         intr_yield_on_return ();
     }
-
-  lock_release (&set_pri_lock);
 }
 
 /* sorting function for ready_list, highest at the front */
