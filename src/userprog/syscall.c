@@ -43,3 +43,11 @@ syscall_handler (struct intr_frame *f)
         break;
     }
 }
+
+/* The halt system call. Terminates Pintos */
+static void
+halt (void)
+{
+  // I think this is all we need here?
+  shutdown_power_off ();
+}
