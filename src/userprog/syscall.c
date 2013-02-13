@@ -4,11 +4,16 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "devices/shutdown.h"
+#include "userprog/process.h"
+
+// This doesn't appear to be typedefed anyway else, and we need it for wait()
+typedef int pid_t;
 
 static void syscall_handler (struct intr_frame *);
 static void halt (void);
 static void exit (int status);
 static int  write (int fd, const void *buffer, unsigned size);
+static int  wait (pid_t pid);
 
 void
 syscall_init (void)
@@ -16,8 +21,9 @@ syscall_init (void)
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
-/* Switch on the system call numbers defined in lib/syscall-nr.h, and call
-   the appropriate system call */
+/* Switch on the system call numbers defined in lib/syscall-nr.h, and call the
+   appropriate system call. If the system call returns something, then put that
+   value in f->eax */
 static void
 syscall_handler (struct intr_frame *f)
 {
@@ -44,7 +50,7 @@ syscall_handler (struct intr_frame *f)
         break;
 
       case SYS_WAIT:
-        /* call wait() */
+        f->eax = wait (*(stack_pointer + 1));
         break;
     }
 }
@@ -92,4 +98,12 @@ write (int fd, const void *buffer, unsigned size)
     }
 
   return 0; // Needs to return number of bytes written to file
+}
+
+/* The wait system call is just defined in terms of process_wait in process.c,
+   as recommended in the spec */
+static int
+wait (pid_t pid)
+{
+  return process_wait (pid);
 }
