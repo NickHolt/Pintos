@@ -8,6 +8,7 @@
 static void syscall_handler (struct intr_frame *);
 static void halt (void);
 static void exit (int status);
+static int  write (int fd, const void *buffer, unsigned size);
 
 void
 syscall_init (void)
@@ -38,7 +39,8 @@ syscall_handler (struct intr_frame *f)
         break;
 
       case SYS_WRITE:
-        /* call write() */
+        f->eax = write (*(stack_pointer + 1), (void *) *(stack_pointer + 2),
+                        *(stack_pointer + 3));
         break;
 
       case SYS_WAIT:
@@ -67,4 +69,27 @@ exit (int status)
   // involve adding a list of children to the thread struct probably
 
   thread_exit();
+}
+
+/* The write system call. Writes SIZE bytes to the file FD from BUFFER, or to
+   the console if FD == 1. */
+static int
+write (int fd, const void *buffer, unsigned size)
+{
+
+  /* TODO: check if pointer to buffer is valid */
+
+  if (fd == 1)
+    {
+      putbuf (buffer, size);
+      return size;
+    }
+  else
+    {
+      // Write to the file. Need to lock the file system, open the file, write
+      // to the file, and release the lock. We can probably use file_open and
+      // file_write from filesys/file.h for this
+    }
+
+  return 0; // Needs to return number of bytes written to file
 }
