@@ -89,7 +89,7 @@ int
 process_wait (tid_t child_tid UNUSED)
 {
   // Implemented as an infinte loop for now
-  // while (true) {}
+  while (true) {}
   return -1;
 }
 
