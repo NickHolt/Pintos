@@ -39,7 +39,7 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (fn_copy, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -50,21 +50,121 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  char *file_name = file_name_;
+
+  //printf("I'm at the start of start_process\n");
+  char* file_name = file_name_;
+
   struct intr_frame if_;
   bool success;
+
+  char *sep = " ";
+  char *last;
+  char* token;
+
+  token = strtok_r(file_name, sep, &last);
+  //printf("%s\n", token);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (token, &if_.eip, &if_.esp);
 
-  /* If load failed, quit. */
-  palloc_free_page (file_name);
+  //printf("%s\n", token);
+
+  /* If load failed, quit.
+  palloc_free_page (token);
   if (!success)
     thread_exit ();
+  */
+
+  //printf("%s\n", token);
+
+  int i;
+
+  /* Tokenise arguements */
+  char* arg_address[10] = {0};
+  int offset = 0;
+
+  for (i = 0; i < 10 && token;
+        token = strtok_r(NULL, sep, &last), i++)
+  {
+    if_.esp -= sizeof(char) * (strlen(token) + 1);
+
+    //printf("%s, 0x%x\n", token, strlen(token)+1);
+    //printf("0x%x\n",if_.esp);
+
+    arg_address[i] = (char *) if_.esp;
+
+    strlcpy(arg_address[i], token, strlen(token) + 1);
+
+    //printf("Arg %i is: %s\n", i, arg_address[i]);
+
+    //printf("0x%x\n",if_.esp);
+
+  }
+
+  //printf("%s\n", arg_address[0]);
+
+  //printf("I've added the arguements to the stack.\n");
+
+
+  int j;
+  for (j = 0; !((int) if_.esp % 4); ++j)
+  {
+    /* word-align. */
+    uint8_t* align = --if_.esp;
+    *align = 0;
+
+    //printf("Alligned at: 0x%x : %i, 0\n", align, *align);
+
+  }
+
+  int argc = i;
+  /* null for end of array. */
+  uint8_t *end = --if_.esp;
+  *end = 0;
+
+  //printf("End: 0x%x : %i, 0\n", end, *end);
+
+  i--;
+
+  for (; i > 0; i--)
+  {
+    /* print argv addresses in reverse. */
+    if_.esp -= sizeof(char *);
+    char **pntr = if_.esp;
+    *pntr = arg_address[i];
+
+    //printf("argv[%i] at 0x%x : 0x%x, 0x%x \n", i, pntr, *pntr, arg_address[i]);
+
+  }
+
+  if_.esp -= sizeof(char **);
+  char ***argv = if_.esp;
+  *argv = if_.esp - 1; //sizeof(char *);
+  //printf("char*** argv at 0x%x : 0x%x\n", argv, *argv);
+
+  //printf("I have put the char* array on the stack\n");
+
+  /* number or args. */
+  if_.esp -= sizeof(int *);
+  int *argc_ptr = if_.esp;
+  *argc_ptr = argc;
+
+  //printf("argc at 0x%x : %i, %i\n", argc_ptr, *argc_ptr, argc);
+
+  /* void return. */
+  uint8_t *void_pntr = --if_.esp;
+  *void_pntr = 0;
+
+  //printf("void_pntr at 0x%x, %i, 0\n", void_pntr, *void_pntr);
+
+  //printf("Finished my bit!\n");
+
+  //hex_dump(0, PHYS_BASE - 100, 100, true);
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
