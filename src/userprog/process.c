@@ -41,7 +41,6 @@ process_execute (const char *file_name)
   int i = 0;
   char *sep = " ";
   char *last;
-  char *token;
   char **args = palloc_get_page (0);
 
   for (args[i] = strtok_r(fn_copy, sep, &last); i < 10 && args[i];
