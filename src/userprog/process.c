@@ -160,6 +160,7 @@ start_process (void *args_)
 
 /* If load failed, quit. */
   palloc_free_page (args[0]);
+  palloc_free_page (args);
   if (!success)
     thread_exit ();
 
