@@ -3,19 +3,41 @@
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
-#include "devices/shutdown.h"
+#include "threads/vaddr.h"
+#include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include "devices/shutdown.h"
 
 static void syscall_handler (struct intr_frame *);
 static void halt (void);
 static void exit (int status);
-static int  write (int fd, const void *buffer, unsigned size);
-static int  wait (pid_t pid);
+static int wait (pid_t pid);
+static int write (int fd, const void *buffer, unsigned size);
 
 void
 syscall_init (void)
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+}
+
+/* Checks that a pointer points to a valid user memory address, and is therefore
+   safe to be dereferenced. If it's not safe, we terminate the process.
+   Returns true iff the ptr can safely be dereferenced. */
+static bool
+is_safe_user_ptr (void *ptr)
+{
+  struct thread *t = thread_current();
+  if (ptr == NULL || !is_user_vaddr (ptr) ||
+      pagedir_get_page (t->pagedir, ptr) == NULL)
+    {
+      /* Destroy thread. */
+      exit (-1);
+    	return false;
+    }
+  else
+    {
+      return true;
+    }
 }
 
 /* Switch on the system call numbers defined in lib/syscall-nr.h, and call the
@@ -80,14 +102,14 @@ exit (int status)
 /* Runs the executable whose name is given in cmd_line, passing any given
    arguments, and returns the new process's pid. */
 static pid_t
-exec (const char *file)
+exec (const char *file UNUSED)
 {
   return -1;
 }
 
 /* Waits for a child process pid and retrieves the child's exit status. */
 static int
-wait (pid_t pid)
+wait (pid_t pid UNUSED)
 {
   return process_wait (pid);
 }
@@ -95,14 +117,14 @@ wait (pid_t pid)
 /* Creates a new file called file initially initial_size bytes in size. Returns
    true iff successful. */
 static bool
-create (const char *file, unsigned initial_size)
+create (const char *file UNUSED, unsigned initial_size UNUSED)
 {
   return false;
 }
 
 /* Deletes the file called file. Returns true iff successful. */
 static bool
-remove (const char *file)
+remove (const char *file UNUSED)
 {
   return false;
 }
@@ -110,14 +132,14 @@ remove (const char *file)
 /* Opens the file called file. Returns a non-negative integer handle, or -1 if
    the file could not be opened. */
 static int
-open (const char *file)
+open (const char *file UNUSED)
 {
 	return -1;
 }
 
 /* Returns the size, in bytes, of the file open as fd. */
 static int
-filesize (int fd)
+filesize (int fd UNUSED)
 {
 	return -1;
 }
@@ -126,7 +148,7 @@ filesize (int fd)
    bytes actually read, or -1 if the file could not be read.
    fd == 0 reads from the keyboard using input_getc(). */
 static int
-read (int fd, void *buffer, unsigned length)
+read (int fd UNUSED, void *buffer UNUSED, unsigned length UNUSED)
 {
 	return -1;
 }
@@ -160,7 +182,7 @@ write (int fd, const void *buffer, unsigned size)
 /* Changes the next byte to be read/written in open file fd to position,
    expressed in bytes from the beginning of the file. */
 static void
-seek (int fd, unsigned position)
+seek (int fd UNUSED, unsigned position UNUSED)
 {
 
 }
@@ -168,7 +190,7 @@ seek (int fd, unsigned position)
 /* Returns the position of the next byte to be read or written in open file fd,
    expressed in bytes from the beginning of the file. */
 static unsigned
-tell (int fd)
+tell (int fd UNUSED)
 {
 	return 0;
 }
@@ -177,7 +199,7 @@ tell (int fd)
    all its open file descriptors, as if by calling this function for each
    one. */
 static void
-close (int fd)
+close (int fd UNUSED)
 {
 
 }
