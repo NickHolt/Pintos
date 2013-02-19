@@ -163,7 +163,7 @@ start_process (void *file_name_)
 
   //printf("Finished my bit!\n");
 
-  //hex_dump(0, PHYS_BASE - 100, 100, true);
+  hex_dump(0, PHYS_BASE - 100, 100, true);
 
 
   /* Start the user process by simulating a return from an
