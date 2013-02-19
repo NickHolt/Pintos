@@ -18,6 +18,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
+#include "threads/malloc.h"
+
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -41,7 +43,7 @@ process_execute (const char *file_name)
   int i = 0;
   char *sep = " ";
   char *last;
-  char **args = palloc_get_page (0);
+  char **args = calloc ((strlen (fn_copy) / 2) + 1, sizeof (char *));
 
   for (args[i] = strtok_r(fn_copy, sep, &last); i < 10 && args[i];
         args[++i] = strtok_r(NULL, sep, &last));
@@ -78,7 +80,7 @@ start_process (void *args_)
   int i;
 
   /* Tokenise arguements */
-  char* arg_address[10] = {0};
+  char** arg_address = calloc (100, sizeof (char *));
 
   for (i = 0; i < 10 && args[i]; i++)
   {
@@ -101,22 +103,24 @@ start_process (void *args_)
 
   //printf("I've added the arguements to the stack.\n");
 
+  printf("0x%x\n", if_.esp);
+  printf("%u\n", (uint32_t) if_.esp);
 
-  int j;
-  for (j = 0; !((int) if_.esp % 4); ++j)
-  {
-    /* word-align. */
-    uint8_t* align = --if_.esp;
-    *align = 0;
+  while (! (((uint32_t) if_.esp % 4) == 0))
+    {
+      printf("Aligning\n");
+      uint8_t* align = --if_.esp;
+      *align = 0;
+    }
 
-    //printf("Alligned at: 0x%x : %i, 0\n", align, *align);
-
-  }
+  printf("0x%x\n", if_.esp);
+  printf("%u\n", (uint32_t) if_.esp);
 
   int argc = i;
   /* null for end of array. */
-  uint8_t *end = --if_.esp;
-  *end = 0;
+  if_.esp -= sizeof(char **);
+  char** end = if_.esp;
+  *end = NULL;
 
   //printf("End: 0x%x : %i, 0\n", end, *end);
 
@@ -155,11 +159,13 @@ start_process (void *args_)
 
   //printf("Finished my bit!\n");
 
-  hex_dump(0, PHYS_BASE - 100, 100, true);
+  hex_dump(0, PHYS_BASE - 64, 64, true);
 
-/* If load failed, quit. */
   palloc_free_page (args[0]);
-  palloc_free_page (args);
+  free (args);
+  free (arg_address);
+
+  /* If load failed, quit. */
   if (!success)
     thread_exit ();
 
