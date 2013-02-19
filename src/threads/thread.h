@@ -96,6 +96,11 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+
+    struct list children;               /* The thread's children threads */
+    struct list_elem childelem;         /* The elem to be put in the parent's
+                                           children list */
+    struct thread *parent;              /* The thread's parent */
 #endif
 
     /* Owned by thread.c. */
