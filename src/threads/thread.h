@@ -131,6 +131,13 @@ const char *thread_name (void);
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
 
+#ifdef USERPROG
+
+struct thread *get_thread (tid_t tid);
+void thread_add_child (tid_t child_tid);
+
+#endif
+
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
 void thread_foreach (thread_action_func *, void *);
