@@ -103,18 +103,18 @@ start_process (void *args_)
 
   //printf("I've added the arguements to the stack.\n");
 
-  printf("0x%x\n", if_.esp);
-  printf("%u\n", (uint32_t) if_.esp);
+  //printf("0x%x\n", if_.esp);
+  //printf("%u\n", (uint32_t) if_.esp);
 
   while (! (((uint32_t) if_.esp % 4) == 0))
     {
-      printf("Aligning\n");
+      //printf("Aligning\n");
       uint8_t* align = --if_.esp;
       *align = 0;
     }
 
-  printf("0x%x\n", if_.esp);
-  printf("%u\n", (uint32_t) if_.esp);
+  //printf("0x%x\n", if_.esp);
+  //printf("%u\n", (uint32_t) if_.esp);
 
   int argc = i;
   /* null for end of array. */
@@ -152,14 +152,15 @@ start_process (void *args_)
   //printf("argc at 0x%x : %i, %i\n", argc_ptr, *argc_ptr, argc);
 
   /* void return. */
-  uint8_t *void_pntr = --if_.esp;
+  if_.esp -= sizeof(int *);
+  int *void_pntr = if_.esp;
   *void_pntr = 0;
 
   //printf("void_pntr at 0x%x, %i, 0\n", void_pntr, *void_pntr);
 
   //printf("Finished my bit!\n");
 
-  hex_dump(0, PHYS_BASE - 64, 64, true);
+  //hex_dump(0, PHYS_BASE - 64, 64, true);
 
   palloc_free_page (args[0]);
   free (args);
@@ -168,6 +169,7 @@ start_process (void *args_)
   /* If load failed, quit. */
   if (!success)
     thread_exit ();
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in

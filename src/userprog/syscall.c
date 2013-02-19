@@ -27,6 +27,8 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
+  printf("HERE\n");
+
   int *stack_pointer = f->esp;
 
   /* TODO: check if pointer is valid */
