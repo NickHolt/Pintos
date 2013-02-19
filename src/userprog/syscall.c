@@ -41,13 +41,13 @@ syscall_handler (struct intr_frame *f)
         exit (*(stack_pointer + 1));
         break;
 
+      case SYS_WAIT:
+        f->eax = wait (*(stack_pointer + 1));
+        break;
+
       case SYS_WRITE:
         f->eax = write (*(stack_pointer + 1), (void *) *(stack_pointer + 2),
                         *(stack_pointer + 3));
-        break;
-
-      case SYS_WAIT:
-        f->eax = wait (*(stack_pointer + 1));
         break;
     }
 }
