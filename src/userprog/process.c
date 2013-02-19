@@ -38,8 +38,18 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  int i = 0;
+  char *sep = " ";
+  char *last;
+  char **args = palloc_get_page (0);
+
+  for (args[i] = strtok_r(fn_copy, sep, &last); i < 10 && args[i];
+        args[++i] = strtok_r(NULL, sep, &last));
+  //printf("Running: %s\n", args[0]);
+
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (fn_copy, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (args[0], PRI_DEFAULT, start_process, args);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   return tid;
@@ -48,56 +58,38 @@ process_execute (const char *file_name)
 /* A thread function that loads a user process and starts it
    running. */
 static void
-start_process (void *file_name_)
+start_process (void *args_)
 {
 
   //printf("I'm at the start of start_process\n");
-  char* file_name = file_name_;
+  char** args = (char **) args_;
+  //printf("Running: %s\n", args[0]);
 
   struct intr_frame if_;
   bool success;
-
-  char *sep = " ";
-  char *last;
-  char* token;
-
-  token = strtok_r(file_name, sep, &last);
-  //printf("%s\n", token);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (token, &if_.eip, &if_.esp);
-
-  //printf("%s\n", token);
-
-  /* If load failed, quit.
-  palloc_free_page (token);
-  if (!success)
-    thread_exit ();
-  */
-
-  //printf("%s\n", token);
+  success = load (args[0], &if_.eip, &if_.esp);
 
   int i;
 
   /* Tokenise arguements */
   char* arg_address[10] = {0};
-  int offset = 0;
 
-  for (i = 0; i < 10 && token;
-        token = strtok_r(NULL, sep, &last), i++)
+  for (i = 0; i < 10 && args[i]; i++)
   {
-    if_.esp -= sizeof(char) * (strlen(token) + 1);
+    if_.esp -= sizeof(char) * (strlen(args[i]) + 1);
 
     //printf("%s, 0x%x\n", token, strlen(token)+1);
     //printf("0x%x\n",if_.esp);
 
     arg_address[i] = (char *) if_.esp;
 
-    strlcpy(arg_address[i], token, strlen(token) + 1);
+    strlcpy(arg_address[i], args[i], strlen(args[i]) + 1);
 
     //printf("Arg %i is: %s\n", i, arg_address[i]);
 
@@ -143,7 +135,7 @@ start_process (void *file_name_)
 
   if_.esp -= sizeof(char **);
   char ***argv = if_.esp;
-  *argv = if_.esp - 1; //sizeof(char *);
+  *argv = if_.esp - sizeof(char *); // - 1;
   //printf("char*** argv at 0x%x : 0x%x\n", argv, *argv);
 
   //printf("I have put the char* array on the stack\n");
@@ -165,6 +157,11 @@ start_process (void *file_name_)
 
   hex_dump(0, PHYS_BASE - 100, 100, true);
 
+/* If load failed, quit. */
+  palloc_free_page (args[0]);
+  palloc_free_page (args);
+  if (!success)
+    thread_exit ();
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
