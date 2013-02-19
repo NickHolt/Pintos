@@ -77,6 +77,60 @@ exit (int status)
   thread_exit();
 }
 
+/* Runs the executable whose name is given in cmd_line, passing any given
+   arguments, and returns the new process's pid. */
+static pid_t
+exec (const char *file)
+{
+  return -1;
+}
+
+/* Waits for a child process pid and retrieves the child's exit status. */
+static int
+wait (pid_t pid)
+{
+  return process_wait (pid);
+}
+
+/* Creates a new file called file initially initial_size bytes in size. Returns
+   true iff successful. */
+static bool
+create (const char *file, unsigned initial_size)
+{
+  return false;
+}
+
+/* Deletes the file called file. Returns true iff successful. */
+static bool
+remove (const char *file)
+{
+  return false;
+}
+
+/* Opens the file called file. Returns a non-negative integer handle, or -1 if
+   the file could not be opened. */
+static int
+open (const char *file)
+{
+	return -1;
+}
+
+/* Returns the size, in bytes, of the file open as fd. */
+static int
+filesize (int fd)
+{
+	return -1;
+}
+
+/* Reads size bytes from the file open as fd into buffer. Returns the number of
+   bytes actually read, or -1 if the file could not be read.
+   fd == 0 reads from the keyboard using input_getc(). */
+static int
+read (int fd, void *buffer, unsigned length)
+{
+	return -1;
+}
+
 /* Writes size bytes from buffer to the open file fd. Returns the number of
    bytes actually written, which may be less than size.
    fd == 1 writes to the console. */
@@ -103,9 +157,27 @@ write (int fd, const void *buffer, unsigned size)
     }
 }
 
-/* Waits for a child process pid and retreives the child's exit status. */
-static int
-wait (pid_t pid)
+/* Changes the next byte to be read/written in open file fd to position,
+   expressed in bytes from the beginning of the file. */
+static void
+seek (int fd, unsigned position)
 {
-  return process_wait (pid);
+
+}
+
+/* Returns the position of the next byte to be read or written in open file fd,
+   expressed in bytes from the beginning of the file. */
+static unsigned
+tell (int fd)
+{
+	return 0;
+}
+
+/* Closes file descriptor fd. Exiting or terminating a process implicitly closes
+   all its open file descriptors, as if by calling this function for each
+   one. */
+static void
+close (int fd)
+{
+
 }

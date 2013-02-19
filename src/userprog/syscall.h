@@ -1,7 +1,7 @@
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
 
-/* Process ID type. */
+/* Program ID type. */
 typedef int pid_t;
 
 void syscall_init (void);
