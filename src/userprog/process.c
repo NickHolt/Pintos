@@ -47,8 +47,6 @@ process_execute (const char *file_name)
 
   for (args[i] = strtok_r(fn_copy, sep, &last); i < 10 && args[i];
         args[++i] = strtok_r(NULL, sep, &last));
-  //printf("Running: %s\n", args[0]);
-
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (args[0], PRI_DEFAULT, start_process, args);
@@ -62,10 +60,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *args_)
 {
-
-  //printf("I'm at the start of start_process\n");
   char** args = (char **) args_;
-  //printf("Running: %s\n", args[0]);
 
   struct intr_frame if_;
   bool success;
@@ -82,39 +77,22 @@ start_process (void *args_)
   /* Tokenise arguements */
   char** arg_address = calloc (100, sizeof (char *));
 
+  /* Copy the arguments onto the stack and saves their addresses */
   for (i = 0; i < 10 && args[i]; i++)
-  {
-    if_.esp -= sizeof(char) * (strlen(args[i]) + 1);
+    {
+      if_.esp -= sizeof(char) * (strlen(args[i]) + 1);
 
-    //printf("%s, 0x%x\n", token, strlen(token)+1);
-    //printf("0x%x\n",if_.esp);
+      arg_address[i] = (char *) if_.esp;
 
-    arg_address[i] = (char *) if_.esp;
+      strlcpy(arg_address[i], args[i], strlen(args[i]) + 1);
+    }
 
-    strlcpy(arg_address[i], args[i], strlen(args[i]) + 1);
-
-    //printf("Arg %i is: %s\n", i, arg_address[i]);
-
-    //printf("0x%x\n",if_.esp);
-
-  }
-
-  //printf("%s\n", arg_address[0]);
-
-  //printf("I've added the arguements to the stack.\n");
-
-  //printf("0x%x\n", if_.esp);
-  //printf("%u\n", (uint32_t) if_.esp);
-
+  /* Align to the next word */
   while (! (((uint32_t) if_.esp % 4) == 0))
     {
-      //printf("Aligning\n");
       uint8_t* align = --if_.esp;
       *align = 0;
     }
-
-  //printf("0x%x\n", if_.esp);
-  //printf("%u\n", (uint32_t) if_.esp);
 
   int argc = i;
   /* null for end of array. */
@@ -122,46 +100,34 @@ start_process (void *args_)
   char** end = if_.esp;
   *end = NULL;
 
-  //printf("End: 0x%x : %i, 0\n", end, *end);
-
+  /* We put in the extra null pointer, so now we need to decrement 
+     our counter */
   i--;
 
-  for (; i > 0; i--)
-  {
-    /* print argv addresses in reverse. */
-    if_.esp -= sizeof(char *);
-    char **pntr = if_.esp;
-    *pntr = arg_address[i];
+  /* push argv addresses in reverse. */
+  for (; i >= 0; i--)
+    {
+      if_.esp -= sizeof(char *);
+      char **pntr = if_.esp;
+      *pntr = arg_address[i];
+    }
 
-    //printf("argv[%i] at 0x%x : 0x%x, 0x%x \n", i, pntr, *pntr, arg_address[i]);
-
-  }
-
+  /* Pointer to the start of argv */
   if_.esp -= sizeof(char **);
   char ***argv = if_.esp;
-  *argv = if_.esp - sizeof(char *); // - 1;
-  //printf("char*** argv at 0x%x : 0x%x\n", argv, *argv);
-
-  //printf("I have put the char* array on the stack\n");
+  *argv = if_.esp + sizeof(char **);
 
   /* number or args. */
   if_.esp -= sizeof(int *);
   int *argc_ptr = if_.esp;
   *argc_ptr = argc;
 
-  //printf("argc at 0x%x : %i, %i\n", argc_ptr, *argc_ptr, argc);
-
   /* void return. */
   if_.esp -= sizeof(int *);
   int *void_pntr = if_.esp;
   *void_pntr = 0;
 
-  //printf("void_pntr at 0x%x, %i, 0\n", void_pntr, *void_pntr);
-
-  //printf("Finished my bit!\n");
-
-  //hex_dump(0, PHYS_BASE - 64, 64, true);
-
+  /* Freedom!! */
   palloc_free_page (args[0]);
   free (args);
   free (arg_address);

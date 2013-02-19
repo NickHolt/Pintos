@@ -27,7 +27,6 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f)
 {
-  printf("HERE\n");
 
   int *stack_pointer = f->esp;
 
@@ -62,6 +61,7 @@ static void
 halt (void)
 {
   // I think this is all we need here?
+  printf("HALT\n");
   shutdown_power_off ();
 }
 
@@ -71,7 +71,7 @@ static void
 exit (int status)
 {
   struct thread *exiting_thread = thread_current();
-  //printf("%s: exit(%d)\n", exiting_thread->name, status);
+  printf("%s: exit(%d)\n", exiting_thread->name, status);
 
   // I think there might need to be stuff to do with parents here, which will
   // involve adding a list of children to the thread struct probably
