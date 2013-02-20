@@ -34,7 +34,6 @@ syscall_handler (struct intr_frame *f)
 
   int syscall_number = *stack_pointer;
 
-  // Maybe function pointers would be neater here?
   switch (syscall_number)
     {
       case SYS_HALT:
@@ -60,7 +59,6 @@ syscall_handler (struct intr_frame *f)
 static void
 halt (void)
 {
-  // I think this is all we need here?
   shutdown_power_off ();
 }
 

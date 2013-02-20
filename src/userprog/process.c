@@ -159,26 +159,20 @@ start_process (void *args_)
 int
 process_wait (tid_t child_tid UNUSED)
 {
-  struct thread *current = thread_current ();
-
   if (child_tid != TID_ERROR)
     {
       struct thread *current = thread_current ();
       struct child_info *child = get_child (current, child_tid);
 
+      /* The thread with tid CHILD_TID is not a direct child
+         of the current thread */
       if (child == NULL)
-        {
-          /* The thread with tid CHILD_TID is not a direct child
-             of the current thread */
           return -1;
-        }
       else
         {
+          /* current has already called wait on this child. */
           if (child->has_waited)
-            {
-              /* current has already called wait on this child. */
-              return -1;
-            }
+            return -1;
 
           /* If the thread is not dying, then wait until it has.
              The lock is aquired as that is a pre-condition of
@@ -190,11 +184,9 @@ process_wait (tid_t child_tid UNUSED)
 
           lock_release (&current->cond_lock);
 
+          /* Killed by the kernel, not by the conventional means */
           if (!child->has_exited)
-            {
-              /* Killed by the kernel, not by the conventional means */
-              return -1;
-            }
+            return -1;
           else
             {
               child->has_waited = true;
@@ -202,11 +194,9 @@ process_wait (tid_t child_tid UNUSED)
             }
         }
     }
+  /* Thread was not created sucessfully so we ignore it */
   else
-    {
-      /* Thread was not created sucessfully so we ignore it */
-      return TID_ERROR;
-    }
+    return TID_ERROR;
 }
 
 /* Free the current process's resources. */

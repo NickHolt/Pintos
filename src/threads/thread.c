@@ -292,6 +292,32 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
+
+  /* Destory and free the list of child threads */
+  struct list_elem *e;
+  struct list children = thread_current ()->children;
+
+  for (e = list_begin (&children); e != list_end (&children);
+       e = list_next (e))
+    {
+      struct child_info *info = list_entry (e, struct child_info, infoelem);
+      list_remove (e);
+      free (info);
+    }
+
+  /* Signal the parent that the child is done. */
+  struct thread *parent = thread_current ()->parent;
+  if (parent != NULL)
+    {
+      lock_acquire (&parent->cond_lock);
+      cond_signal (&parent->child_waiter, &parent->cond_lock);
+      lock_release (&parent->cond_lock);
+    }
+  else
+    {
+      // Probably this only applies to main?
+    }
+
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
