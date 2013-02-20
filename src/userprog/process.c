@@ -164,7 +164,7 @@ process_wait (tid_t child_tid UNUSED)
   if (child_tid != TID_ERROR)
     {
       struct thread *current = thread_current ();
-      struct thread *child = get_child (child_tid);
+      struct child_info *child = get_child (child_tid);
 
       if (child == NULL)
         {
@@ -174,7 +174,32 @@ process_wait (tid_t child_tid UNUSED)
         }
       else
         {
-          // TODO: Need to lock out the thread;
+          if (child->has_waited)
+            {
+              /* current has already called wait on this child. */
+              return -1;
+            }
+
+          /* If the thread is not dying, then wait until it has.
+             The lock is aquired as that is a pre-condition of
+             cond_wait */
+          lock_acquire (&current->cond_lock);
+
+          while (get_thread (child_tid) != NULL)
+            cond_wait (&current->child_waiter, &current->cond_lock);
+
+          lock_release (&current->cond_lock);
+
+          if (!child->has_exited)
+            {
+              /* Killed by the kernel, not by the conventional means */
+              return -1;
+            }
+          else
+            {
+              child->has_waited = true;
+              return child->return_status;
+            }
         }
     }
   else

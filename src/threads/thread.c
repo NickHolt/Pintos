@@ -9,7 +9,6 @@
 #include "threads/intr-stubs.h"
 #include "threads/palloc.h"
 #include "threads/switch.h"
-#include "threads/synch.h"
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
@@ -386,9 +385,33 @@ thread_get_recent_cpu (void)
 
 #ifdef USERPROG
 
-/* Get a child from its tid. Used throughout userprog. */
+/* Get a thread from its tid. Used throughout task 2. If we find the
+   thread by it is dying, then ignore it and kick out of the loop
+   (this is useful in process_wait) */
+struct thread *
+get_thread (tid_t id)
+{
+  struct list_elem *e;
+
+  for (e = list_begin (&all_list); e != list_end (&all_list);
+       e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, allelem);
+      if (t->tid == id)
+        {
+          if (t->status != THREAD_DYING)
+              return t;
+          else
+              return NULL;
+        }
+    }
+
+  return NULL;
+}
+
+/* Get a child from its tid. Used in process_wait. */
 struct child_info *
-get_child (tid_t tid)
+get_child (tid_t child_tid)
 {
   struct list_elem *e;
   struct list children = thread_current ()->children;
@@ -397,7 +420,7 @@ get_child (tid_t tid)
        e = list_next (e))
     {
       struct child_info *i = list_entry (e, struct child_info, infoelem);
-      if (i->id == tid)
+      if (i->id == child_tid)
         return i;
     }
 
@@ -498,6 +521,8 @@ init_thread (struct thread *t, const char *name, int priority)
 #ifdef USERPROG
 
   list_init (&t->children);
+  lock_init (&t->cond_lock);
+  cond_init (&t->child_waiter);
 
 #endif
 

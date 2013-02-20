@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -88,7 +89,8 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
+    struct list_elem allelem;           /* List element for all threads
+                                           list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -99,6 +101,9 @@ struct thread
 
     struct list children;               /* The thread's children threads */
     struct thread *parent;              /* The thread's parent */
+    struct condition child_waiter;      /* Condition variable that a parent
+                                           uses to wait for it's child */
+    struct lock cond_lock;              /* Lock used by child_waiter */
 #endif
 
     /* Owned by thread.c. */
@@ -114,11 +119,11 @@ struct child_info
   {
     tid_t id;                           /* The tid of the child */
     int return_status;                  /* Exit status of the child  */
-    bool has_exited;                    /* Has the child been exited? */
+    bool has_exited;                    /* Has the child been exited
+                                           properly? */
     bool has_waited;                    /* Has the child been waited? */
-    bool bad_death;                     /* Did the kernel kill this thread? */
 
-    struct list_elem infoelem;          /* List elem to put inside the parnet
+    struct list_elem infoelem;          /* List elem to put inside the parent
                                            thread's children list */
   };
 
@@ -150,7 +155,8 @@ void thread_yield (void);
 
 #ifdef USERPROG
 
-struct child_info *get_child (tid_t tid);
+struct thread *get_thread (tid_t tid);
+struct child_info *get_child (tid_t child_tid);
 
 #endif
 
