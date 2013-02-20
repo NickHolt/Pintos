@@ -164,7 +164,7 @@ process_wait (tid_t child_tid UNUSED)
   if (child_tid != TID_ERROR)
     {
       struct thread *current = thread_current ();
-      struct child_info *child = get_child (child_tid);
+      struct child_info *child = get_child (current, child_tid);
 
       if (child == NULL)
         {

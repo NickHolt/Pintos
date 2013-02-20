@@ -411,10 +411,10 @@ get_thread (tid_t id)
 
 /* Get a child from its tid. Used in process_wait. */
 struct child_info *
-get_child (tid_t child_tid)
+get_child (struct thread *par, tid_t child_tid)
 {
   struct list_elem *e;
-  struct list children = thread_current ()->children;
+  struct list children = par->children;
 
   for (e = list_begin (&children); e != list_end (&children);
        e = list_next (e))
@@ -520,6 +520,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
 #ifdef USERPROG
 
+  struct thread *parent = thread_current ();
+  t->parent = parent;
   list_init (&t->children);
   lock_init (&t->cond_lock);
   cond_init (&t->child_waiter);
