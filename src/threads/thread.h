@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -88,7 +89,8 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    struct list_elem allelem;           /* List element for all threads list. */
+    struct list_elem allelem;           /* List element for all threads
+                                           list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -96,11 +98,36 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+
+    struct list children;               /* The thread's children threads */
+    struct thread *parent;              /* The thread's parent */
+    struct condition child_waiter;      /* Condition variable that a parent
+                                           uses to wait for it's child */
+    struct lock cond_lock;              /* Lock used by child_waiter */
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+
+#ifdef USERPROG
+
+/* This struct holds the vital information about a thread's child. Used
+   mainly be process_wait in userprog/process.c */
+struct child_info
+  {
+    tid_t id;                           /* The tid of the child */
+    int return_status;                  /* Exit status of the child  */
+    bool has_exited;                    /* Has the child been exited
+                                           properly? */
+    bool has_waited;                    /* Has the child been waited? */
+
+    struct list_elem infoelem;          /* List elem to put inside the parent
+                                           thread's children list */
+  };
+
+#endif
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -125,6 +152,13 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
+
+#ifdef USERPROG
+
+struct thread *get_thread (tid_t tid);
+struct child_info *get_child (struct thread *par, tid_t child_tid);
+
+#endif
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);

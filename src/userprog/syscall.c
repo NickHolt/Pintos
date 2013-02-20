@@ -60,16 +60,21 @@ syscall_handler (struct intr_frame *f)
         break;
 
       case SYS_EXIT:
-        exit (*(stack_pointer + 1));
+        if (is_safe_user_ptr (stack_pointer + 1))
+          exit (*(stack_pointer + 1));
         break;
 
       case SYS_WAIT:
-        f->eax = wait (*(stack_pointer + 1));
+        if (is_safe_user_ptr (stack_pointer + 1))
+          f->eax = wait (*(stack_pointer + 1));
         break;
 
       case SYS_WRITE:
-        f->eax = write (*(stack_pointer + 1), (void *) *(stack_pointer + 2),
-                        *(stack_pointer + 3));
+        if (is_safe_user_ptr (stack_pointer + 1) &&
+            is_safe_user_ptr (stack_pointer + 2) &&
+            is_safe_user_ptr (stack_pointer + 3))
+          f->eax = write (*(stack_pointer + 1), (void *) *(stack_pointer + 2),
+                          *(stack_pointer + 3));
         break;
     }
 }
@@ -88,10 +93,25 @@ static void
 exit (int status)
 {
   struct thread *exiting_thread = thread_current();
+
+  /* Print the terminating message */
   printf("%s: exit(%d)\n", exiting_thread->name, status);
 
-  /* I think there might need to be stuff to do with parents here, which will
-     involve adding a list of children to the thread struct probably. */
+  /* Set some information about the child, for process_wait */
+  struct thread *parent = exiting_thread->parent;
+  struct child_info *info = get_child (parent, exiting_thread->tid);
+
+  if (info != NULL)
+    {
+      lock_acquire (&parent->cond_lock);
+      info->has_exited = true;
+      info->return_status = status;
+      lock_release (&parent->cond_lock);
+    }
+  else
+    {
+      // Probably need some sort of error thingy here?
+    }
 
   /* Charlie: what about stuff that exiting_thread currently holds?
               Locks? Files? */

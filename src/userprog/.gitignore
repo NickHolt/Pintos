@@ -1,3 +1,8 @@
 build
 bochsrc.txt
 bochsout.txt
+
+# Sublime project settings and data
+
+*.sublime-project
+*.sublime-workspace

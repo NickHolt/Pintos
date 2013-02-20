@@ -2,3 +2,16 @@ cscope.files
 cscope.out
 TAGS
 tags
+
+#ignore Sublime stuff
+*.sublime-workspace
+*.sublime-project
+
+# I hate macs
+.DS_Store
+
+# I hate .o files
+/examples/*.a
+/examples/*.o
+/examples/lib/*.o
+/examples/lib/user/*.o
