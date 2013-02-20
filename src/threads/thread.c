@@ -12,7 +12,6 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
-#include "threads/malloc.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -184,6 +183,9 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  struct thread *parent = thread_current ();
+  t->parent = parent;
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack'
      member cannot be observed. */
@@ -292,32 +294,6 @@ thread_exit (void)
 
 #ifdef USERPROG
   process_exit ();
-
-  /* Destory and free the list of child threads */
-  struct list_elem *e;
-  struct list children = thread_current ()->children;
-
-  for (e = list_begin (&children); e != list_end (&children);
-       e = list_next (e))
-    {
-      struct child_info *info = list_entry (e, struct child_info, infoelem);
-      list_remove (e);
-      free (info);
-    }
-
-  /* Signal the parent that the child is done. */
-  struct thread *parent = thread_current ()->parent;
-  if (parent != NULL)
-    {
-      lock_acquire (&parent->cond_lock);
-      cond_signal (&parent->child_waiter, &parent->cond_lock);
-      lock_release (&parent->cond_lock);
-    }
-  else
-    {
-      // Probably this only applies to main?
-    }
-
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
@@ -547,22 +523,10 @@ init_thread (struct thread *t, const char *name, int priority)
 
 #ifdef USERPROG
 
-  struct thread *parent = thread_current ();
-
   /* Set up t's internal structures */
-  t->parent = parent;
   list_init (&t->children);
   lock_init (&t->cond_lock);
   cond_init (&t->child_waiter);
-
-  /* Create child_info associated with t */
-  struct child_info *t_info;
-  t_info = calloc (sizeof *t_info, 1);
-  t_info->id = t->tid;
-  t_info->has_exited = false;
-  t_info->has_waited = false;
-
-  list_push_back (&parent->children, &t_info->infoelem);
 
 #endif
 

@@ -52,6 +52,20 @@ process_execute (const char *file_name)
   tid = thread_create (args[0], PRI_DEFAULT, start_process, args);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
+  else
+    {
+      /* Create child_info associated with t */
+      struct child_info *t_info;
+      t_info = calloc (sizeof *t_info, 1);
+      if (t_info != NULL)
+        {
+          t_info->id = tid;
+          t_info->has_exited = false;
+          t_info->has_waited = false;
+
+          list_push_back (&thread_current ()->children, &t_info->infoelem);
+        }
+    }
   return tid;
 }
 
@@ -221,6 +235,26 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+    }
+
+  /* Destory and free the list of child threads */
+  /*struct list_elem *e;
+  struct list children = thread_current ()->children;
+
+  for (e = list_begin (&children); e != list_end (&children);
+       e = list_next (e))
+    {
+      struct child_info *info = list_entry (e, struct child_info, infoelem);
+      free (info);
+    }*/
+
+  /* Signal the parent that the child is done. */
+  struct thread *parent = thread_current ()->parent;
+  if (parent != NULL)
+    {
+      lock_acquire (&parent->cond_lock);
+      cond_signal (&parent->child_waiter, &parent->cond_lock);
+      lock_release (&parent->cond_lock);
     }
 }
 
