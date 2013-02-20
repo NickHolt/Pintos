@@ -12,6 +12,7 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "threads/malloc.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -521,10 +522,21 @@ init_thread (struct thread *t, const char *name, int priority)
 #ifdef USERPROG
 
   struct thread *parent = thread_current ();
+
+  /* Set up t's internal structures */
   t->parent = parent;
   list_init (&t->children);
   lock_init (&t->cond_lock);
   cond_init (&t->child_waiter);
+
+  /* Create child_info associated with t */
+  struct child_info *t_info;
+  t_info = calloc (sizeof *t_info, 1);
+  t_info->id = t->tid;
+  t_info->has_exited = false;
+  t_info->has_waited = false;
+
+  list_push_back (&parent->children, &t_info->infoelem);
 
 #endif
 
