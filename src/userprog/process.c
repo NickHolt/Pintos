@@ -237,16 +237,19 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
-  /* Destory and free the list of child threads */
-  /*struct list_elem *e;
-  struct list children = thread_current ()->children;
-
-  for (e = list_begin (&children); e != list_end (&children);
-       e = list_next (e))
+  /* Destory and free the list of child threads. Keep a temporaty pointer
+     to the next item in the list, because we're killing list items as we
+     loop */
+  struct list_elem *e;
+  struct list_elem *temp;
+  for (e = list_begin (&cur->children);
+       e != list_end(&cur->children); e = temp)
     {
+      temp = list_next (e);
       struct child_info *info = list_entry (e, struct child_info, infoelem);
+      list_remove (e);
       free (info);
-    }*/
+    }
 
   /* Signal the parent that the child is done. */
   struct thread *parent = thread_current ()->parent;
