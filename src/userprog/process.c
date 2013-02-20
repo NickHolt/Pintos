@@ -45,7 +45,7 @@ process_execute (const char *file_name)
   char *last;
   char **args = calloc ((strlen (fn_copy) / 2) + 1, sizeof (char *));
 
-  for (args[i] = strtok_r(fn_copy, sep, &last); i < 10 && args[i];
+  for (args[i] = strtok_r(fn_copy, sep, &last); i < MAXARGS && args[i];
         args[++i] = strtok_r(NULL, sep, &last));
 
   /* Create a new thread to execute FILE_NAME. */
@@ -89,10 +89,10 @@ start_process (void *args_)
   int i;
 
   /* Tokenise arguements */
-  char** arg_address = calloc (100, sizeof (char *));
+  char** arg_address = calloc (MAXARGS, sizeof (char *));
 
   /* Copy the arguments onto the stack and saves their addresses */
-  for (i = 0; i < 10 && args[i]; i++)
+  for (i = 0; i < MAXARGS && args[i]; i++)
     {
       if_.esp -= sizeof(char) * (strlen(args[i]) + 1);
 
