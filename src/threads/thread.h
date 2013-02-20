@@ -106,17 +106,23 @@ struct thread
   };
 
 
+#ifdef USERPROG
+
 /* This struct holds the vital information about a thread's child. Used
    mainly be process_wait in userprog/process.c */
 struct child_info
   {
     tid_t id;                           /* The tid of the child */
     int return_status;                  /* Exit status of the child  */
+    bool has_exited;                    /* Has the child been exited? */
+    bool has_waited;                    /* Has the child been waited? */
     bool bad_death;                     /* Did the kernel kill this thread? */
 
     struct list_elem infoelem;          /* List elem to put inside the parnet
                                            thread's children list */
   };
+
+#endif
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -144,8 +150,7 @@ void thread_yield (void);
 
 #ifdef USERPROG
 
-struct thread *get_thread (tid_t tid);
-void thread_add_child (tid_t child_tid);
+struct child_info *get_child (tid_t tid);
 
 #endif
 

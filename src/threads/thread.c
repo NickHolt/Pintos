@@ -386,36 +386,22 @@ thread_get_recent_cpu (void)
 
 #ifdef USERPROG
 
-/* Get a thread from its tid. Used throughout userprog. */
-struct thread *
-get_thread (tid_t tid)
+/* Get a child from its tid. Used throughout userprog. */
+struct child_info *
+get_child (tid_t tid)
 {
   struct list_elem *e;
+  struct list children = thread_current ()->children;
 
-  for (e = list_begin (&all_list); e != list_end (&all_list);
+  for (e = list_begin (&children); e != list_end (&children);
        e = list_next (e))
     {
-      struct thread *t = list_entry (e, struct thread, allelem);
-      if (t->tid == id)
-        return t;
+      struct child_info *i = list_entry (e, struct child_info, infoelem);
+      if (i->id == tid)
+        return i;
     }
 
   return NULL;
-}
-
-/* Add a child thread to the current thread */
-void
-thread_add_child (tid_t child_tid)
-{
-  struct thread *current = thread_current ();
-  struct thread *child = get_thread (child_tid);
-
-  child->parent = current;
-
-  struct childinfo *info;
-  info->id = child_tid;
-
-  list_push_back (&current->children, &info->infoelem);
 }
 
 #endif
@@ -512,7 +498,6 @@ init_thread (struct thread *t, const char *name, int priority)
 #ifdef USERPROG
 
   list_init (&t->children);
-  thread_add_child (t->tid);
 
 #endif
 

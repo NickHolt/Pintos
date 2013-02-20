@@ -100,7 +100,7 @@ start_process (void *args_)
   char** end = if_.esp;
   *end = NULL;
 
-  /* We put in the extra null pointer, so now we need to decrement 
+  /* We put in the extra null pointer, so now we need to decrement
      our counter */
   i--;
 
@@ -159,9 +159,29 @@ start_process (void *args_)
 int
 process_wait (tid_t child_tid UNUSED)
 {
-  // Implemented as an infinte loop for now
-  while (true) {}
-  return -1;
+  struct thread *current = thread_current ();
+
+  if (child_tid != TID_ERROR)
+    {
+      struct thread *current = thread_current ();
+      struct thread *child = get_child (child_tid);
+
+      if (child == NULL)
+        {
+          /* The thread with tid CHILD_TID is not a direct child
+             of the current thread */
+          return -1;
+        }
+      else
+        {
+          // TODO: Need to lock out the thread;
+        }
+    }
+  else
+    {
+      /* Thread was not created sucessfully so we ignore it */
+      return TID_ERROR;
+    }
 }
 
 /* Free the current process's resources. */
