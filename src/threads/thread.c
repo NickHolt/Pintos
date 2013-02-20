@@ -411,7 +411,11 @@ thread_add_child (tid_t child_tid)
   struct thread *child = get_thread (child_tid);
 
   child->parent = current;
-  list_push_back (&current->children, &child->childelem);
+
+  struct childinfo *info;
+  info->id = child_tid;
+
+  list_push_back (&current->children, &info->infoelem);
 }
 
 #endif
@@ -504,6 +508,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+#ifdef USERPROG
+
+  list_init (&t->children);
+  thread_add_child (t->tid);
+
+#endif
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

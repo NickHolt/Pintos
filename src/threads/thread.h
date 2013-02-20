@@ -98,13 +98,24 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 
     struct list children;               /* The thread's children threads */
-    struct list_elem childelem;         /* The elem to be put in the parent's
-                                           children list */
     struct thread *parent;              /* The thread's parent */
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+  };
+
+
+/* This struct holds the vital information about a thread's child. Used
+   mainly be process_wait in userprog/process.c */
+struct child_info
+  {
+    tid_t id;                           /* The tid of the child */
+    int return_status;                  /* Exit status of the child  */
+    bool bad_death;                     /* Did the kernel kill this thread? */
+
+    struct list_elem infoelem;          /* List elem to put inside the parnet
+                                           thread's children list */
   };
 
 /* If false (default), use round-robin scheduler.
