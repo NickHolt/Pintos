@@ -190,6 +190,7 @@ start_process (void *args_)
 int
 process_wait (tid_t child_tid)
 {
+  /* Check if the thread was not created sucessfully */
   if (child_tid != TID_ERROR)
     {
       struct thread *current = thread_current ();
@@ -225,7 +226,6 @@ process_wait (tid_t child_tid)
             }
         }
     }
-  /* Thread was not created sucessfully so we ignore it */
   else
     return TID_ERROR;
 }

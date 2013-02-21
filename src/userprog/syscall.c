@@ -216,7 +216,7 @@ exec (const char *cmd_line)
 
 /* Waits for a child process pid and retrieves the child's exit status. */
 static int
-wait (pid_t pid UNUSED)
+wait (pid_t pid)
 {
   return process_wait (pid);
 }

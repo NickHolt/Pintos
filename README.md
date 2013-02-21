@@ -21,20 +21,6 @@ pass tests/userprog/args-none
 pass tests/userprog/args-single  
 pass tests/userprog/args-multiple  
 pass tests/userprog/args-many  
-pass tests/userprog/args-dbl-space  
-pass tests/userprog/sc-bad-sp  
-pass tests/userprog/sc-bad-arg  
-pass tests/userprog/sc-boundary  
-pass tests/userprog/sc-boundary-2  
-pass tests/userprog/halt  
-pass tests/userprog/exit  
-FAIL tests/userprog/create-normal  
-pass tests/userprog/create-empty  
-FAIL tests/userprog/create-null  
-FAIL tests/userprog/create-bad-ptr  
-pass tests/userprog/create-long  
-FAIL tests/userprog/create-exists  
-FAIL tests/userprog/create-bound  
 FAIL tests/userprog/open-normal  
 pass tests/userprog/open-missing  
 FAIL tests/userprog/open-boundary  
@@ -59,16 +45,16 @@ FAIL tests/userprog/write-boundary
 FAIL tests/userprog/write-zero  
 pass tests/userprog/write-stdin  
 pass tests/userprog/write-bad-fd  
-FAIL tests/userprog/exec-once  
-FAIL tests/userprog/exec-arg  
-FAIL tests/userprog/exec-multiple  
+pass tests/userprog/exec-once  
+pass tests/userprog/exec-arg  
+pass tests/userprog/exec-multiple  
 pass tests/userprog/exec-missing  
 pass tests/userprog/exec-bad-ptr  
-FAIL tests/userprog/wait-simple  
-FAIL tests/userprog/wait-twice  
-FAIL tests/userprog/wait-killed  
-FAIL tests/userprog/wait-bad-pid  
-FAIL tests/userprog/multi-recurse  
+pass tests/userprog/wait-simple  
+pass tests/userprog/wait-twice  
+pass tests/userprog/wait-killed  
+pass tests/userprog/wait-bad-pid  
+pass tests/userprog/multi-recurse  
 FAIL tests/userprog/multi-child-fd  
 FAIL tests/userprog/rox-simple  
 FAIL tests/userprog/rox-child  
@@ -93,4 +79,4 @@ FAIL tests/filesys/base/sm-seq-random
 FAIL tests/filesys/base/syn-read  
 FAIL tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-45 of 76 tests failed.
+37 of 76 tests failed.
