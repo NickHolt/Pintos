@@ -6,3 +6,5 @@ bochsout.txt
 
 *.sublime-project
 *.sublime-workspace
+
+backtrace

@@ -10,7 +10,6 @@
 
 static void syscall_handler (struct intr_frame *);
 static void halt (void);
-static void exit (int status);
 static int wait (pid_t pid);
 static int write (int fd, const void *buffer, unsigned size);
 
@@ -89,7 +88,7 @@ halt (void)
 /* Terminates the current user program, sending its exit status to the kernel.
    If the process's parent waits for it, this is the status that will be
    returned. */
-static void
+void
 exit (int status)
 {
   struct thread *exiting_thread = thread_current();
