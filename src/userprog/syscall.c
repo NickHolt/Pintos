@@ -188,11 +188,30 @@ exit (int status)
 }
 
 /* Runs the executable whose name is given in cmd_line, passing any given
-   arguments, and returns the new process's pid. */
+   arguments, and returns the new process's pid, or -1 if loading the new
+   process failed */
 static pid_t
-exec (const char *file UNUSED)
+exec (const char *cmd_line)
 {
-  return -1;
+  if (is_safe_user_ptr (cmd_line))
+    {
+      struct thread *current = thread_current ();
+
+      current->child_status = LOADING;
+      tid_t child_tid = process_execute (cmd_line);
+
+      lock_acquire (&current->cond_lock);
+      while (current->child_status == LOADING)
+        cond_wait(&current->child_waiter, &current->cond_lock);
+      lock_release (&current->cond_lock);
+
+      if (current->child_status == FAILED)
+        return -1;
+      else
+        return child_tid;
+    }
+
+  NOT_REACHED ();
 }
 
 /* Waits for a child process pid and retrieves the child's exit status. */

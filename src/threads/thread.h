@@ -15,6 +15,20 @@ enum thread_status
     THREAD_DYING        /* About to be destroyed. */
   };
 
+#ifdef USERPROG
+
+/* The status of a loading thread, used by the exec system call
+   and process_execute to keep track of the status of a newly
+   executed child thread */
+enum loaded_status
+  {
+    LOADING,
+    LOADED,
+    FAILED
+  };
+
+#endif
+
 /* Thread identifier type.
    You can redefine this to whatever type you like. */
 typedef int tid_t;
@@ -104,6 +118,7 @@ struct thread
     struct condition child_waiter;      /* Condition variable that a parent
                                            uses to wait for it's child */
     struct lock cond_lock;              /* Lock used by child_waiter */
+    enum loaded_status child_status;    /* Used to track new child's state */
 #endif
 
     /* Owned by thread.c. */
