@@ -86,6 +86,23 @@ start_process (void *args_)
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (args[0], &if_.eip, &if_.esp);
 
+  /* Set the load_status of the threads parent */
+  struct thread *current = thread_current ();
+  if (current->parent != NULL) {
+    if (success)
+      current->parent->child_status = LOADED;
+    else
+      current->parent->child_status = FAILED;
+
+    lock_acquire (&current->parent->cond_lock);
+    cond_signal (&current->parent->child_waiter, &current->parent->cond_lock);
+    lock_release (&current->parent->cond_lock);
+  }
+
+  /* If it didn't work, we get out */
+  if (!success)
+    thread_exit (); // Maybe should be exit(-1)?
+
   int i;
 
   /* Tokenise arguements */
