@@ -21,6 +21,20 @@ pass tests/userprog/args-none
 pass tests/userprog/args-single  
 pass tests/userprog/args-multiple  
 pass tests/userprog/args-many  
+pass tests/userprog/args-dbl-space  
+pass tests/userprog/sc-bad-sp  
+pass tests/userprog/sc-bad-arg  
+pass tests/userprog/sc-boundary  
+pass tests/userprog/sc-boundary-2  
+pass tests/userprog/halt  
+pass tests/userprog/exit  
+pass tests/userprog/create-normal  
+pass tests/userprog/create-empty  
+pass tests/userprog/create-null  
+pass tests/userprog/create-bad-ptr  
+pass tests/userprog/create-long  
+pass tests/userprog/create-exists  
+pass tests/userprog/create-bound  
 FAIL tests/userprog/open-normal  
 pass tests/userprog/open-missing  
 FAIL tests/userprog/open-boundary  
@@ -79,4 +93,4 @@ FAIL tests/filesys/base/sm-seq-random
 FAIL tests/filesys/base/syn-read  
 FAIL tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-37 of 76 tests failed.
+32 of 76 tests failed.

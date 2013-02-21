@@ -7,6 +7,7 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "devices/shutdown.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);
@@ -32,7 +33,7 @@ syscall_init (void)
    safe to be dereferenced. If it's not safe, we terminate the process.
    Returns true iff the ptr can safely be dereferenced. */
 static bool
-is_safe_user_ptr (void *ptr)
+is_safe_user_ptr (const void *ptr)
 {
   struct thread *t = thread_current();
   if (ptr == NULL || !is_user_vaddr (ptr) ||
@@ -224,9 +225,12 @@ wait (pid_t pid)
 /* Creates a new file called file initially initial_size bytes in size. Returns
    true iff successful. */
 static bool
-create (const char *file UNUSED, unsigned initial_size UNUSED)
+create (const char *file, unsigned initial_size)
 {
-  return false;
+  if (is_safe_user_ptr (file))
+    return filesys_create (file, initial_size);
+
+  NOT_REACHED ();
 }
 
 /* Deletes the file called file. Returns true iff successful. */
