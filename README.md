@@ -22,7 +22,7 @@ pass tests/userprog/args-single
 pass tests/userprog/args-multiple  
 pass tests/userprog/args-many  
 pass tests/userprog/args-dbl-space  
-FAIL tests/userprog/sc-bad-sp  
+pass tests/userprog/sc-bad-sp  
 pass tests/userprog/sc-bad-arg  
 pass tests/userprog/sc-boundary  
 pass tests/userprog/sc-boundary-2  
@@ -93,4 +93,4 @@ FAIL tests/filesys/base/sm-seq-random
 FAIL tests/filesys/base/syn-read  
 FAIL tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-43 of 76 tests failed.
+42 of 76 tests failed.

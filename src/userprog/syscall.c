@@ -49,32 +49,36 @@ syscall_handler (struct intr_frame *f)
   ASSERT (f->esp != NULL);
 
   int *stack_pointer = f->esp;
-  int syscall_number = *stack_pointer;
 
-  /* Maybe function pointers would be neater here? */
-  switch (syscall_number)
+  if (is_safe_user_ptr (stack_pointer))
     {
-      case SYS_HALT:
-        halt ();
-        break;
+      int syscall_number = *stack_pointer;
+      
+      /* Maybe function pointers would be neater here? */
+      switch (syscall_number)
+        {
+          case SYS_HALT:
+            halt ();
+            break;
 
-      case SYS_EXIT:
-        if (is_safe_user_ptr (stack_pointer + 1))
-          exit (*(stack_pointer + 1));
-        break;
+          case SYS_EXIT:
+            if (is_safe_user_ptr (stack_pointer + 1))
+              exit (*(stack_pointer + 1));
+            break;
 
-      case SYS_WAIT:
-        if (is_safe_user_ptr (stack_pointer + 1))
-          f->eax = wait (*(stack_pointer + 1));
-        break;
+          case SYS_WAIT:
+            if (is_safe_user_ptr (stack_pointer + 1))
+              f->eax = wait (*(stack_pointer + 1));
+            break;
 
-      case SYS_WRITE:
-        if (is_safe_user_ptr (stack_pointer + 1) &&
-            is_safe_user_ptr (stack_pointer + 2) &&
-            is_safe_user_ptr (stack_pointer + 3))
-          f->eax = write (*(stack_pointer + 1), (void *) *(stack_pointer + 2),
-                          *(stack_pointer + 3));
-        break;
+          case SYS_WRITE:
+            if (is_safe_user_ptr (stack_pointer + 1) &&
+                is_safe_user_ptr (stack_pointer + 2) &&
+                is_safe_user_ptr (stack_pointer + 3))
+              f->eax = write (*(stack_pointer + 1), (void *) *(stack_pointer + 2),
+                              *(stack_pointer + 3));
+            break;
+        }
     }
 }
 
