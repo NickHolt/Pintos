@@ -23,7 +23,7 @@ pass tests/userprog/args-multiple
 pass tests/userprog/args-many  
 pass tests/userprog/args-dbl-space  
 FAIL tests/userprog/sc-bad-sp  
-FAIL tests/userprog/sc-bad-arg   
+pass tests/userprog/sc-bad-arg  
 pass tests/userprog/sc-boundary  
 pass tests/userprog/sc-boundary-2  
 pass tests/userprog/halt  
@@ -73,12 +73,12 @@ FAIL tests/userprog/multi-child-fd
 FAIL tests/userprog/rox-simple  
 FAIL tests/userprog/rox-child  
 FAIL tests/userprog/rox-multichild  
-FAIL tests/userprog/bad-read  
-FAIL tests/userprog/bad-write  
-FAIL tests/userprog/bad-read2  
-FAIL tests/userprog/bad-write2  
-FAIL tests/userprog/bad-jump  
-FAIL tests/userprog/bad-jump2  
+pass tests/userprog/bad-read  
+pass tests/userprog/bad-write  
+pass tests/userprog/bad-read2  
+pass tests/userprog/bad-write2  
+pass tests/userprog/bad-jump  
+pass tests/userprog/bad-jump2  
 FAIL tests/userprog/no-vm/multi-oom  
 FAIL tests/filesys/base/lg-create  
 FAIL tests/filesys/base/lg-full  
@@ -93,4 +93,4 @@ FAIL tests/filesys/base/sm-seq-random
 FAIL tests/filesys/base/syn-read  
 FAIL tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-50 of 76 tests failed.  
+43 of 76 tests failed.
