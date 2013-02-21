@@ -28,22 +28,22 @@ pass tests/userprog/sc-boundary
 pass tests/userprog/sc-boundary-2  
 pass tests/userprog/halt  
 pass tests/userprog/exit  
-pass tests/userprog/create-normal  
-FAIL tests/userprog/create-empty  
+FAIL tests/userprog/create-normal  
+pass tests/userprog/create-empty  
 FAIL tests/userprog/create-null  
 FAIL tests/userprog/create-bad-ptr  
-FAIL tests/userprog/create-long  
+pass tests/userprog/create-long  
 FAIL tests/userprog/create-exists  
-pass tests/userprog/create-bound  
-pass tests/userprog/open-normal  
-FAIL tests/userprog/open-missing  
-pass tests/userprog/open-boundary  
-FAIL tests/userprog/open-empty  
+FAIL tests/userprog/create-bound  
+FAIL tests/userprog/open-normal  
+pass tests/userprog/open-missing  
+FAIL tests/userprog/open-boundary  
+pass tests/userprog/open-empty  
 pass tests/userprog/open-null  
 FAIL tests/userprog/open-bad-ptr  
-pass tests/userprog/open-twice  
-pass tests/userprog/close-normal  
-pass tests/userprog/close-twice  
+FAIL tests/userprog/open-twice  
+FAIL tests/userprog/close-normal  
+FAIL tests/userprog/close-twice  
 pass tests/userprog/close-stdin  
 pass tests/userprog/close-stdout  
 pass tests/userprog/close-bad-fd  
@@ -56,13 +56,13 @@ pass tests/userprog/read-bad-fd
 FAIL tests/userprog/write-normal  
 FAIL tests/userprog/write-bad-ptr  
 FAIL tests/userprog/write-boundary  
-pass tests/userprog/write-zero  
+FAIL tests/userprog/write-zero  
 pass tests/userprog/write-stdin  
 pass tests/userprog/write-bad-fd  
 FAIL tests/userprog/exec-once  
 FAIL tests/userprog/exec-arg  
 FAIL tests/userprog/exec-multiple  
-FAIL tests/userprog/exec-missing  
+pass tests/userprog/exec-missing  
 pass tests/userprog/exec-bad-ptr  
 FAIL tests/userprog/wait-simple  
 FAIL tests/userprog/wait-twice  
@@ -93,4 +93,4 @@ FAIL tests/filesys/base/sm-seq-random
 FAIL tests/filesys/base/syn-read  
 FAIL tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-42 of 76 tests failed.
+45 of 76 tests failed.

@@ -8,10 +8,19 @@
 #include "userprog/process.h"
 #include "devices/shutdown.h"
 
-static void syscall_handler (struct intr_frame *);
+static void syscall_handler (struct intr_frame *f);
 static void halt (void);
+static pid_t exec (const char *file);
 static int wait (pid_t pid);
+static bool create (const char *file, unsigned initial_size);
+static bool remove (const char *file);
+static int open (const char *file);
+static int filesize (int fd);
+static int read (int fd, void *buffer, unsigned length);
 static int write (int fd, const void *buffer, unsigned size);
+static void seek (int fd, unsigned position);
+static unsigned tell (int fd);
+static void close (int fd);
 
 void
 syscall_init (void)
@@ -53,7 +62,7 @@ syscall_handler (struct intr_frame *f)
   if (is_safe_user_ptr (stack_pointer))
     {
       int syscall_number = *stack_pointer;
-      
+
       /* Maybe function pointers would be neater here? */
       switch (syscall_number)
         {
@@ -66,18 +75,74 @@ syscall_handler (struct intr_frame *f)
               exit (*(stack_pointer + 1));
             break;
 
+          case SYS_EXEC:
+            if (is_safe_user_ptr (stack_pointer + 1))
+              f->eax = exec ((char *) *(stack_pointer + 1));
+            break;
+
           case SYS_WAIT:
             if (is_safe_user_ptr (stack_pointer + 1))
               f->eax = wait (*(stack_pointer + 1));
+            break;
+
+          case SYS_CREATE:
+            if (is_safe_user_ptr (stack_pointer + 1) &&
+                is_safe_user_ptr (stack_pointer + 2))
+              f->eax = create ((char *) *(stack_pointer + 1),
+                               *(stack_pointer + 2));
+            break;
+
+          case SYS_REMOVE:
+            if (is_safe_user_ptr (stack_pointer + 1))
+              f->eax = remove ((char *) *(stack_pointer + 1));
+            break;
+
+          case SYS_OPEN:
+            if (is_safe_user_ptr (stack_pointer + 1))
+              f->eax = open ((char *) *(stack_pointer + 1));
+            break;
+
+          case SYS_FILESIZE:
+            if (is_safe_user_ptr (stack_pointer + 1))
+              f->eax = filesize (*(stack_pointer + 1));
+            break;
+
+          case SYS_READ:
+            if (is_safe_user_ptr (stack_pointer + 1) &&
+                is_safe_user_ptr (stack_pointer + 2) &&
+                is_safe_user_ptr (stack_pointer + 3))
+              f->eax = read (*(stack_pointer + 1),
+                             (void *) *(stack_pointer + 2),
+                             *(stack_pointer + 3));
             break;
 
           case SYS_WRITE:
             if (is_safe_user_ptr (stack_pointer + 1) &&
                 is_safe_user_ptr (stack_pointer + 2) &&
                 is_safe_user_ptr (stack_pointer + 3))
-              f->eax = write (*(stack_pointer + 1), (void *) *(stack_pointer + 2),
+              f->eax = write (*(stack_pointer + 1),
+                              (void *) *(stack_pointer + 2),
                               *(stack_pointer + 3));
             break;
+
+          case SYS_SEEK:
+            if (is_safe_user_ptr (stack_pointer + 1) &&
+                is_safe_user_ptr (stack_pointer + 2))
+              seek (*(stack_pointer + 1), *(stack_pointer + 2));
+            break;
+
+          case SYS_TELL:
+            if (is_safe_user_ptr (stack_pointer + 1))
+              f->eax = tell (*(stack_pointer + 1));
+            break;
+
+          case SYS_CLOSE:
+            if (is_safe_user_ptr (stack_pointer + 1))
+              close (*(stack_pointer + 1));
+            break;
+
+          default:
+            NOT_REACHED ();
         }
     }
 }
@@ -113,7 +178,7 @@ exit (int status)
     }
   else
     {
-      // Probably need some sort of error thingy here?
+      /* Probably need some sort of error thingy here? */
     }
 
   /* Charlie: what about stuff that exiting_thread currently holds?
