@@ -35,15 +35,15 @@ pass tests/userprog/create-bad-ptr
 pass tests/userprog/create-long  
 pass tests/userprog/create-exists  
 pass tests/userprog/create-bound  
-FAIL tests/userprog/open-normal  
+pass tests/userprog/open-normal  
 pass tests/userprog/open-missing  
-FAIL tests/userprog/open-boundary  
+pass tests/userprog/open-boundary  
 pass tests/userprog/open-empty  
 pass tests/userprog/open-null  
 pass tests/userprog/open-bad-ptr  
-FAIL tests/userprog/open-twice  
-FAIL tests/userprog/close-normal  
-FAIL tests/userprog/close-twice  
+pass tests/userprog/open-twice  
+pass tests/userprog/close-normal  
+pass tests/userprog/close-twice  
 pass tests/userprog/close-stdin  
 pass tests/userprog/close-stdout  
 pass tests/userprog/close-bad-fd  
@@ -54,9 +54,9 @@ FAIL tests/userprog/read-zero
 pass tests/userprog/read-stdout  
 pass tests/userprog/read-bad-fd  
 FAIL tests/userprog/write-normal  
-FAIL tests/userprog/write-bad-ptr  
+pass tests/userprog/write-bad-ptr  
 FAIL tests/userprog/write-boundary  
-FAIL tests/userprog/write-zero  
+pass tests/userprog/write-zero  
 pass tests/userprog/write-stdin  
 pass tests/userprog/write-bad-fd  
 pass tests/userprog/exec-once  
@@ -93,4 +93,4 @@ FAIL tests/filesys/base/sm-seq-random
 FAIL tests/filesys/base/syn-read  
 FAIL tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-31 of 76 tests failed.
+24 of 76 tests failed.

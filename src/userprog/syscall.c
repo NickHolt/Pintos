@@ -9,6 +9,7 @@
 #include "devices/shutdown.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
+#include <hash.h>
 
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);
@@ -24,9 +25,46 @@ static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
 static void close (int fd);
 
+static struct hash fd_hash;
+static int next_fd = 2;
+
+struct fd_node
+  {
+    struct hash_elem hash_elem;
+    unsigned fd;
+    struct thread *thread;
+    struct file *file;
+  };
+
+static unsigned
+hash_func (const struct hash_elem *node_, void *aux UNUSED)
+{
+  struct fd_node *node = hash_entry (node_, struct fd_node, hash_elem);
+
+  ASSERT (node != NULL);
+
+  return node->fd;
+}
+
+static bool
+less_func (const struct hash_elem *a_, const struct hash_elem *b_,
+                void *aux UNUSED)
+{
+  struct fd_node *a = hash_entry (a_, struct fd_node, hash_elem);
+  struct fd_node *b = hash_entry (b_, struct fd_node, hash_elem);
+
+  ASSERT (a != NULL);
+  ASSERT (b != NULL);
+
+  return a->fd < b->fd;
+} 
+
 void
 syscall_init (void)
 {
+  if (!hash_init (&fd_hash, hash_func, less_func, NULL))
+    PANIC ("Failed to allocate memory for file descriptor map");
+
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -249,18 +287,27 @@ open (const char *filename)
   if (is_safe_user_ptr (filename))
     {
       struct file *file = filesys_open (filename);
-
       if (file == NULL)
         return -1;
 
       struct inode *inode = file_get_inode (file);
-
       if (inode == NULL)
         return -1;
 
       struct file *open_file = file_open (inode);
+      if (open_file == NULL)
+        return -1;
 
       /* Allocate an fd. */
+      /* TODO: should these be heap-allocated? Can pass destructor argument to
+               hash_destroy () to handle deallocation. */
+      struct fd_node node;
+      node.fd = next_fd++;
+      node.thread = thread_current ();
+      node.file = open_file;
+      hash_insert (&fd_hash, &node.hash_elem);
+
+      return node.fd;
     }
 
 	NOT_REACHED ();
