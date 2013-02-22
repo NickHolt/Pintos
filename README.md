@@ -40,7 +40,7 @@ pass tests/userprog/open-missing
 FAIL tests/userprog/open-boundary  
 pass tests/userprog/open-empty  
 pass tests/userprog/open-null  
-FAIL tests/userprog/open-bad-ptr  
+pass tests/userprog/open-bad-ptr  
 FAIL tests/userprog/open-twice  
 FAIL tests/userprog/close-normal  
 FAIL tests/userprog/close-twice  
@@ -93,4 +93,4 @@ FAIL tests/filesys/base/sm-seq-random
 FAIL tests/filesys/base/syn-read  
 FAIL tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-32 of 76 tests failed.
+31 of 76 tests failed.

@@ -8,6 +8,7 @@
 #include "userprog/process.h"
 #include "devices/shutdown.h"
 #include "filesys/filesys.h"
+#include "filesys/file.h"
 
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);
@@ -240,12 +241,29 @@ remove (const char *file UNUSED)
   return false;
 }
 
-/* Opens the file called file. Returns a non-negative integer handle, or -1 if
-   the file could not be opened. */
+/* Opens the file called filename. Returns a non-negative integer handle, or
+   -1 if the file could not be opened. */
 static int
-open (const char *file UNUSED)
+open (const char *filename)
 {
-	return -1;
+  if (is_safe_user_ptr (filename))
+    {
+      struct file *file = filesys_open (filename);
+
+      if (file == NULL)
+        return -1;
+
+      struct inode *inode = file_get_inode (file);
+
+      if (inode == NULL)
+        return -1;
+
+      struct file *open_file = file_open (inode);
+
+      /* Allocate an fd. */
+    }
+
+	NOT_REACHED ();
 }
 
 /* Returns the size, in bytes, of the file open as fd. */
@@ -270,24 +288,29 @@ read (int fd UNUSED, void *buffer UNUSED, unsigned length UNUSED)
 static int
 write (int fd, const void *buffer, unsigned size)
 {
-  /* TODO: check if pointer to buffer is valid */
-  ASSERT (buffer != NULL); /* Is this enough? */
-
-  if (fd == 1)
+  /* Can't write to standard input. */
+  if (fd == 0)
+    exit (-1);
+  else if (is_safe_user_ptr (buffer))
     {
-      /* TODO: if buffer is greater than `a few hundred bytes', break it up into
-               multiple putbuf() calls. */
-      putbuf (buffer, size);
-      return size;
-    }
-  else
-    {
-      /* Write to the file. Need to lock the file system, open the file, write
-         to the file, and release the lock. We can probably use file_open and
-         file_write from filesys/file.h for this. */
+      if (fd == 1)
+        {
+          /* TODO: if buffer is greater than `a few hundred bytes', break it up
+                   into multiple putbuf() calls. */
+          putbuf (buffer, size);
+          return size;
+        }
+      else
+        {
+          /* Write to the file. Need to lock the file system, open the file,
+             write to the file, and release the lock. We can probably use
+             file_open and file_write from filesys/file.h for this. */
 
-      return 0; /* Needs to return number of bytes written to file. */
+          return 0; /* Needs to return number of bytes written to file. */
+        }
     }
+
+  NOT_REACHED ();
 }
 
 /* Changes the next byte to be read/written in open file fd to position,
