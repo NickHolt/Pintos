@@ -191,6 +191,7 @@ syscall_handler (struct intr_frame *f)
 static void
 halt (void)
 {
+  hash_destroy (&fd_hash, NULL);
   shutdown_power_off ();
 }
 
