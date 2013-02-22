@@ -389,17 +389,13 @@ write (int fd, const void *buffer, unsigned size)
                 }
 
               putbuf (buffer + offset, size);
-              offest += size;
+              offset += size;
               return offset;
             }
         }
       else
         {
-          /* Write to the file. Need to lock the file system, open the file,
-             write to the file, and release the lock. We can probably use
-             file_open and file_write from filesys/file.h for this. */
-
-          return 0; /* Needs to return number of bytes written to file. */
+          return file_write (fd_to_file (fd), buffer, size);
         }
     }
 
