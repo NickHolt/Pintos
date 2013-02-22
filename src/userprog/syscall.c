@@ -62,6 +62,25 @@ less_func (const struct hash_elem *a_, const struct hash_elem *b_,
   return a->fd < b->fd;
 }
 
+/* Returns a file * for a given int fd. Terminates the process with an error
+   code if the fd is not mapped, or is stdin/stdout. */
+static struct file *
+fd_to_file (int fd)
+{
+  struct fd_node node;
+  node.fd = fd;
+
+  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
+
+  /* fd isn't mapped. Terminate.
+     stdin/stdout failure cases are also caught here. */
+  if (e == NULL)
+    exit (-1);
+
+  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
+  return entry->file;
+}
+
 void
 syscall_init (void)
 {
@@ -194,6 +213,7 @@ syscall_handler (struct intr_frame *f)
 static void
 halt (void)
 {
+  hash_destroy (&fd_hash, NULL);
   shutdown_power_off ();
 }
 
@@ -226,6 +246,11 @@ exit (int status)
 
   /* Charlie: what about stuff that exiting_thread currently holds?
               Locks? Files? */
+
+  /* TODO: call close() on each of thread's fds. Presumably either iterate
+           through the hash map, or redesign it so that the fd->file map is
+           inside the thread. Or let a thread have a list of fds, then use the
+           hash map still. */
 
   thread_exit();
 }
@@ -321,9 +346,9 @@ open (const char *filename)
 
 /* Returns the size, in bytes, of the file open as fd. */
 static int
-filesize (int fd UNUSED)
+filesize (int fd)
 {
-	return -1;
+  return file_length (fd_to_file (fd));
 }
 
 /* Reads size bytes from the file open as fd into buffer. Returns the number of
@@ -384,24 +409,38 @@ write (int fd, const void *buffer, unsigned size)
 /* Changes the next byte to be read/written in open file fd to position,
    expressed in bytes from the beginning of the file. */
 static void
-seek (int fd UNUSED, unsigned position UNUSED)
+seek (int fd, unsigned position)
 {
-
+  file_seek (fd_to_file (fd), position);
 }
 
 /* Returns the position of the next byte to be read or written in open file fd,
    expressed in bytes from the beginning of the file. */
 static unsigned
-tell (int fd UNUSED)
+tell (int fd)
 {
-	return 0;
+  return file_tell (fd_to_file (fd));
 }
 
 /* Closes file descriptor fd. Exiting or terminating a process implicitly closes
    all its open file descriptors, as if by calling this function for each
    one. */
 static void
-close (int fd UNUSED)
+close (int fd)
 {
+  struct fd_node node;
+  node.fd = fd;
 
+  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
+
+  /* fd isn't mapped. Terminate.
+     stdin/stdout failure cases are also caught here. */
+  if (e == NULL)
+    exit (-1);
+
+  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
+  file_close (entry->file);
+
+  /* Remove the fd from the map so it can't be closed twice. */
+  hash_delete (&fd_hash, &node.hash_elem);
 }
