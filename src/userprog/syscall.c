@@ -11,6 +11,8 @@
 #include "filesys/file.h"
 #include <hash.h>
 
+#define MAX_PUTBUF 512
+
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);
 static pid_t exec (const char *file);
@@ -27,6 +29,7 @@ static void close (int fd);
 
 static struct hash fd_hash;
 static int next_fd = 2;
+
 
 struct fd_node
   {
@@ -57,7 +60,7 @@ less_func (const struct hash_elem *a_, const struct hash_elem *b_,
   ASSERT (b != NULL);
 
   return a->fd < b->fd;
-} 
+}
 
 void
 syscall_init (void)
@@ -345,10 +348,25 @@ write (int fd, const void *buffer, unsigned size)
     {
       if (fd == 1)
         {
-          /* TODO: if buffer is greater than `a few hundred bytes', break it up
-                   into multiple putbuf() calls. */
-          putbuf (buffer, size);
-          return size;
+          if (size < MAX_PUTBUF)
+            {
+              putbuf (buffer, size);
+              return size;
+            }
+          else
+            {
+              int offset = 0;
+              while (size > MAX_PUTBUF)
+                {
+                  putbuf (buffer + offset, MAX_PUTBUF);
+                  offset += MAX_PUTBUF;
+                  size -= MAX_PUTBUF;
+                }
+
+              putbuf (buffer + offset, size);
+              offest += size;
+              return offset;
+            }
         }
       else
         {
