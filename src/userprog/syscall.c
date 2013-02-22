@@ -7,6 +7,7 @@
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "devices/shutdown.h"
+#include "devices/input.h"
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include <hash.h>
@@ -355,9 +356,28 @@ filesize (int fd)
    bytes actually read, or -1 if the file could not be read.
    fd == 0 reads from the keyboard using input_getc(). */
 static int
-read (int fd UNUSED, void *buffer UNUSED, unsigned length UNUSED)
+read (int fd UNUSED, void *buffer, unsigned length)
 {
-	return -1;
+  if (fd == 1)
+    exit (-1);
+  else if (is_safe_user_ptr (buffer))
+    {
+      if (fd == 0)
+        {
+          unsigned i = 0;
+          uint8_t *b = buffer;
+          for (; i < length; ++i)
+            b[i] = (char) input_getc ();
+
+          return length;
+        }
+      else
+        {
+          return file_read (fd_to_file (fd), buffer, length);
+        }
+    }
+
+  NOT_REACHED ();
 }
 
 /* Writes size bytes from buffer to the open file fd. Returns the number of

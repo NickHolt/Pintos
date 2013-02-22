@@ -47,15 +47,15 @@ pass tests/userprog/close-twice
 pass tests/userprog/close-stdin  
 pass tests/userprog/close-stdout  
 pass tests/userprog/close-bad-fd  
-FAIL tests/userprog/read-normal  
-FAIL tests/userprog/read-bad-ptr  
-FAIL tests/userprog/read-boundary  
-FAIL tests/userprog/read-zero  
+pass tests/userprog/read-normal  
+pass tests/userprog/read-bad-ptr  
+pass tests/userprog/read-boundary  
+pass tests/userprog/read-zero  
 pass tests/userprog/read-stdout  
 pass tests/userprog/read-bad-fd  
-FAIL tests/userprog/write-normal  
+pass tests/userprog/write-normal  
 pass tests/userprog/write-bad-ptr  
-FAIL tests/userprog/write-boundary  
+pass tests/userprog/write-boundary  
 pass tests/userprog/write-zero  
 pass tests/userprog/write-stdin  
 pass tests/userprog/write-bad-fd  
@@ -93,4 +93,4 @@ FAIL tests/filesys/base/sm-seq-random
 FAIL tests/filesys/base/syn-read  
 FAIL tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-24 of 76 tests failed.
+18 of 76 tests failed.
