@@ -31,6 +31,7 @@ static void close (int fd);
 static struct hash fd_hash;
 static int next_fd = 2;
 
+struct lock filesys_lock;
 
 struct fd_node
   {
@@ -87,6 +88,8 @@ syscall_init (void)
 {
   if (!hash_init (&fd_hash, hash_func, less_func, NULL))
     PANIC ("Failed to allocate memory for file descriptor map");
+
+  lock_init (&filesys_lock);
 
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
@@ -296,7 +299,12 @@ static bool
 create (const char *file, unsigned initial_size)
 {
   if (is_safe_user_ptr (file))
-    return filesys_create (file, initial_size);
+    {
+      lock_acquire (&filesys_lock);
+      bool status = filesys_create (file, initial_size);
+      lock_release (&filesys_lock);
+      return status;
+    }
 
   NOT_REACHED ();
 }
@@ -306,7 +314,12 @@ static bool
 remove (const char *file)
 {
   if (is_safe_user_ptr (file))
-    return filesys_remove (file);
+    {
+      lock_acquire (&filesys_lock);
+      bool status = filesys_remove (file);
+      lock_release (&filesys_lock);
+      return status;
+    }
 
   NOT_REACHED ();
 }
@@ -318,6 +331,8 @@ open (const char *filename)
 {
   if (is_safe_user_ptr (filename))
     {
+      lock_acquire (&filesys_lock);
+
       struct file *file = filesys_open (filename);
       if (file == NULL)
         return -1;
@@ -339,6 +354,8 @@ open (const char *filename)
       node.file = open_file;
       hash_insert (&fd_hash, &node.hash_elem);
 
+      lock_release (&filesys_lock);
+
       return node.fd;
     }
 
@@ -349,7 +366,10 @@ open (const char *filename)
 static int
 filesize (int fd)
 {
-  return file_length (fd_to_file (fd));
+  lock_acquire (&filesys_lock);
+  int length = file_length (fd_to_file (fd));
+  lock_release (&filesys_lock);
+  return length;
 }
 
 /* Reads size bytes from the file open as fd into buffer. Returns the number of
@@ -373,7 +393,10 @@ read (int fd UNUSED, void *buffer, unsigned length)
         }
       else
         {
-          return file_read (fd_to_file (fd), buffer, length);
+          lock_acquire (&filesys_lock);
+          int size = file_read (fd_to_file (fd), buffer, length);
+          lock_release (&filesys_lock);
+          return size;
         }
     }
 
@@ -415,7 +438,10 @@ write (int fd, const void *buffer, unsigned size)
         }
       else
         {
-          return file_write (fd_to_file (fd), buffer, size);
+          lock_acquire (&filesys_lock);
+          int length = file_write (fd_to_file (fd), buffer, size);
+          lock_release (&filesys_lock);
+          return length;
         }
     }
 
@@ -427,7 +453,9 @@ write (int fd, const void *buffer, unsigned size)
 static void
 seek (int fd, unsigned position)
 {
+  lock_acquire (&filesys_lock);
   file_seek (fd_to_file (fd), position);
+  lock_release (&filesys_lock);
 }
 
 /* Returns the position of the next byte to be read or written in open file fd,
@@ -435,7 +463,10 @@ seek (int fd, unsigned position)
 static unsigned
 tell (int fd)
 {
-  return file_tell (fd_to_file (fd));
+  lock_acquire (&filesys_lock);
+  unsigned next = file_tell (fd_to_file (fd));
+  lock_release (&filesys_lock);
+  return next;
 }
 
 /* Closes file descriptor fd. Exiting or terminating a process implicitly closes
@@ -446,6 +477,8 @@ close (int fd)
 {
   struct fd_node node;
   node.fd = fd;
+
+  lock_acquire (&filesys_lock);
 
   struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
 
@@ -459,4 +492,6 @@ close (int fd)
 
   /* Remove the fd from the map so it can't be closed twice. */
   hash_delete (&fd_hash, &node.hash_elem);
+
+  lock_release (&filesys_lock);
 }
