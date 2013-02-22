@@ -12,6 +12,7 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "userprog/syscall.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -417,7 +418,7 @@ struct child_info *
 get_child (struct thread *par, tid_t child_tid)
 {
   /* The tid is supriously high and is therefore rouge */
-  if (child_tid > 1000)
+  if (child_tid > 10000)
     exit(-1);
 
   struct list_elem *e;
@@ -645,8 +646,6 @@ allocate_tid (void)
   lock_acquire (&tid_lock);
   tid = next_tid++;
   lock_release (&tid_lock);
-
-  ASSERT (next_tid < 1000);
 
   return tid;
 }

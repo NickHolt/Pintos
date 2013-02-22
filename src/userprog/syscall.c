@@ -274,9 +274,12 @@ create (const char *file, unsigned initial_size)
 
 /* Deletes the file called file. Returns true iff successful. */
 static bool
-remove (const char *file UNUSED)
+remove (const char *file)
 {
-  return false;
+  if (is_safe_user_ptr (file))
+    return filesys_remove (file);
+
+  NOT_REACHED ();
 }
 
 /* Opens the file called filename. Returns a non-negative integer handle, or
