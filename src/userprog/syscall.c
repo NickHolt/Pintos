@@ -59,6 +59,25 @@ less_func (const struct hash_elem *a_, const struct hash_elem *b_,
   return a->fd < b->fd;
 } 
 
+/* Returns a file * for a given int fd. Terminates the process with an error
+   code if the fd is not mapped, or is stdin/stdout. */
+static struct file *
+fd_to_file (int fd)
+{
+  struct fd_node node;
+  node.fd = fd;
+
+  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
+
+  /* fd isn't mapped. Terminate.
+     stdin/stdout failure cases are also caught here. */
+  if (e == NULL)
+    exit (-1);
+
+  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
+  return entry->file;
+}
+
 void
 syscall_init (void)
 {
@@ -323,18 +342,7 @@ open (const char *filename)
 static int
 filesize (int fd)
 {
-  struct fd_node node;
-  node.fd = fd;
-
-  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
-
-  /* fd isn't mapped. Terminate.
-     stdin/stdout failure cases are also caught here. */
-  if (e == NULL)
-    exit (-1);
-
-  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
-  return file_length (entry->file);
+  return file_length (fd_to_file (fd));
 }
 
 /* Reads size bytes from the file open as fd into buffer. Returns the number of
@@ -382,39 +390,15 @@ write (int fd, const void *buffer, unsigned size)
 static void
 seek (int fd, unsigned position)
 {
-  /* TODO: get rid of duplication in seek, tell, close and filesize. */
-
-  struct fd_node node;
-  node.fd = fd;
-
-  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
-
-  /* fd isn't mapped. Terminate.
-     stdin/stdout failure cases are also caught here. */
-  if (e == NULL)
-    exit (-1);
-
-  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
-  file_seek (entry->file, position);
+  file_seek (fd_to_file (fd), position);
 }
 
 /* Returns the position of the next byte to be read or written in open file fd,
    expressed in bytes from the beginning of the file. */
 static unsigned
-tell (int fd UNUSED)
+tell (int fd)
 {
-  struct fd_node node;
-  node.fd = fd;
-
-  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
-
-  /* fd isn't mapped. Terminate.
-     stdin/stdout failure cases are also caught here. */
-  if (e == NULL)
-    exit (-1);
-
-  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
-  return file_tell (entry->file);
+  return file_tell (fd_to_file (fd));
 }
 
 /* Closes file descriptor fd. Exiting or terminating a process implicitly closes
