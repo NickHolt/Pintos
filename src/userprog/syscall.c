@@ -369,9 +369,22 @@ write (int fd, const void *buffer, unsigned size)
 /* Changes the next byte to be read/written in open file fd to position,
    expressed in bytes from the beginning of the file. */
 static void
-seek (int fd UNUSED, unsigned position UNUSED)
+seek (int fd, unsigned position)
 {
+  /* TODO: get rid of duplication in seek, tell and close. */
+  
+  struct fd_node node;
+  node.fd = fd;
 
+  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
+
+  /* fd isn't mapped. Terminate.
+     stdin/stdout failure cases are also caught here. */
+  if (e == NULL)
+    exit (-1);
+
+  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
+  file_seek (entry->file, position);
 }
 
 /* Returns the position of the next byte to be read or written in open file fd,
@@ -379,7 +392,18 @@ seek (int fd UNUSED, unsigned position UNUSED)
 static unsigned
 tell (int fd UNUSED)
 {
-	return 0;
+  struct fd_node node;
+  node.fd = fd;
+
+  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
+
+  /* fd isn't mapped. Terminate.
+     stdin/stdout failure cases are also caught here. */
+  if (e == NULL)
+    exit (-1);
+
+  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
+  return file_tell (entry->file);
 }
 
 /* Closes file descriptor fd. Exiting or terminating a process implicitly closes
@@ -388,16 +412,13 @@ tell (int fd UNUSED)
 static void
 close (int fd)
 {
-  /* Can't close stdin/out. */
-  if (fd < 2)
-    exit (-1);
-
   struct fd_node node;
   node.fd = fd;
 
   struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
 
-  /* fd isn't mapped. Terminate. */
+  /* fd isn't mapped. Terminate.
+     stdin/stdout failure cases are also caught here. */
   if (e == NULL)
     exit (-1);
 
