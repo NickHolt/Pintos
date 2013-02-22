@@ -225,6 +225,11 @@ exit (int status)
   /* Charlie: what about stuff that exiting_thread currently holds?
               Locks? Files? */
 
+  /* TODO: call close() on each of thread's fds. Presumably either iterate
+           through the hash map, or redesign it so that the fd->file map is
+           inside the thread. Or let a thread have a list of fds, then use the
+           hash map still. */
+
   thread_exit();
 }
 
@@ -381,7 +386,24 @@ tell (int fd UNUSED)
    all its open file descriptors, as if by calling this function for each
    one. */
 static void
-close (int fd UNUSED)
+close (int fd)
 {
+  /* Can't close stdin/out. */
+  if (fd < 2)
+    exit (-1);
 
+  struct fd_node node;
+  node.fd = fd;
+
+  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
+
+  /* fd isn't mapped. Terminate. */
+  if (e == NULL)
+    exit (-1);
+
+  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
+  file_close (entry->file);
+
+  /* Remove the fd from the map so it can't be closed twice. */
+  hash_delete (&fd_hash, &node.hash_elem);
 }
