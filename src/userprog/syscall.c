@@ -321,9 +321,20 @@ open (const char *filename)
 
 /* Returns the size, in bytes, of the file open as fd. */
 static int
-filesize (int fd UNUSED)
+filesize (int fd)
 {
-	return -1;
+  struct fd_node node;
+  node.fd = fd;
+
+  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
+
+  /* fd isn't mapped. Terminate.
+     stdin/stdout failure cases are also caught here. */
+  if (e == NULL)
+    exit (-1);
+
+  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
+  return file_length (entry->file);
 }
 
 /* Reads size bytes from the file open as fd into buffer. Returns the number of
@@ -371,8 +382,8 @@ write (int fd, const void *buffer, unsigned size)
 static void
 seek (int fd, unsigned position)
 {
-  /* TODO: get rid of duplication in seek, tell and close. */
-  
+  /* TODO: get rid of duplication in seek, tell, close and filesize. */
+
   struct fd_node node;
   node.fd = fd;
 
