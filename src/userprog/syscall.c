@@ -11,6 +11,7 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include <hash.h>
+#include "threads/malloc.h"
 
 #define MAX_PUTBUF 512
 
@@ -62,6 +63,13 @@ less_func (const struct hash_elem *a_, const struct hash_elem *b_,
   ASSERT (b != NULL);
 
   return a->fd < b->fd;
+}
+
+static void
+destructor_func (struct hash_elem *e_, void *aux UNUSED)
+{
+  struct fd_node *e = hash_entry (e_, struct fd_node, hash_elem);
+  free (e);
 }
 
 /* Returns a file * for a given int fd. Terminates the process with an error
@@ -217,7 +225,7 @@ syscall_handler (struct intr_frame *f)
 static void
 halt (void)
 {
-  hash_destroy (&fd_hash, NULL);
+  hash_destroy (&fd_hash, destructor_func);
   shutdown_power_off ();
 }
 
@@ -346,17 +354,18 @@ open (const char *filename)
         return -1;
 
       /* Allocate an fd. */
-      /* TODO: should these be heap-allocated? Can pass destructor argument to
-               hash_destroy () to handle deallocation. */
-      struct fd_node node;
-      node.fd = next_fd++;
-      node.thread = thread_current ();
-      node.file = open_file;
-      hash_insert (&fd_hash, &node.hash_elem);
+      struct fd_node *node = malloc (sizeof (struct fd_node));
+      if (node == NULL)
+        PANIC ("Failed to allocate memory for file descriptor node");
+
+      node->fd = next_fd++;
+      node->thread = thread_current ();
+      node->file = open_file;
+      hash_insert (&fd_hash, &node->hash_elem);
 
       lock_release (&filesys_lock);
 
-      return node.fd;
+      return node->fd;
     }
 
 	NOT_REACHED ();

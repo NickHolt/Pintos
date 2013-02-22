@@ -81,7 +81,7 @@ pass tests/userprog/bad-jump
 pass tests/userprog/bad-jump2  
 FAIL tests/userprog/no-vm/multi-oom  
 pass tests/filesys/base/lg-create  
-FAIL tests/filesys/base/lg-full  
+pass tests/filesys/base/lg-full  
 pass tests/filesys/base/lg-random  
 pass tests/filesys/base/lg-seq-block  
 pass tests/filesys/base/lg-seq-random  
@@ -89,8 +89,8 @@ pass tests/filesys/base/sm-create
 pass tests/filesys/base/sm-full  
 pass tests/filesys/base/sm-random  
 pass tests/filesys/base/sm-seq-block  
-FAIL tests/filesys/base/sm-seq-random  
+pass tests/filesys/base/sm-seq-random  
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
 pass tests/filesys/base/syn-write  
-7 of 76 tests failed.
+5 of 76 tests failed.
