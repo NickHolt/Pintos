@@ -119,6 +119,7 @@ struct thread
                                            uses to wait for it's child */
     struct lock cond_lock;              /* Lock used by child_waiter */
     enum loaded_status child_status;    /* Used to track new child's state */
+    struct list open_fds;               /* Used to close fds on exit call. */
 #endif
 
     /* Owned by thread.c. */

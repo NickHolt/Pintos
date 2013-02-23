@@ -42,6 +42,27 @@ struct fd_node
     struct file *file;
   };
 
+struct fd
+  {
+    int fd;
+    struct list_elem elem;
+  };
+
+static void
+print_open_fds (void)
+{
+  printf ("fds: ");
+  struct list_elem *el;
+  for (el = list_begin (&thread_current ()->open_fds);
+       el != list_end (&thread_current ()->open_fds);
+       el = list_next (el))
+    {
+      struct fd *f = list_entry (el, struct fd, elem);
+      printf("%i ", f->fd);
+    }
+  printf("\n");
+}
+
 static unsigned
 hash_func (const struct hash_elem *node_, void *aux UNUSED)
 {
@@ -263,6 +284,16 @@ exit (int status)
            through the hash map, or redesign it so that the fd->file map is
            inside the thread. Or let a thread have a list of fds, then use the
            hash map still. */
+  struct list_elem *e, *next;
+  for (e = list_begin (&exiting_thread->open_fds);
+       e != list_end (&exiting_thread->open_fds);
+       e = next)
+    {
+      struct fd *fd = list_entry (e, struct fd, elem);
+      next = list_next (e); /* Need to remember where we're going next, since
+                               close will remove itself from the list. */
+      close (fd->fd);
+    }
 
   thread_exit();
 }
@@ -362,6 +393,15 @@ open (const char *filename)
       node->thread = thread_current ();
       node->file = open_file;
       hash_insert (&fd_hash, &node->hash_elem);
+      // printf("%i: hash_insert (%i)\n", thread_current ()->tid, node->fd);
+
+      struct fd *fd = malloc (sizeof (struct fd));
+      if (fd == NULL)
+        PANIC ("Failed to allocate memory for file descriptor list node");
+      fd->fd = node->fd;
+
+      list_push_back (&thread_current ()->open_fds, &fd->elem);
+      // printf("%i: list_push_back (%i)\n", thread_current ()->tid, node->fd);
 
       lock_release (&filesys_lock);
 
@@ -484,23 +524,36 @@ tell (int fd)
 static void
 close (int fd)
 {
-  struct fd_node node;
-  node.fd = fd;
-
   lock_acquire (&filesys_lock);
 
+  struct fd_node node;
+  node.fd = fd;
   struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
 
   /* fd isn't mapped. Terminate.
      stdin/stdout failure cases are also caught here. */
   if (e == NULL)
-    exit (-1);
+      exit (-1);
 
   struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
   file_close (entry->file);
 
   /* Remove the fd from the map so it can't be closed twice. */
   hash_delete (&fd_hash, &node.hash_elem);
+
+  /* Remove from thread's open_fds for the same reason. */
+  struct fd *f;
+  struct list_elem *el;
+  for (el = list_begin (&thread_current ()->open_fds);
+       el != list_end (&thread_current ()->open_fds);
+       el = list_next (el))
+    {
+      f = list_entry (el, struct fd, elem);
+      if (f->fd == fd)
+          break;
+    }
+  list_remove (el);
+  free (f);
 
   lock_release (&filesys_lock);
 }

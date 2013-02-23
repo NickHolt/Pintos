@@ -532,6 +532,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init (&t->children);
   lock_init (&t->cond_lock);
   cond_init (&t->child_waiter);
+  list_init (&t->open_fds);
 
 #endif
 
