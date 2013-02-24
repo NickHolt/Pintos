@@ -101,7 +101,14 @@ start_process (void *args_)
 
   /* If it didn't work, we get out */
   if (!success)
-    thread_exit (); // Maybe should be exit(-1)?
+    thread_exit ();
+
+  struct file *f = filesys_open (args[0]);
+  if (f != NULL)
+    {
+      current->executable = f;
+      file_deny_write (f);
+    }
 
   int i;
 
@@ -162,11 +169,6 @@ start_process (void *args_)
   palloc_free_page (args[0]);
   free (args);
   free (arg_address);
-
-  /* If load failed, quit. */
-  if (!success)
-    thread_exit ();
-
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -268,8 +270,11 @@ process_exit (void)
       free (info);
     }
 
+    if (cur->executable != NULL)
+      file_allow_write (cur->executable);
+
   /* Signal the parent that the child is done. */
-  struct thread *parent = thread_current ()->parent;
+  struct thread *parent = cur->parent;
   if (parent != NULL)
     {
       lock_acquire (&parent->cond_lock);
