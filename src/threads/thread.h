@@ -121,6 +121,8 @@ struct thread
     enum loaded_status child_status;    /* Used to track new child's state */
 
     struct file *executable;            /* Keep track of the executing file */
+
+    struct list open_fds;               /* Used to close fds on exit call. */
 #endif
 
     /* Owned by thread.c. */
