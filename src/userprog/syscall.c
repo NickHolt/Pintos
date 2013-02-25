@@ -48,21 +48,6 @@ struct fd
     struct list_elem elem;
   };
 
-static void
-print_open_fds (void)
-{
-  printf ("fds: ");
-  struct list_elem *el;
-  for (el = list_begin (&thread_current ()->open_fds);
-       el != list_end (&thread_current ()->open_fds);
-       el = list_next (el))
-    {
-      struct fd *f = list_entry (el, struct fd, elem);
-      printf("%i ", f->fd);
-    }
-  printf("\n");
-}
-
 static unsigned
 hash_func (const struct hash_elem *node_, void *aux UNUSED)
 {
@@ -109,6 +94,11 @@ fd_to_file (int fd)
     exit (-1);
 
   struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
+
+  /* fd doesn't belong to the current thread. Terminate. */
+  if (entry->thread != thread_current ())
+    exit (-1);
+
   return entry->file;
 }
 
@@ -533,16 +523,30 @@ close (int fd)
   /* fd isn't mapped. Terminate.
      stdin/stdout failure cases are also caught here. */
   if (e == NULL)
+    {
+      lock_release (&filesys_lock);
       exit (-1);
+    }
 
   struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
+
+  /* fd doesn't belong to the current thread. Terminate. */
+  if (entry->thread != thread_current ())
+    {
+      lock_release (&filesys_lock);
+      exit (-1);
+    }
+
+  /* TODO: the above looks awfully like fd_to_file in places... */
+
+  /* Close the file. */
   file_close (entry->file);
 
   /* Remove the fd from the map so it can't be closed twice. */
   hash_delete (&fd_hash, &node.hash_elem);
 
   /* Remove from thread's open_fds for the same reason. */
-  struct fd *f;
+  struct fd *f = NULL;
   struct list_elem *el;
   for (el = list_begin (&thread_current ()->open_fds);
        el != list_end (&thread_current ()->open_fds);
@@ -552,6 +556,9 @@ close (int fd)
       if (f->fd == fd)
           break;
     }
+
+  ASSERT (f != NULL);
+
   list_remove (el);
   free (f);
 

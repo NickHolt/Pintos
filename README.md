@@ -69,7 +69,7 @@ pass tests/userprog/wait-twice
 pass tests/userprog/wait-killed  
 pass tests/userprog/wait-bad-pid  
 pass tests/userprog/multi-recurse  
-FAIL tests/userprog/multi-child-fd  
+pass tests/userprog/multi-child-fd  
 pass tests/userprog/rox-simple  
 pass tests/userprog/rox-child  
 pass tests/userprog/rox-multichild  
@@ -93,4 +93,4 @@ pass tests/filesys/base/sm-seq-random
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
 pass tests/filesys/base/syn-write  
-5 of 76 tests failed.
+1 of 76 tests failed.
