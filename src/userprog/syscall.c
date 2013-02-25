@@ -293,6 +293,8 @@ exit (int status)
       close (fd->fd);
     }
 
+  printf ("healthy at the moment...\n");
+
   thread_exit();
 }
 
@@ -372,15 +374,24 @@ open (const char *filename)
 
       struct file *file = filesys_open (filename);
       if (file == NULL)
-        return -1;
+        {
+          lock_release (&filesys_lock);
+          return -1;
+        }
 
       struct inode *inode = file_get_inode (file);
       if (inode == NULL)
-        return -1;
+        {
+          lock_release (&filesys_lock);
+          return -1;
+        }
 
       struct file *open_file = file_open (inode);
       if (open_file == NULL)
-        return -1;
+        {
+          lock_release (&filesys_lock);
+          return -1;
+        }
 
       /* Allocate an fd. */
       struct fd_node *node = malloc (sizeof (struct fd_node));
