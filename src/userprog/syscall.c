@@ -91,13 +91,21 @@ fd_to_file (int fd)
   /* fd isn't mapped. Terminate.
      stdin/stdout failure cases are also caught here. */
   if (e == NULL)
-    exit (-1);
+    {
+      if (lock_held_by_current_thread (&filesys_lock))
+        lock_release (&filesys_lock);
+      exit (-1);
+    }
 
   struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
 
   /* fd doesn't belong to the current thread. Terminate. */
   if (entry->thread != thread_current ())
-    exit (-1);
+    {
+      if (lock_held_by_current_thread (&filesys_lock))
+        lock_release (&filesys_lock);
+      exit (-1);
+    }
 
   return entry->file;
 }
@@ -383,7 +391,6 @@ open (const char *filename)
       node->thread = thread_current ();
       node->file = open_file;
       hash_insert (&fd_hash, &node->hash_elem);
-      // printf("%i: hash_insert (%i)\n", thread_current ()->tid, node->fd);
 
       struct fd *fd = malloc (sizeof (struct fd));
       if (fd == NULL)
@@ -391,7 +398,6 @@ open (const char *filename)
       fd->fd = node->fd;
 
       list_push_back (&thread_current ()->open_fds, &fd->elem);
-      // printf("%i: list_push_back (%i)\n", thread_current ()->tid, node->fd);
 
       lock_release (&filesys_lock);
 
@@ -516,33 +522,13 @@ close (int fd)
 {
   lock_acquire (&filesys_lock);
 
-  struct fd_node node;
-  node.fd = fd;
-  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
-
-  /* fd isn't mapped. Terminate.
-     stdin/stdout failure cases are also caught here. */
-  if (e == NULL)
-    {
-      lock_release (&filesys_lock);
-      exit (-1);
-    }
-
-  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
-
-  /* fd doesn't belong to the current thread. Terminate. */
-  if (entry->thread != thread_current ())
-    {
-      lock_release (&filesys_lock);
-      exit (-1);
-    }
-
-  /* TODO: the above looks awfully like fd_to_file in places... */
-
   /* Close the file. */
-  file_close (entry->file);
+  file_close (fd_to_file (fd));
 
   /* Remove the fd from the map so it can't be closed twice. */
+  struct fd_node node;
+  node.fd = fd;
+  hash_find (&fd_hash, &node.hash_elem);
   hash_delete (&fd_hash, &node.hash_elem);
 
   /* Remove from thread's open_fds for the same reason. */
@@ -557,6 +543,8 @@ close (int fd)
           break;
     }
 
+  /* If fd_to_file hasn't exited our thread, but the fd isn't in our open_fds,
+     then we have a problem. */
   ASSERT (f != NULL);
 
   list_remove (el);
