@@ -53,14 +53,152 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+struct thread
+  {
+  ...
+
+  #ifdef USERPROG
+    /* Owned by userprog/process.c. */
+    uint32_t *pagedir;                  /* Page directory. */
+
+    struct list children;               /* The thread's children threads */
+    struct thread *parent;              /* The thread's parent */
+    struct condition child_waiter;      /* Condition variable that a parent
+                                           uses to wait for it's child */
+    struct lock cond_lock;              /* Lock used by child_waiter */
+    enum loaded_status child_status;    /* Used to track new child's state */
+
+    struct file *executable;            /* Keep track of the executing file */
+
+    struct list open_fds;               /* Used to close fds on exit call. */
+  #endif
+
+  ...
+  }
+
+We use the children list and the parent thread pointer in system calls like 
+wait and exec. The condition child_waiter and lock cond_lock is used in
+process_wait() to check whether a child has finished waiting or not. The 
+executable file pointer is used to deny writes to executables. We also keep 
+track of a thread's open files to make sure they are all closed when exit() is 
+called.
+
+
+struct child_info
+  {
+    tid_t id;                           /* The tid of the child */
+    int return_status;                  /* Exit status of the child  */
+    bool has_exited;                    /* Has the child been exited
+                                           properly? */
+    bool has_waited;                    /* Has the child been waited? */
+
+    struct list_elem infoelem;          /* List elem to put inside the parent
+                                           thread's children list */
+  };
+
+This struct holds all the information needed about a thread's child in 
+process_wait. We need to keep track of the child's return status, and boolean 
+flags to check the various cases in process_wait().
+
+
+enum loaded_status
+  {
+    LOADING,
+    LOADED,
+    FAILED
+  };
+
+The status of a loading thread, used by the exec system call and 
+process_execute() to keep track of the status of a newly executed child thread.
+
+
+static struct hash fd_hash;
+
+A hash table which maps file descriptors and threads to pointers to files. This 
+is used in any system call where fds are created or destroyed.
+
+
+static int next_fd = 2;
+
+The starting point for out file descriptor allocator. This is incremented every 
+time a file descriptor is created, to ensure that every descriptor is unique.
+
+
+struct fd
+  {
+    int fd;
+    struct list_elem elem;
+  };
+
+This struct is used by the thread struct. It represents an element of a linked 
+list of file descriptors.
+
+
+struct fd_node
+  {
+    struct hash_elem hash_elem;
+    unsigned fd;
+    struct thread *thread;
+    struct file *file;
+  };
+
+The element that is inserted into fd_hash. We keep track of the file descriptor,
+the owner and the corresponding file.
+
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+We use the fd_node struct to associate files with file descriptors. We store a 
+map from file descriptors to files in the fd_hash hash table, and we use the 
+same hash element to keep track of the thread that owns the file descriptor. 
+
+When a process calls the open system call, we create an fd_node, store the fd 
+(obtained from next_fd), a pointer to the current thread and a pointer to the 
+file in the fd_node, and call hash_insert() on fd_hash and the hash_elem 
+member of fd_node. We also add the fd number to the current thread's list of 
+open file_descriptors. In the close system call, we get the hash_elem linked 
+with the fd argument (taking advantage of the constant time hash_find function) 
+and delete that element from the fd_hash.
+
+File descriptors are unique within the entire OS, controlled by the static int 
+next_fd. If we had decided to make fds unique only within each process then we 
+would have to have made the thread struct even larger, which seemed like an 
+unnecessary waste of space.
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+At the start of the read system call, we check if the fd == 1 before doing 
+anything else (if we're trying to read from STDOUT then we should exit the 
+process). Next we check if the buffer points to a valid user memory address, 
+meaning that it is safe to dereference. This is done with a call to our method
+is_safe_usr_ptr(). If it is isn't safe then we exit the process, otherwise we 
+carry on.
+
+Next we check if we are reading from STDIN. If we are, then we loop make LENGTH 
+calls to input_getc () to read LENGTH characters from keyboard input. If we are 
+reading from a file, then we acquire the file system lock, retrieve the open 
+file associated with the fd number, and call file_read() with that fd. We then 
+release the lock and return the result of the file_read call.
+
+
+The write system call operates in a similar way. First, we check if we are 
+trying to write to STDIN, and exit if we are. Then we make a call to 
+is_safe_usr_ptr() with the buffer.
+
+If we are writing to STDOUT, then first we check what the size of the write is. 
+If it is less than MAX_PUTBUF (which we defined as 512), then we write the 
+whole contents of the buffer in one call to putbuf(). If it's greater than 512 
+bytes then we write the output in blocks of 512 bytes at a time.
+
+If we are not writing to STDOUT we acquire the file system lock, make a call to 
+file_write() using the file associated with our fd, then we release the lock and
+return the result of the file_write() call.
+
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -69,8 +207,31 @@ FirstName LastName <email@domain.example>
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
+TODO
+
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+The wait system call is implement in terms of process_wait(). Firstly it checks 
+if the child process was created successfully by checking if the tid is equal to 
+TID_ERROR. If it is then we return TID_ERROR. If it isn't, then we make a call 
+to the get_child() method (defined in thread.c), which returns the child_info 
+struct associated with the tid of the thread that we are waiting on. If this 
+returns NULL then we exit as the child thread is not a direct child of the 
+current thread. We then check if the has_waited flag has been called on the 
+child thread. If it has, then wait has already been called on this child and we 
+exit immediately.
+
+Next we actually wait for the child process. We implemented this using a 
+condition variable held inside the thread struct: the waiting process acquires 
+the condition variable lock and then calls cond_wait in a while loop, which is
+conditioned on the child thread still existing (using a call to get_thread, a 
+method we added in thread.c). When a thread exits, it signals its parent's 
+condition variable, which kicks the parent out of the while loop. Next we check 
+if the child thread was killed by the kernel (by checking the has_exited flag), 
+and if it was then we return -1. Otherwise, we set the has_waited flag and we 
+return the return status of the child.
+
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -86,12 +247,28 @@ FirstName LastName <email@domain.example>
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+TODO
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+
+To keep track of the status of a newly loaded executable we created an enum 
+(detailed in question B1), an instance of which is stored in the thread struct. 
+When a thread is created, the status of the child is set to LOADING. If the 
+load is successful then the child status is set to LOADED, otherwise it is set 
+to FAILED (this check is done in start_process()). 
+
+To ensure the executing thread waits for its child, we use a condition variable,
+as was used in process_wait(). After we call process_execute() from the exec 
+system call, we wait the condition variable in a loop. Once we've set the child 
+status in start_process(), we call cond_signal, and the parent thread breaks 
+out of its while loop. We can then check child status and return -1 if it is set
+to FAILED.
+
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -100,16 +277,48 @@ FirstName LastName <email@domain.example>
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+If wait is called before C exits then the condition variable wait and signal 
+functions are used to ensure synchronization. The lock associated with the 
+condition variable is acquired and released before any cond_wait or cond_signal 
+calls are made, to ensure that only one child can signal the parent at once. If 
+wait is called after C exits, then we will never enter the while loop in 
+process_wait() since the call to get_thread() will return NULL.
+
+TODO: More detail probably
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
+TODO
+
+
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
 
+Using a hash table for mapping file descriptors to files gives excellent search 
+speed. Many system calls call the fd_to_file() function, which completes in 
+constant time thanks to the use of hash table. If we had used a linked list or 
+similar for this, fd_to_file() would have had linear time complexity. The fact 
+that we use a single hash table saves us a lot of space, as we don't have a hash 
+table in the thread struct. It also keeps thread creation time to a minimum, as 
+we don't have to initialise a hash table every time we create a thread. 
+
+However, because we have to close any open file descriptors in the exit system 
+call, each thread still has an extra list of its file descriptors, which 
+somewhat nullifies or space saving efforts. We could have iterated through the 
+hash table in exit() instead of storing the file descriptors inside the thread 
+struct, but the hash table is often very large (it contains all the file 
+descriptors instead of just one thread's) so this would've taken a lot longer.
+
+
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+We used the default identity mapping between tids and pids. Since a thread can 
+only ever have one process and each process has a unique tid there is no need to 
+have a complex mapping between the two.
 
                SURVEY QUESTIONS
                ================

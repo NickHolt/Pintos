@@ -270,8 +270,8 @@ process_exit (void)
       free (info);
     }
 
-    if (cur->executable != NULL)
-      file_allow_write (cur->executable);
+  if (cur->executable != NULL)
+    file_allow_write (cur->executable);
 
   /* Signal the parent that the child is done. */
   struct thread *parent = cur->parent;
