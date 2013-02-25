@@ -293,8 +293,6 @@ exit (int status)
       close (fd->fd);
     }
 
-  printf ("healthy at the moment...\n");
-
   thread_exit();
 }
 
@@ -313,7 +311,7 @@ exec (const char *cmd_line)
 
       lock_acquire (&current->cond_lock);
       while (current->child_status == LOADING)
-        cond_wait(&current->child_waiter, &current->cond_lock);
+        cond_wait (&current->child_waiter, &current->cond_lock);
       lock_release (&current->cond_lock);
 
       if (current->child_status == FAILED)
