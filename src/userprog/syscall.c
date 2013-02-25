@@ -314,10 +314,7 @@ exec (const char *cmd_line)
         cond_wait (&current->child_waiter, &current->cond_lock);
       lock_release (&current->cond_lock);
 
-      if (current->child_status == FAILED)
-        return -1;
-      else
-        return child_tid;
+      return (current->child_status == FAILED) ? -1 : child_tid;
     }
 
   NOT_REACHED ();
