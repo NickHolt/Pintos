@@ -211,11 +211,12 @@ process_wait (tid_t child_tid)
           /* If the thread is not dying, then wait until it has.
              The lock is aquired as that is a pre-condition of
              cond_wait */
-          lock_acquire (&current->cond_lock);
 
+          lock_acquire (&current->cond_lock);
+          printf ("waiting for cond...\n");
           while (get_thread (child_tid) != NULL)
             cond_wait (&current->child_waiter, &current->cond_lock);
-
+          printf ("got it.\n");
           lock_release (&current->cond_lock);
 
           /* Killed by the kernel, not by the conventional means */
