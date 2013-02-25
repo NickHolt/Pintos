@@ -48,21 +48,6 @@ struct fd
     struct list_elem elem;
   };
 
-static void
-print_open_fds (void)
-{
-  printf ("fds: ");
-  struct list_elem *el;
-  for (el = list_begin (&thread_current ()->open_fds);
-       el != list_end (&thread_current ()->open_fds);
-       el = list_next (el))
-    {
-      struct fd *f = list_entry (el, struct fd, elem);
-      printf("%i ", f->fd);
-    }
-  printf("\n");
-}
-
 static unsigned
 hash_func (const struct hash_elem *node_, void *aux UNUSED)
 {
@@ -106,9 +91,22 @@ fd_to_file (int fd)
   /* fd isn't mapped. Terminate.
      stdin/stdout failure cases are also caught here. */
   if (e == NULL)
-    exit (-1);
+    {
+      if (lock_held_by_current_thread (&filesys_lock))
+        lock_release (&filesys_lock);
+      exit (-1);
+    }
 
   struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
+
+  /* fd doesn't belong to the current thread. Terminate. */
+  if (entry->thread != thread_current ())
+    {
+      if (lock_held_by_current_thread (&filesys_lock))
+        lock_release (&filesys_lock);
+      exit (-1);
+    }
+
   return entry->file;
 }
 
@@ -275,6 +273,7 @@ exit (int status)
   else
     {
       /* Probably need some sort of error thingy here? */
+      PANIC ("Temporary panic.");
     }
 
   /* Charlie: what about stuff that exiting_thread currently holds?
@@ -313,13 +312,10 @@ exec (const char *cmd_line)
 
       lock_acquire (&current->cond_lock);
       while (current->child_status == LOADING)
-        cond_wait(&current->child_waiter, &current->cond_lock);
+        cond_wait (&current->child_waiter, &current->cond_lock);
       lock_release (&current->cond_lock);
 
-      if (current->child_status == FAILED)
-        return -1;
-      else
-        return child_tid;
+      return (current->child_status == FAILED) ? -1 : child_tid;
     }
 
   NOT_REACHED ();
@@ -374,15 +370,24 @@ open (const char *filename)
 
       struct file *file = filesys_open (filename);
       if (file == NULL)
-        return -1;
+        {
+          lock_release (&filesys_lock);
+          return -1;
+        }
 
       struct inode *inode = file_get_inode (file);
       if (inode == NULL)
-        return -1;
+        {
+          lock_release (&filesys_lock);
+          return -1;
+        }
 
       struct file *open_file = file_open (inode);
       if (open_file == NULL)
-        return -1;
+        {
+          lock_release (&filesys_lock);
+          return -1;
+        }
 
       /* Allocate an fd. */
       struct fd_node *node = malloc (sizeof (struct fd_node));
@@ -393,7 +398,6 @@ open (const char *filename)
       node->thread = thread_current ();
       node->file = open_file;
       hash_insert (&fd_hash, &node->hash_elem);
-      // printf("%i: hash_insert (%i)\n", thread_current ()->tid, node->fd);
 
       struct fd *fd = malloc (sizeof (struct fd));
       if (fd == NULL)
@@ -401,10 +405,8 @@ open (const char *filename)
       fd->fd = node->fd;
 
       list_push_back (&thread_current ()->open_fds, &fd->elem);
-      // printf("%i: list_push_back (%i)\n", thread_current ()->tid, node->fd);
 
       lock_release (&filesys_lock);
-
       return node->fd;
     }
 
@@ -526,23 +528,17 @@ close (int fd)
 {
   lock_acquire (&filesys_lock);
 
-  struct fd_node node;
-  node.fd = fd;
-  struct hash_elem *e = hash_find (&fd_hash, &node.hash_elem);
-
-  /* fd isn't mapped. Terminate.
-     stdin/stdout failure cases are also caught here. */
-  if (e == NULL)
-      exit (-1);
-
-  struct fd_node *entry = hash_entry (e, struct fd_node, hash_elem);
-  file_close (entry->file);
+  /* Close the file. */
+  file_close (fd_to_file (fd));
 
   /* Remove the fd from the map so it can't be closed twice. */
+  struct fd_node node;
+  node.fd = fd;
+  hash_find (&fd_hash, &node.hash_elem);
   hash_delete (&fd_hash, &node.hash_elem);
 
   /* Remove from thread's open_fds for the same reason. */
-  struct fd *f;
+  struct fd *f = NULL;
   struct list_elem *el;
   for (el = list_begin (&thread_current ()->open_fds);
        el != list_end (&thread_current ()->open_fds);
@@ -552,6 +548,11 @@ close (int fd)
       if (f->fd == fd)
           break;
     }
+
+  /* If fd_to_file hasn't exited our thread, but the fd isn't in our open_fds,
+     then we have a problem. */
+  ASSERT (f != NULL);
+
   list_remove (el);
   free (f);
 
