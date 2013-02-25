@@ -273,6 +273,7 @@ exit (int status)
   else
     {
       /* Probably need some sort of error thingy here? */
+      PANIC ("Temporary panic.");
     }
 
   /* Charlie: what about stuff that exiting_thread currently holds?
@@ -406,7 +407,6 @@ open (const char *filename)
       list_push_back (&thread_current ()->open_fds, &fd->elem);
 
       lock_release (&filesys_lock);
-
       return node->fd;
     }
 
