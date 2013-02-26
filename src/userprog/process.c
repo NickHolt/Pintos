@@ -140,7 +140,7 @@ start_process (void *args_)
 
   int i;
 
-  /* Tokenise arguements */
+  /* Tokenise arguments */
   char **arg_address = calloc (MAXARGS, sizeof (char *));
   ++dan_calloc_count;
 
