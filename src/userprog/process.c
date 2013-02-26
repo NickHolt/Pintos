@@ -71,7 +71,15 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (args[0], PRI_DEFAULT, start_process, args);
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy);
+    {
+      palloc_free_page (fn_copy);
+      struct thread *curr = thread_current ();
+      curr->child_status = FAILED;
+
+      lock_acquire (&curr->cond_lock);
+      cond_signal (&curr->child_waiter, &curr->cond_lock);
+      lock_release (&curr->cond_lock);
+    }
   else
     {
       /* Create child_info associated with t */
@@ -87,7 +95,8 @@ process_execute (const char *file_name)
 
           list_push_back (&thread_current ()->children, &t_info->infoelem);
         }
-    }
+    } 
+    
   return tid;
 }
 
@@ -237,10 +246,10 @@ process_wait (tid_t child_tid)
              cond_wait */
 
           lock_acquire (&current->cond_lock);
-          printf ("waiting for cond...\n");
+
           while (get_thread (child_tid) != NULL)
             cond_wait (&current->child_waiter, &current->cond_lock);
-          printf ("got it.\n");
+
           lock_release (&current->cond_lock);
 
           /* Killed by the kernel, not by the conventional means */
@@ -261,7 +270,9 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
+
   struct thread *cur = thread_current ();
+
   uint32_t *pd;
 
   /* Destroy the current process's page directory and switch back

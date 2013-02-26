@@ -178,13 +178,7 @@ thread_create (const char *name, int priority,
   /* Allocate thread. */
   t = palloc_get_page (PAL_ZERO);
   if (t == NULL)
-   {
-      printf ("palloc failed.\n");
-      print_dan_counts ();
-      print_owen_counts ();
-      print_charlie_counts ();
       return TID_ERROR;
-   }
 
   /* Initialize thread. */
   init_thread (t, name, priority);
@@ -424,6 +418,7 @@ struct child_info *
 get_child (struct thread *par, tid_t child_tid)
 {
   /* The tid is supriously high and is therefore rouge */
+  /* TODO: make this neater */
   if (child_tid > 10000)
     exit(-1);
 

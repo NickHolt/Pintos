@@ -12,6 +12,7 @@
 #include "filesys/file.h"
 #include <hash.h>
 #include "threads/malloc.h"
+#include "threads/palloc.h"
 
 #define MAX_PUTBUF 512
 
