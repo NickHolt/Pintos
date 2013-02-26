@@ -65,8 +65,8 @@ process_execute (const char *file_name)
   char *last;
   char **args = calloc ((strlen (fn_copy) / 2) + 1, sizeof (char *));
 
-  for (args[i] = strtok_r(fn_copy, sep, &last); i < MAXARGS && args[i];
-        args[++i] = strtok_r(NULL, sep, &last));
+  for (args[i] = strtok_r (fn_copy, sep, &last); i < MAXARGS && args[i];
+       args[++i] = strtok_r (NULL, sep, &last));
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (args[0], PRI_DEFAULT, start_process, args);
@@ -105,7 +105,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *args_)
 {
-  char** args = (char **) args_;
+  char **args = (char **) args_;
 
   struct intr_frame if_;
   bool success;
@@ -120,10 +120,7 @@ start_process (void *args_)
   /* Set the load_status of the threads parent */
   struct thread *current = thread_current ();
   if (current->parent != NULL) {
-    if (success)
-      current->parent->child_status = LOADED;
-    else
-      current->parent->child_status = FAILED;
+    current->parent->child_status = (success) ? LOADED : FAILED;
 
     lock_acquire (&current->parent->cond_lock);
     cond_signal (&current->parent->child_waiter, &current->parent->cond_lock);
@@ -144,56 +141,56 @@ start_process (void *args_)
   int i;
 
   /* Tokenise arguements */
-  char** arg_address = calloc (MAXARGS, sizeof (char *));
+  char **arg_address = calloc (MAXARGS, sizeof (char *));
   ++dan_calloc_count;
 
   /* Copy the arguments onto the stack and saves their addresses */
-  for (i = 0; i < MAXARGS && args[i]; i++)
+  for (i = 0; i < MAXARGS && args[i]; ++i)
     {
-      if_.esp -= sizeof(char) * (strlen(args[i]) + 1);
+      if_.esp -= sizeof (char) * (strlen (args[i]) + 1);
 
       arg_address[i] = (char *) if_.esp;
 
-      strlcpy(arg_address[i], args[i], strlen(args[i]) + 1);
+      strlcpy (arg_address[i], args[i], strlen (args[i]) + 1);
     }
 
   /* Align to the next word */
   while (! (((uint32_t) if_.esp % 4) == 0))
     {
-      uint8_t* align = --if_.esp;
+      uint8_t *align = --if_.esp;
       *align = 0;
     }
 
   int argc = i;
   /* null for end of array. */
-  if_.esp -= sizeof(char **);
-  char** end = if_.esp;
+  if_.esp -= sizeof (char **);
+  char **end = if_.esp;
   *end = NULL;
 
   /* We put in the extra null pointer, so now we need to decrement
      our counter */
-  i--;
+  --i;
 
   /* push argv addresses in reverse. */
-  for (; i >= 0; i--)
+  for (; i >= 0; --i)
     {
-      if_.esp -= sizeof(char *);
+      if_.esp -= sizeof (char *);
       char **pntr = if_.esp;
       *pntr = arg_address[i];
     }
 
   /* Pointer to the start of argv */
-  if_.esp -= sizeof(char **);
+  if_.esp -= sizeof (char **);
   char ***argv = if_.esp;
-  *argv = if_.esp + sizeof(char **);
+  *argv = if_.esp + sizeof (char **);
 
   /* number or args. */
-  if_.esp -= sizeof(int *);
+  if_.esp -= sizeof (int *);
   int *argc_ptr = if_.esp;
   *argc_ptr = argc;
 
   /* void return. */
-  if_.esp -= sizeof(int *);
+  if_.esp -= sizeof (int *);
   int *void_pntr = if_.esp;
   *void_pntr = 0;
 
