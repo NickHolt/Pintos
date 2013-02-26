@@ -48,6 +48,16 @@ struct fd
     struct list_elem elem;
   };
 
+static int charlie_malloc_count = 0;
+static int charlie_free_count = 0;
+
+void
+print_charlie_counts (void)
+{
+  printf("Charlie mallocs: %i\nCharlie frees: %i\n\n", charlie_malloc_count,
+         charlie_free_count);
+}
+
 static unsigned
 hash_func (const struct hash_elem *node_, void *aux UNUSED)
 {
@@ -76,6 +86,7 @@ destructor_func (struct hash_elem *e_, void *aux UNUSED)
 {
   struct fd_node *e = hash_entry (e_, struct fd_node, hash_elem);
   free (e);
+  ++charlie_free_count;
 }
 
 /* Returns a file * for a given int fd. Terminates the process with an error
@@ -244,7 +255,7 @@ syscall_handler (struct intr_frame *f)
 static void
 halt (void)
 {
-  hash_destroy (&fd_hash, destructor_func);
+  hash_destroy (&fd_hash, NULL);
   shutdown_power_off ();
 }
 
@@ -393,6 +404,7 @@ open (const char *filename)
       struct fd_node *node = malloc (sizeof (struct fd_node));
       if (node == NULL)
         PANIC ("Failed to allocate memory for file descriptor node");
+      ++charlie_malloc_count;
 
       node->fd = next_fd++;
       node->thread = thread_current ();
@@ -402,6 +414,7 @@ open (const char *filename)
       struct fd *fd = malloc (sizeof (struct fd));
       if (fd == NULL)
         PANIC ("Failed to allocate memory for file descriptor list node");
+      ++charlie_malloc_count;
       fd->fd = node->fd;
 
       list_push_back (&thread_current ()->open_fds, &fd->elem);
@@ -535,7 +548,8 @@ close (int fd)
   struct fd_node node;
   node.fd = fd;
   hash_find (&fd_hash, &node.hash_elem);
-  hash_delete (&fd_hash, &node.hash_elem);
+  struct hash_elem *e = hash_delete (&fd_hash, &node.hash_elem);
+  destructor_func (e, NULL);
 
   /* Remove from thread's open_fds for the same reason. */
   struct fd *f = NULL;
@@ -555,6 +569,7 @@ close (int fd)
 
   list_remove (el);
   free (f);
+  ++charlie_free_count;
 
   lock_release (&filesys_lock);
 }

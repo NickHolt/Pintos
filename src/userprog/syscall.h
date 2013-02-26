@@ -8,4 +8,6 @@ void syscall_init (void);
 
 void exit (int status);
 
+void print_charlie_counts (void);
+
 #endif /* userprog/syscall.h */
