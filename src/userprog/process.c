@@ -85,16 +85,15 @@ process_execute (const char *file_name)
       /* Create child_info associated with t */
       struct child_info *t_info;
       t_info = calloc (sizeof *t_info, 1);
+      if (t_info == NULL)
+        PANIC ("Failed to allocate memory for thread child information");
       ++owen_calloc_count;
 
-      if (t_info != NULL)
-        {
-          t_info->id = tid;
-          t_info->has_exited = false;
-          t_info->has_waited = false;
+      t_info->id = tid;
+      t_info->has_exited = false;
+      t_info->has_waited = false;
 
-          list_push_back (&thread_current ()->children, &t_info->infoelem);
-        }
+      list_push_back (&thread_current ()->children, &t_info->infoelem);
     } 
     
   return tid;
