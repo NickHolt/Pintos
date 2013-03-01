@@ -26,7 +26,8 @@ function hex_to_fname($hex) {
 
 $boring = array('malloc', 'pagedir_create', 'calloc', 'pde_create',
 	            'bitmap_create', 'free', 'pagedir_destroy', 'realloc',
-	            'pagedir_set_page', 'load_segment', 'lookup_page');
+	            'pagedir_set_page', 'load_segment', 'lookup_page',
+                    'palloc_get_page', 'palloc_free_page');
 
 function get_interesting($stack_arr) {
 	global $boring;
