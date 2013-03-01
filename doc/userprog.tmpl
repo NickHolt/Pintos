@@ -8,9 +8,9 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Owen Davies tod11@doc.ic.ac.uk
+Daniel Hertz dh611@doc.ic.ac.uk
+Charlie Hothersall-Thomas cjh111@doc.ic.ac.uk
 
 ---- PRELIMINARIES ----
 
@@ -30,19 +30,41 @@ FirstName LastName <email@domain.example>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+#define MAXARGS = 100
+Maximum number of arguments a program can take, for memory allocation reasons
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+First, we copy the arguments onto the stack in 'reverse' order, and save their
+addresses. Then, we word align for faster stack access. Then NULL is placed on
+the stack to be the end of argv[], and then we iterate backwards through the
+list of pointers pushing them onto the stack (as we have already counted the
+number of elements when pushing them on). Then a pointer to the start of argv
+is pushed, argc, and the void return value.
+
+The arguments of argv[] are simply arranged by counting down the variable used
+to put the arguments on the stack in the first place. By only allowing 100
+arguments, the 
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+As the caller saves the state in the save pointer, so it can be used by multiple
+threads at the same time.
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+This allows the shell to be more advanced - piping arguments from one program to
+another and having multiple directories of binary files that are easy to use
+with the PATH variable. Its also probably more secure, as less woej in the 
+kernel usually is.
 
                  SYSTEM CALLS
                  ============
