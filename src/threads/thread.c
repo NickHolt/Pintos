@@ -413,29 +413,6 @@ get_thread (tid_t id)
   return NULL;
 }
 
-/* Get a child from its tid. Used in process_wait. */
-struct child_info *
-get_child (struct thread *par, tid_t child_tid)
-{
-  /* The tid is supriously high and is therefore rouge */
-  /* TODO: make this neater */
-  if (child_tid > 10000)
-    exit(-1);
-
-  struct list_elem *e;
-  struct list children = par->children;
-
-  for (e = list_begin (&children); e != list_end (&children);
-       e = list_next (e))
-    {
-      struct child_info *i = list_entry (e, struct child_info, infoelem);
-      if (i->id == child_tid)
-        return i;
-    }
-
-  return NULL;
-}
-
 #endif
 
 

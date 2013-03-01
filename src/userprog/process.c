@@ -232,7 +232,15 @@ process_wait (tid_t child_tid)
   if (child_tid != TID_ERROR)
     {
       struct thread *current = thread_current ();
-      struct child_info *child = get_child (current, child_tid);
+      struct child_info *child = NULL;
+
+      struct list_elem *e = list_tail (&current->children);
+       while ((e = list_prev (e)) != list_head (&current->children))
+         {
+           child = list_entry(e, struct child_info, infoelem);
+           if (child->id == child_tid)
+             break;
+         }
 
       /* The thread with tid CHILD_TID is not a direct child
          of the current thread */

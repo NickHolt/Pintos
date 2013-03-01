@@ -175,7 +175,6 @@ void thread_yield (void);
 #ifdef USERPROG
 
 struct thread *get_thread (tid_t tid);
-struct child_info *get_child (struct thread *par, tid_t child_tid);
 
 #endif
 
