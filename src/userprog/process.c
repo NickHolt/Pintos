@@ -66,13 +66,19 @@ process_execute (const char *file_name)
   char **args = calloc ((strlen (fn_copy) / 2) + 1, sizeof (char *));
 
   for (args[i] = strtok_r (fn_copy, sep, &last); i < MAXARGS && args[i];
-       args[++i] = strtok_r (NULL, sep, &last));
+       args[++i] = strtok_r (NULL, sep, &last)) {
+    char* string = calloc(strlen(args[i]), sizeof(char));
+    strlcpy(string, args[i], strlen(args[i]) + 1);
+    args[i] = string;
+  }
+
+  palloc_free_page(fn_copy);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (args[0], PRI_DEFAULT, start_process, args);
   if (tid == TID_ERROR)
     {
-      palloc_free_page (fn_copy);
+      //palloc_free_page (fn_copy);
       struct thread *curr = thread_current ();
       curr->child_status = FAILED;
 
@@ -94,8 +100,8 @@ process_execute (const char *file_name)
       t_info->has_waited = false;
 
       list_push_back (&thread_current ()->children, &t_info->infoelem);
-    } 
-    
+    }
+
   return tid;
 }
 
@@ -140,7 +146,7 @@ start_process (void *args_)
   int i;
 
   /* Tokenise arguments */
-  char **arg_address = calloc (MAXARGS, sizeof (char *));
+  char *arg_address[MAXARGS];// = calloc (MAXARGS, sizeof (char *));
   ++dan_calloc_count;
 
   /* Copy the arguments onto the stack and saves their addresses */
@@ -194,9 +200,10 @@ start_process (void *args_)
   *void_pntr = 0;
 
   /* Freedom!! */
-  palloc_free_page (args[0]);
+  for (i = 0; i < MAXARGS && args[i]; ++i)
+    free(args[i]);
   free (args);
-  free (arg_address);
+  //free (arg_address);
   ++dan_free_count;
 
   /* Start the user process by simulating a return from an
