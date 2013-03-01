@@ -256,8 +256,13 @@ syscall_handler (struct intr_frame *f)
 static void
 halt (void)
 {
-  hash_destroy (&fd_hash, NULL);
   shutdown_power_off ();
+}
+
+void
+syscall_done (void)
+{
+  hash_destroy (&fd_hash, destructor_func);
 }
 
 /* Terminates the current user program, sending its exit status to the kernel.
