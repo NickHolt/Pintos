@@ -110,6 +110,14 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 void *
 palloc_get_page (enum palloc_flags flags) 
 {
+  printf ("GET: %p", __builtin_return_address (0));
+  void **frame;
+  for (frame = __builtin_frame_address (1);
+       (uintptr_t) frame >= 0x1000 && frame[0] != NULL;
+       frame = frame[0]) 
+    printf (" %p", frame[1]);
+  printf ("\n");
+
   return palloc_get_multiple (flags, 1);
 }
 
@@ -145,6 +153,18 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 void
 palloc_free_page (void *page) 
 {
+  int i = 0;
+  printf ("FREE: %p", __builtin_return_address (0));
+  void **frame;
+  for (frame = __builtin_frame_address (1);
+       (uintptr_t) frame >= 0x1000 && frame[0] != NULL;
+       frame = frame[0])
+    {
+      printf (" %p", frame[1]);
+      if (i++ == 6) break;
+    }
+  printf("\n");
+
   palloc_free_multiple (page, 1);
 }
 
