@@ -49,16 +49,6 @@ struct fd
     struct list_elem elem;
   };
 
-static int charlie_malloc_count = 0;
-static int charlie_free_count = 0;
-
-void
-print_charlie_counts (void)
-{
-  printf("Charlie mallocs: %i\nCharlie frees: %i\n\n", charlie_malloc_count,
-         charlie_free_count);
-}
-
 static unsigned
 hash_func (const struct hash_elem *node_, void *aux UNUSED)
 {
@@ -87,7 +77,6 @@ destructor_func (struct hash_elem *e_, void *aux UNUSED)
 {
   struct fd_node *e = hash_entry (e_, struct fd_node, hash_elem);
   free (e);
-  ++charlie_free_count;
 }
 
 /* Returns a file * for a given int fd. Terminates the process with an error
@@ -301,13 +290,6 @@ exit (int status)
       PANIC ("Temporary panic.");
     }
 
-  /* Charlie: what about stuff that exiting_thread currently holds?
-              Locks? Files? */
-
-  /* TODO: call close() on each of thread's fds. Presumably either iterate
-           through the hash map, or redesign it so that the fd->file map is
-           inside the thread. Or let a thread have a list of fds, then use the
-           hash map still. */
   struct list_elem *e, *next;
   for (e = list_begin (&exiting_thread->open_fds);
        e != list_end (&exiting_thread->open_fds);
@@ -404,7 +386,6 @@ open (const char *filename)
       struct fd_node *node = malloc (sizeof (struct fd_node));
       if (node == NULL)
         PANIC ("Failed to allocate memory for file descriptor node");
-      ++charlie_malloc_count;
 
       node->fd = next_fd++;
       node->thread = thread_current ();
@@ -414,7 +395,6 @@ open (const char *filename)
       struct fd *fd = malloc (sizeof (struct fd));
       if (fd == NULL)
         PANIC ("Failed to allocate memory for file descriptor list node");
-      ++charlie_malloc_count;
       fd->fd = node->fd;
 
       list_push_back (&thread_current ()->open_fds, &fd->elem);
@@ -569,6 +549,5 @@ close (int fd)
 
   list_remove (el);
   free (f);
-  ++charlie_free_count;
   lock_release (&filesys_lock);
 }

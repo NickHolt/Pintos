@@ -23,26 +23,6 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-static int owen_calloc_count = 0;
-static int owen_free_count = 0;
-
-static int dan_calloc_count = 0;
-static int dan_free_count = 0;
-
-void
-print_owen_counts (void)
-{
-  printf("Owen mallocs: %i\nOwen frees: %i\n\n", owen_calloc_count,
-         owen_free_count);
-}
-
-void
-print_dan_counts (void)
-{
-  printf("Dan mallocs: %i\nDan frees: %i\n\n", dan_calloc_count,
-         dan_free_count);
-}
-
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -93,7 +73,6 @@ process_execute (const char *file_name)
       t_info = calloc (sizeof *t_info, 1);
       if (t_info == NULL)
         PANIC ("Failed to allocate memory for thread child information");
-      ++owen_calloc_count;
 
       t_info->id = tid;
       t_info->has_exited = false;
@@ -147,7 +126,6 @@ start_process (void *args_)
 
   /* Tokenise arguments */
   char *arg_address[MAXARGS];// = calloc (MAXARGS, sizeof (char *));
-  ++dan_calloc_count;
 
   /* Copy the arguments onto the stack and saves their addresses */
   for (i = 0; i < MAXARGS && args[i]; ++i)
@@ -204,7 +182,6 @@ start_process (void *args_)
     free(args[i]);
   free (args);
   //free (arg_address);
-  ++dan_free_count;
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -315,7 +292,6 @@ process_exit (void)
       struct child_info *info = list_entry (e, struct child_info, infoelem);
       list_remove (e);
       free (info);
-      ++owen_free_count;
     }
 
   if (cur->executable != NULL)

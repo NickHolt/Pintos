@@ -70,18 +70,6 @@ palloc_init (size_t user_page_limit)
 void *
 palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 {
-  /*unsigned int i;
-  for (i = 0; i < page_cnt; ++i)
-    {
-      printf ("GET: %p", __builtin_return_address (0));
-      void **frame;
-      for (frame = __builtin_frame_address (1);
-           (uintptr_t) frame >= 0x1000 && frame[0] != NULL;
-           frame = frame[0]) 
-        printf (" %p", frame[1]);
-      printf ("\n");
-    }*/
-
   struct pool *pool = flags & PAL_USER ? &user_pool : &kernel_pool;
   void *pages;
   size_t page_idx;

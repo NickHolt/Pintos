@@ -11,7 +11,7 @@ Who will do what?
 * Dan:
     * ~~argument passing~~
 * Charlie:
-    * user memory access
+    * ~~user memory access~~
 
 Everyone needs to do system calls basically
 
@@ -79,7 +79,7 @@ pass tests/userprog/bad-read2
 pass tests/userprog/bad-write2  
 pass tests/userprog/bad-jump  
 pass tests/userprog/bad-jump2  
-FAIL tests/userprog/no-vm/multi-oom  
+pass tests/userprog/no-vm/multi-oom  
 pass tests/filesys/base/lg-create  
 pass tests/filesys/base/lg-full  
 pass tests/filesys/base/lg-random  
@@ -93,4 +93,4 @@ pass tests/filesys/base/sm-seq-random
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
 pass tests/filesys/base/syn-write  
-1 of 76 tests failed.
+All 76 tests passed.
