@@ -393,21 +393,7 @@ open (const char *filename)
     {
       lock_acquire (&filesys_lock);
 
-      struct file *file = filesys_open (filename);
-      if (file == NULL)
-        {
-          lock_release (&filesys_lock);
-          return -1;
-        }
-
-      struct inode *inode = file_get_inode (file);
-      if (inode == NULL)
-        {
-          lock_release (&filesys_lock);
-          return -1;
-        }
-
-      struct file *open_file = file_open (inode);
+      struct file *open_file = filesys_open (filename);
       if (open_file == NULL)
         {
           lock_release (&filesys_lock);
