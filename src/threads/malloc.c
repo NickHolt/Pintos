@@ -97,6 +97,14 @@ malloc (size_t size)
   if (size == 0)
     return NULL;
 
+  printf ("GET: %p", __builtin_return_address (0));
+  void **frame;
+  for (frame = __builtin_frame_address (1);
+       (uintptr_t) frame >= 0x1000 && frame[0] != NULL;
+       frame = frame[0]) 
+    printf (" %p", frame[1]);
+  printf ("\n");
+
   /* Find the smallest descriptor that satisfies a SIZE-byte
      request. */
   for (d = descs; d < descs + desc_cnt; d++)
@@ -220,6 +228,18 @@ free (void *p)
 {
   if (p != NULL)
     {
+        printf ("FREE: %p", __builtin_return_address (0));
+        void **frame;
+        int j = 0;
+        for (frame = __builtin_frame_address (1);
+             (uintptr_t) frame >= 0x1000 && frame[0] != NULL;
+             frame = frame[0])
+          {
+            printf (" %p", frame[1]);
+            if (j++ == 6) break;
+          }
+        printf("\n");
+
       struct block *b = p;
       struct arena *a = block_to_arena (b);
       struct desc *d = a->desc;

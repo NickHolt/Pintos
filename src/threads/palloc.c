@@ -70,7 +70,7 @@ palloc_init (size_t user_page_limit)
 void *
 palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
 {
-  unsigned int i;
+  /*unsigned int i;
   for (i = 0; i < page_cnt; ++i)
     {
       printf ("GET: %p", __builtin_return_address (0));
@@ -80,7 +80,7 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
            frame = frame[0]) 
         printf (" %p", frame[1]);
       printf ("\n");
-    }
+    }*/
 
   struct pool *pool = flags & PAL_USER ? &user_pool : &kernel_pool;
   void *pages;
@@ -129,7 +129,7 @@ palloc_get_page (enum palloc_flags flags)
 void
 palloc_free_multiple (void *pages, size_t page_cnt) 
 {
-  unsigned int i;
+  /*unsigned int i;
   for (i = 0; i < page_cnt; ++i)
     {
       printf ("FREE: %p", __builtin_return_address (0));
@@ -143,7 +143,7 @@ palloc_free_multiple (void *pages, size_t page_cnt)
           if (j++ == 6) break;
         }
       printf("\n");
-    }
+    }*/
 
   struct pool *pool;
   size_t page_idx;
