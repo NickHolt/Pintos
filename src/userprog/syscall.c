@@ -278,13 +278,21 @@ exit (int status)
 
   /* Set some information about the child, for process_wait */
   struct thread *parent = exiting_thread->parent;
-  struct child_info *info = get_child (parent, exiting_thread->tid);
+  struct child_info *child = NULL;
 
-  if (info != NULL)
+  struct list_elem *elem = list_tail (&parent->children);
+  while ((elem = list_prev (elem)) != list_head (&parent->children))
+    {
+      child = list_entry(elem, struct child_info, infoelem);
+      if (child->id == exiting_thread->tid)
+        break;
+    }
+
+  if (child != NULL)
     {
       lock_acquire (&parent->cond_lock);
-      info->has_exited = true;
-      info->return_status = status;
+      child->has_exited = true;
+      child->return_status = status;
       lock_release (&parent->cond_lock);
     }
   else
@@ -576,6 +584,5 @@ close (int fd)
   list_remove (el);
   free (f);
   ++charlie_free_count;
-
   lock_release (&filesys_lock);
 }
