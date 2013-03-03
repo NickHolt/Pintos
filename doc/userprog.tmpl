@@ -278,14 +278,6 @@ is only strictly required when the data spans across multiple pages. This could
 be detected using modulo arithmetic since we know the exact size of a page,
 and the second call to is_safe_user_ptr() could be avoided in many cases.
 
-An additional way of improving these numbers would have been to implement user
-virtual memory access in a different way. Instead of checking that a pointer
-is safe before using it, we could have simply checked that it was
-non-null, and attempted a dereference. If the pointer did not belong to user
-virtual address space, a page fault would occur, which we could have handled
-in page_fault() inside exception.c. This would mean that no calls to
-pagedir_get_page() are required.
-
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
