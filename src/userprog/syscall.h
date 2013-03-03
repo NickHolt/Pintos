@@ -5,9 +5,7 @@
 typedef int pid_t;
 
 void syscall_init (void);
-
+void syscall_done (void);
 void exit (int status);
-
-void print_charlie_counts (void);
 
 #endif /* userprog/syscall.h */

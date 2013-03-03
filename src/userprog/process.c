@@ -23,26 +23,6 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
-static int owen_calloc_count = 0;
-static int owen_free_count = 0;
-
-static int dan_calloc_count = 0;
-static int dan_free_count = 0;
-
-void
-print_owen_counts (void)
-{
-  printf("Owen mallocs: %i\nOwen frees: %i\n\n", owen_calloc_count,
-         owen_free_count);
-}
-
-void
-print_dan_counts (void)
-{
-  printf("Dan mallocs: %i\nDan frees: %i\n\n", dan_calloc_count,
-         dan_free_count);
-}
-
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -71,11 +51,11 @@ process_execute (const char *file_name)
        args[++i] = strtok_r (NULL, sep, &last)) {
 
     //Exit if we have too many arguements.
-    if (i == MAXARGS)
+    if (i >= MAXARGS)
       {
-        int j;
-        for (j = 0; j < i; ++j)
-          free (args[j]);
+        printf("Hello!\n");
+        for (; i >= 0; i--)
+          free (args[i]);
         free (args);
         palloc_free_page (fn_copy);
         return TID_ERROR;
@@ -110,7 +90,6 @@ process_execute (const char *file_name)
       t_info = calloc (sizeof *t_info, 1);
       if (t_info == NULL)
         PANIC ("Failed to allocate memory for thread child information");
-      ++owen_calloc_count;
 
       t_info->id = tid;
       t_info->has_exited = false;
@@ -151,7 +130,13 @@ start_process (void *args_)
 
   /* If it didn't work, we get out */
   if (!success)
-    thread_exit ();
+    {
+      int j;
+      for (j = 0; j < MAXARGS && args[j]; ++j)
+        free(args[j]);
+      free (args);
+      thread_exit ();
+    }
 
   struct file *f = filesys_open (args[0]);
   if (f != NULL)
@@ -164,7 +149,6 @@ start_process (void *args_)
 
   /* Tokenise arguments */
   char *arg_address[MAXARGS];
-  ++dan_calloc_count;
 
   //Max 4000B of arguement stuff.
   uint32_t args_size = (uint32_t) if_.esp - 4000;
@@ -175,7 +159,13 @@ start_process (void *args_)
       if_.esp -= sizeof (char) * (strlen (args[i]) + 1);
 
       if ((uint32_t) if_.esp <= args_size)
-        thread_exit ();
+        {
+          printf("Hello!\n");
+          for (; i >= 0; i--)
+            free(args[i]);
+          free (args);
+          thread_exit ();
+        }
 
       arg_address[i] = (char *) if_.esp;
 
@@ -185,7 +175,13 @@ start_process (void *args_)
   //the number of pointers we put on the stack now, with max alignment bytes.
   if ((uint32_t) if_.esp
       <= args_size + (i * sizeof (char)) + 4 * sizeof(char *) + 3)
-    thread_exit ();
+    {
+      printf("Hello!\n");
+      for (; i >= 0; i--)
+        free(args[i]);
+      free (args);
+      thread_exit ();
+    }
 
   /* Align to the next word */
   while (! (((uint32_t) if_.esp % 4) == 0))
@@ -228,11 +224,9 @@ start_process (void *args_)
   *void_pntr = 0;
 
   /* Freedom!! */
-  for (i = 0; i < MAXARGS && args[i]; ++i)
+  for (i = 0; i < argc; ++i)
     free(args[i]);
   free (args);
-  //free (arg_address);
-  ++dan_free_count;
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -343,11 +337,13 @@ process_exit (void)
       struct child_info *info = list_entry (e, struct child_info, infoelem);
       list_remove (e);
       free (info);
-      ++owen_free_count;
     }
 
   if (cur->executable != NULL)
-    file_allow_write (cur->executable);
+    {
+      file_allow_write (cur->executable);
+      file_close (cur->executable);
+    }
 
   /* Signal the parent that the child is done. */
   struct thread *parent = cur->parent;

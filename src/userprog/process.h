@@ -8,10 +8,6 @@ int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
 
-void print_owen_counts (void);
-void print_dan_counts (void);
-
-
 #define MAXARGS 100
 
 #endif /* userprog/process.h */

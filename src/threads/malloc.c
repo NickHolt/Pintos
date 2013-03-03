@@ -220,6 +220,18 @@ free (void *p)
 {
   if (p != NULL)
     {
+        /*printf ("FREE: %p", __builtin_return_address (0));
+        void **frame;
+        int j = 0;
+        for (frame = __builtin_frame_address (1);
+             (uintptr_t) frame >= 0x1000 && frame[0] != NULL;
+             frame = frame[0])
+          {
+            printf (" %p", frame[1]);
+            if (j++ == 6) break;
+          }
+        printf("\n");*/
+
       struct block *b = p;
       struct arena *a = block_to_arena (b);
       struct desc *d = a->desc;

@@ -12,6 +12,7 @@
 #ifdef FILESYS
 #include "devices/block.h"
 #include "filesys/filesys.h"
+#include "userprog/syscall.h"
 #endif
 
 /* Keyboard control register port. */
@@ -92,6 +93,7 @@ shutdown_power_off (void)
 
 #ifdef FILESYS
   filesys_done ();
+  syscall_done ();
 #endif
 
   print_stats ();
