@@ -44,8 +44,6 @@ process_execute (const char *file_name)
   char *sep = " ";
   char *last;
   char **args = calloc ((strlen (fn_copy) / 2) + 1, sizeof (char *));
-  if (args == NULL)
-    return TID_ERROR;
 
   for (args[i] = strtok_r (fn_copy, sep, &last); args[i];
        args[++i] = strtok_r (NULL, sep, &last)) {
