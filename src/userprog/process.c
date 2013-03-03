@@ -61,9 +61,6 @@ process_execute (const char *file_name)
 
     char* string = calloc(strlen(args[i]), sizeof(char));
 
-    if (string == NULL)
-      return TID_ERROR;
-
     strlcpy(string, args[i], strlen(args[i]) + 1);
     args[i] = string;
   }
