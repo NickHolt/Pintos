@@ -39,8 +39,8 @@ Maximum number of arguments a program can take, for memory allocation reasons
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
-First, we copy the arguments onto the stack in reverse' order and save their
-addresses. Then, we word align for faster stack access. Then NULL is placed on
+First, we copy the arguments onto the stack in reverse order and save their
+addresses. We then word align for faster stack access. NULL is then placed on
 the stack to be the end of argv[], and we iterate backwards through the list of
 pointers pushing them onto the stack (as we have already counted the
 number of elements when pushing them on). Then a pointer to the start of argv
@@ -49,7 +49,7 @@ is pushed, argc, and the void return value.
 The arguments of argv[] are simply arranged by counting down the variable used
 to put the arguments on the stack in the first place. By only allowing 100
 arguments, the page cannot get too large, and probably less than a page, as few
-arguements are likely to be over 40 chars.
+arguments are likely to be over 40 characters in length.
 
 
 ---- RATIONALE ----
@@ -404,7 +404,28 @@ it exits.
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
-TODO
+We chose to implement user memory access by verifying a user-provided pointer
+before dereferencing it. This is done inside the is_safe_user_ptr() method
+of syscall.c, which does these checks by checking a pointer is not-null, and
+then calls is_user_vaddr() and pagedir_get_page() to make sure that the pointer
+is below PHYS_BASE (i.e. points to user virtual address space) and points to
+a page within the current thread's pagedir. Thanks to C's lazy evaluation on
+logical OR statements, all 3 of these checks can be combined into a single if
+statement without breaking the preconditions of is_user_vaddr() or
+pagedir_get_page().
+
+An alternative method that we considered was to simply check that the pointer
+was in user address space, and dereference it. An invalid pointer would lead to
+a page fault upon the dereference attempt, and could then be dealt with inside
+the page_fault() function of exception.c. Although this method would probably
+have been faster computationally, it would have been much more complicated to
+implement, especially when trying to free a thread's temporarily-allocated
+resources (locks, buffers, etc.) in an error case, since there is no way to
+return an error code from a memory access.
+
+One benefit to our technique is that all memory access code is implemented in
+the same file (syscall.c), which makes the code easier to understand to the
+reader.
 
 
 >> B10: What advantages or disadvantages can you see to your design
