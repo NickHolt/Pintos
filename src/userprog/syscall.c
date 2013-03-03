@@ -416,7 +416,7 @@ read (int fd, void *buffer, unsigned length)
 {
   if (fd == 1)
     exit (-1);
-  else if (is_safe_user_ptr (buffer))
+  else if (is_safe_user_ptr (buffer) && is_safe_user_ptr (buffer + length))
     {
       if (fd == 0)
         {
@@ -448,7 +448,7 @@ write (int fd, const void *buffer, unsigned size)
   /* Can't write to standard input. */
   if (fd == 0)
     exit (-1);
-  else if (is_safe_user_ptr (buffer))
+  else if (is_safe_user_ptr (buffer) && is_safe_user_ptr (buffer + size))
     {
       if (fd == 1)
         {
