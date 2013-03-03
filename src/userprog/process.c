@@ -64,10 +64,28 @@ process_execute (const char *file_name)
   char *sep = " ";
   char *last;
   char **args = calloc ((strlen (fn_copy) / 2) + 1, sizeof (char *));
+  if (args == NULL)
+    return TID_ERROR;
 
-  for (args[i] = strtok_r (fn_copy, sep, &last); i < MAXARGS && args[i];
+  for (args[i] = strtok_r (fn_copy, sep, &last); args[i];
        args[++i] = strtok_r (NULL, sep, &last)) {
+
+    //Exit if we have too many arguements.
+    if (i == MAXARGS)
+      {
+        int j;
+        for (j = 0; j < i; ++j)
+          free (args[j]);
+        free (args);
+        palloc_free_page (fn_copy);
+        return TID_ERROR;
+      }
+
     char* string = calloc(strlen(args[i]), sizeof(char));
+
+    if (string == NULL)
+      return TID_ERROR;
+
     strlcpy(string, args[i], strlen(args[i]) + 1);
     args[i] = string;
   }
@@ -78,7 +96,6 @@ process_execute (const char *file_name)
   tid = thread_create (args[0], PRI_DEFAULT, start_process, args);
   if (tid == TID_ERROR)
     {
-      //palloc_free_page (fn_copy);
       struct thread *curr = thread_current ();
       curr->child_status = FAILED;
 
@@ -146,18 +163,29 @@ start_process (void *args_)
   int i;
 
   /* Tokenise arguments */
-  char *arg_address[MAXARGS];// = calloc (MAXARGS, sizeof (char *));
+  char *arg_address[MAXARGS];
   ++dan_calloc_count;
+
+  //Max 4000B of arguement stuff.
+  uint32_t args_size = (uint32_t) if_.esp - 4000;
 
   /* Copy the arguments onto the stack and saves their addresses */
   for (i = 0; i < MAXARGS && args[i]; ++i)
     {
       if_.esp -= sizeof (char) * (strlen (args[i]) + 1);
 
+      if ((uint32_t) if_.esp <= args_size)
+        thread_exit ();
+
       arg_address[i] = (char *) if_.esp;
 
       strlcpy (arg_address[i], args[i], strlen (args[i]) + 1);
     }
+
+  //the number of pointers we put on the stack now, with max alignment bytes.
+  if ((uint32_t) if_.esp
+      <= args_size + (i * sizeof (char)) + 4 * sizeof(char *) + 3)
+    thread_exit ();
 
   /* Align to the next word */
   while (! (((uint32_t) if_.esp % 4) == 0))
