@@ -48,7 +48,8 @@ is pushed, argc, and the void return value.
 
 The arguments of argv[] are simply arranged by counting down the variable used
 to put the arguments on the stack in the first place. By only allowing 100
-arguments, the
+arguments, the page cannot get too large, and probably less than a page, as few
+arguements are likely to be over 40 chars.
 
 
 ---- RATIONALE ----
