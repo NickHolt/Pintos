@@ -46,11 +46,12 @@ process_execute (const char *file_name)
   char **args = calloc ((strlen (fn_copy) / 2) + 1, sizeof (char *));
 
   for (args[i] = strtok_r (fn_copy, sep, &last); i < MAXARGS && args[i];
-       args[++i] = strtok_r (NULL, sep, &last)) {
-    char* string = calloc(strlen(args[i]), sizeof(char));
-    strlcpy(string, args[i], strlen(args[i]) + 1);
-    args[i] = string;
-  }
+       args[++i] = strtok_r (NULL, sep, &last)) 
+    {
+      char* string = calloc(strlen(args[i]), sizeof(char));
+      strlcpy(string, args[i], strlen(args[i]) + 1);
+      args[i] = string;
+    }
 
   palloc_free_page(fn_copy);
 
@@ -58,7 +59,6 @@ process_execute (const char *file_name)
   tid = thread_create (args[0], PRI_DEFAULT, start_process, args);
   if (tid == TID_ERROR)
     {
-      //palloc_free_page (fn_copy);
       struct thread *curr = thread_current ();
       curr->child_status = FAILED;
 
@@ -103,13 +103,14 @@ start_process (void *args_)
 
   /* Set the load_status of the threads parent */
   struct thread *current = thread_current ();
-  if (current->parent != NULL) {
-    current->parent->child_status = (success) ? LOADED : FAILED;
+  if (current->parent != NULL) 
+    {
+      current->parent->child_status = (success) ? LOADED : FAILED;
 
-    lock_acquire (&current->parent->cond_lock);
-    cond_signal (&current->parent->child_waiter, &current->parent->cond_lock);
-    lock_release (&current->parent->cond_lock);
-  }
+      lock_acquire (&current->parent->cond_lock);
+      cond_signal (&current->parent->child_waiter, &current->parent->cond_lock);
+      lock_release (&current->parent->cond_lock);
+    }
 
   /* If it didn't work, we get out */
   if (!success)
@@ -125,7 +126,7 @@ start_process (void *args_)
   int i;
 
   /* Tokenise arguments */
-  char *arg_address[MAXARGS];// = calloc (MAXARGS, sizeof (char *));
+  char *arg_address[MAXARGS];
 
   /* Copy the arguments onto the stack and saves their addresses */
   for (i = 0; i < MAXARGS && args[i]; ++i)
@@ -181,7 +182,6 @@ start_process (void *args_)
   for (i = 0; i < MAXARGS && args[i]; ++i)
     free(args[i]);
   free (args);
-  //free (arg_address);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
