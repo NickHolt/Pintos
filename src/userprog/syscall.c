@@ -14,8 +14,6 @@
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 
-#define MAX_PUTBUF 512
-
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);
 static pid_t exec (const char *file);
@@ -277,18 +275,12 @@ exit (int status)
         break;
     }
 
-  if (child != NULL)
-    {
-      lock_acquire (&parent->cond_lock);
-      child->has_exited = true;
-      child->return_status = status;
-      lock_release (&parent->cond_lock);
-    }
-  else
-    {
-      /* Probably need some sort of error thingy here? */
-      PANIC ("Temporary panic.");
-    }
+  ASSERT (child != NULL);
+
+  lock_acquire (&parent->cond_lock);
+  child->has_exited = true;
+  child->return_status = status;
+  lock_release (&parent->cond_lock);
 
   struct list_elem *e, *next;
   for (e = list_begin (&exiting_thread->open_fds);
@@ -420,7 +412,7 @@ filesize (int fd)
    bytes actually read, or -1 if the file could not be read.
    fd == 0 reads from the keyboard using input_getc(). */
 static int
-read (int fd UNUSED, void *buffer, unsigned length)
+read (int fd, void *buffer, unsigned length)
 {
   if (fd == 1)
     exit (-1);

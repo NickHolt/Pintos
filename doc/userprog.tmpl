@@ -39,23 +39,34 @@ Maximum number of arguments a program can take, for memory allocation reasons
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
-First, we copy the arguments onto the stack in 'reverse' order, and save their
+First, we copy the arguments onto the stack in reverse' order and save their
 addresses. Then, we word align for faster stack access. Then NULL is placed on
-the stack to be the end of argv[], and then we iterate backwards through the
-list of pointers pushing them onto the stack (as we have already counted the
+the stack to be the end of argv[], and we iterate backwards through the list of
+pointers pushing them onto the stack (as we have already counted the
 number of elements when pushing them on). Then a pointer to the start of argv
 is pushed, argc, and the void return value.
 
 The arguments of argv[] are simply arranged by counting down the variable used
 to put the arguments on the stack in the first place. By only allowing 100
-arguments, the 
+arguments, the
+
 
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
-As the caller saves the state in the save pointer, so it can be used by multiple
-threads at the same time.
+strtok() is not thread-safe, since its implementation makes use of static
+variables which are reused in each subsequent call. This means that if two
+threads were calling strtok() simultaneously, the behaviour of strtok() would
+be undefined, and could lead to one thread accessing a string owned by a
+different thread.
+
+strtok_r() is a re-entrant method due to its third argument, and is therefore
+thread-safe.
+
+Since Pintos is a multi-threaded environment, strtok_r() is implemented, but not
+strtok().
+
 
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
@@ -65,6 +76,17 @@ This allows the shell to be more advanced - piping arguments from one program to
 another and having multiple directories of binary files that are easy to use
 with the PATH variable. Its also probably more secure, as less woej in the 
 kernel usually is.
+
+One main advantage to the UNIX approach is that it allows the shell to be more
+advanced, with features such as tab-completion, piping (|), redirection
+(<, >, <<, >>) and the execution of many binaries spread across multiple
+directories due to the PATH variable.
+
+Another advantage to the UNIX approach is that the code for parsing user input
+is written in the shell. Not only does this make kernel code much cleaner and
+less complex, but it also means that all user input-parsing code is run in
+user space as opposed to kernel space, which offers security benefits.
+
 
                  SYSTEM CALLS
                  ============
@@ -136,14 +158,16 @@ process_execute() to keep track of the status of a newly executed child thread.
 
 static struct hash fd_hash;
 
-A hash table which maps file descriptors and threads to pointers to files. This 
-is used in any system call where fds are created or destroyed.
+A hash table which maps file descriptors to file structs, and the thread that
+owns them. This is used in any system call where fds are created, used, or
+destroyed.
 
 
 static int next_fd = 2;
 
-The starting point for out file descriptor allocator. This is incremented every 
-time a file descriptor is created, to ensure that every descriptor is unique.
+The starting point for our file descriptor allocator. This is incremented every 
+time a file descriptor is created, to ensure that every descriptor is unique
+across the operating system.
 
 
 struct fd
@@ -153,7 +177,7 @@ struct fd
   };
 
 This struct is used by the thread struct. It represents an element of a linked 
-list of file descriptors.
+list of file descriptors, used to track a thread's open files.
 
 
 struct fd_node
@@ -165,7 +189,13 @@ struct fd_node
   };
 
 The element that is inserted into fd_hash. We keep track of the file descriptor,
-the owner and the corresponding file.
+its owner and a pointer to the corresponding file.
+
+
+#define MAX_PUTBUF 512
+
+The maximum number of bytes to be written to STDOUT at a time, used in the write
+system call.
 
 
 >> B2: Describe how file descriptors are associated with open files.
@@ -182,7 +212,8 @@ file in the fd_node, and call hash_insert() on fd_hash and the hash_elem
 member of fd_node. We also add the fd number to the current thread's list of 
 open file_descriptors. In the close system call, we get the hash_elem linked 
 with the fd argument (taking advantage of the constant time hash_find function) 
-and delete that element from the fd_hash.
+and delete that element from the fd_hash. The fd is also removed from the
+thread's open_fd list.
 
 File descriptors are unique within the entire OS, controlled by the static int 
 next_fd. If we had decided to make fds unique only within each process then we 
@@ -198,28 +229,31 @@ At the start of the read system call, we check if the fd == 1 before doing
 anything else (if we're trying to read from STDOUT then we should exit the 
 process). Next we check if the buffer points to a valid user memory address, 
 meaning that it is safe to dereference. This is done with a call to our method
-is_safe_usr_ptr(). If it is isn't safe then we exit the process, otherwise we 
-carry on.
+is_safe_usr_ptr(). If it isn't safe then is_safe_user_ptr() exits the process
+with error code -1; if it is safe, we carry on.
 
-Next we check if we are reading from STDIN. If we are, then we loop make LENGTH 
-calls to input_getc () to read LENGTH characters from keyboard input. If we are 
-reading from a file, then we acquire the file system lock, retrieve the open 
-file associated with the fd number, and call file_read() with that fd. We then 
-release the lock and return the result of the file_read call.
+Next we check if we are reading from STDIN. If we are, then we use a loop to
+make LENGTH calls to input_getc (), reading LENGTH characters from keyboard
+input. If we are not reading from STDIN but from a file, then we acquire the
+file system lock, retrieve the open file associated with the fd number, and call file_read() with that fd. We then release the lock and return the result of the file_read call. If there is a problem with the provided file descriptor (e.g. it
+isn't mapped, or belongs to a different thread), the static method fd_to_file() exits the process with error code -1.
 
 
 The write system call operates in a similar way. First, we check if we are 
-trying to write to STDIN, and exit if we are. Then we make a call to 
-is_safe_usr_ptr() with the buffer.
+trying to write to STDIN, and exit with an error if we are. Then we make a call
+to is_safe_usr_ptr() with the buffer, ensuring that it is safe.
 
 If we are writing to STDOUT, then first we check what the size of the write is. 
 If it is less than MAX_PUTBUF (which we defined as 512), then we write the 
 whole contents of the buffer in one call to putbuf(). If it's greater than 512 
-bytes then we write the output in blocks of 512 bytes at a time.
+bytes then we write the output in blocks of up to 512 bytes at a time.
 
 If we are not writing to STDOUT we acquire the file system lock, make a call to 
 file_write() using the file associated with our fd, then we release the lock and
-return the result of the file_write() call.
+return the result of the file_write() call. As with the read system call, any
+problems with the fd are handled by fd_to_file(), a static method which takes
+an unsigned fd and returns a pointer to the open file with which it is
+associated.
 
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
@@ -234,25 +268,25 @@ TODO
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
 
-The wait system call is implement in terms of process_wait(). Firstly it checks 
-if the child process was created successfully by checking if the tid is equal to 
-TID_ERROR. If it is then we return TID_ERROR. If it isn't, then we make a call 
-to the get_child() method (defined in thread.c), which returns the child_info 
-struct associated with the tid of the thread that we are waiting on. If this 
-returns NULL then we exit as the child thread is not a direct child of the 
-current thread. We then check if the has_waited flag has been called on the 
-child thread. If it has, then wait has already been called on this child and we 
-exit immediately.
+The wait system call is implemented  in terms of process_wait(). Firstly it
+checks whether the child process was created successfully by checking comparing 
+its tid to TID_ERROR. If it is equal to TID_ERROR then we return TID_ERROR. If
+it isn't, then we make a call to the get_child() method (defined in thread.c),
+which returns the child_info struct associated with the tid of the thread that
+we are waiting on. If this returns NULL then we exit, as this means that the
+child thread is not a direct child of the current thread. We then check if the
+has_waited flag has been called on the child thread. If it has, then wait has
+already been called on this child and we exit immediately.
 
 Next we actually wait for the child process. We implemented this using a 
 condition variable held inside the thread struct: the waiting process acquires 
 the condition variable lock and then calls cond_wait in a while loop, which is
-conditioned on the child thread still existing (using a call to get_thread, a 
+conditioned on the child thread still existing (using a call to get_thread(), a 
 method we added in thread.c). When a thread exits, it signals its parent's 
-condition variable, which kicks the parent out of the while loop. Next we check 
-if the child thread was killed by the kernel (by checking the has_exited flag), 
-and if it was then we return -1. Otherwise, we set the has_waited flag and we 
-return the return status of the child.
+condition variable, which kicks the parent out of the while loop. We then check 
+to see if the child thread was killed by the kernel (by checking the has_exited
+flag), and if it was then we return -1. Otherwise, we set the has_waited flag
+and return the return status of the child.
 
 
 >> B6: Any access to user program memory at a user-specified address
@@ -271,6 +305,7 @@ return the return status of the child.
 
 TODO
 
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
@@ -286,10 +321,10 @@ to FAILED (this check is done in start_process()).
 
 To ensure the executing thread waits for its child, we use a condition variable,
 as was used in process_wait(). After we call process_execute() from the exec 
-system call, we wait the condition variable in a loop. Once we've set the child 
-status in start_process(), we call cond_signal, and the parent thread breaks 
-out of its while loop. We can then check child status and return -1 if it is set
-to FAILED.
+system call, we wait on the condition variable in a loop. Once we've set the
+child status in start_process(), we call cond_signal, and the parent thread
+breaks out of its while loop. We can then check child status and return -1 if it
+is set to FAILED.
 
 
 >> B8: Consider parent process P with child process C.  How do you
@@ -306,7 +341,6 @@ calls are made, to ensure that only one child can signal the parent at once. If
 wait is called after C exits, then we will never enter the while loop in 
 process_wait() since the call to get_thread() will return NULL.
 
-TODO: More detail probably
 
 ---- RATIONALE ----
 
@@ -329,7 +363,7 @@ we don't have to initialise a hash table every time we create a thread.
 
 However, because we have to close any open file descriptors in the exit system 
 call, each thread still has an extra list of its file descriptors, which 
-somewhat nullifies or space saving efforts. We could have iterated through the 
+somewhat nullifies our space saving efforts. We could have iterated through the 
 hash table in exit() instead of storing the file descriptors inside the thread 
 struct, but the hash table is often very large (it contains all the file 
 descriptors instead of just one thread's) so this would've taken a lot longer.
@@ -341,6 +375,7 @@ descriptors instead of just one thread's) so this would've taken a lot longer.
 We used the default identity mapping between tids and pids. Since a thread can 
 only ever have one process and each process has a unique tid there is no need to 
 have a complex mapping between the two.
+
 
                SURVEY QUESTIONS
                ================
