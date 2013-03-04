@@ -413,11 +413,11 @@ filesize (int fd)
 static int
 read (int fd, void *buffer, unsigned length)
 {
-  if (fd == 1)
+  if (fd == STDOUT_FILENO)
     exit (-1);
   else if (is_safe_user_ptr (buffer) && is_safe_user_ptr (buffer + length))
     {
-      if (fd == 0)
+      if (fd == STDIN_FILENO)
         {
           unsigned i = 0;
           uint8_t *b = buffer;
@@ -445,11 +445,11 @@ static int
 write (int fd, const void *buffer, unsigned size)
 {
   /* Can't write to standard input. */
-  if (fd == 0)
+  if (fd == STDIN_FILENO)
     exit (-1);
   else if (is_safe_user_ptr (buffer) && is_safe_user_ptr (buffer + size))
     {
-      if (fd == 1)
+      if (fd == STDOUT_FILENO)
         {
           if (size < MAX_PUTBUF)
             {
