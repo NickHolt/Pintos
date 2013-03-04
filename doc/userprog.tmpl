@@ -39,13 +39,12 @@ Maximum number of arguments a program can take, for memory allocation reasons
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
-First, we copy the arguments onto the stack in reverse' order and save their
-addresses. Then, we word align for faster stack access. Then NULL is placed on
+First, we copy the arguments onto the stack in reverse order and save their
+addresses. We then word align for faster stack access. NULL is then placed on
 the stack to be the end of argv[], and we iterate backwards through the list of
-pointers pushing them onto the stack (as we have already counted the
-number of elements when pushing them on - and this puts the pointers on 'back to
-front'). Then a pointer to the start of argv is pushed, argc, and the void
-return value.
+pointers pushing them onto the stack (as we have already counted the number of
+elements when pushing them on - and this puts the pointers on 'back to front').
+Then a pointer to the start of argv is pushed, argc, and the void return value.
 
 To avoid overflowing the stack page, we have implemented a resonable constaint
 on the arguments a program can take. The number of arguments is limited to 99,
@@ -264,7 +263,21 @@ associated.
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
 
-TODO
+In our implementation, the is_safe_user_ptr() method calls pagedir_get_page() to
+ensure that a pointer points to a page belonging to the current thread.
+
+The read and write system calls call is_safe_usr_ptr() on both the start and end
+of the buffer (which is calculated by buffer + size/length) to protect against
+the case where the start of the buffer is in user virtual address space, but the
+end of the buffer belongs to the kernel virtual address space.
+
+This means that, no matter how much data is being copied into the kernel, 2
+calls to pagedir_get_page() are made. This can be improved, since the second
+call to safe_user_ptr() (and consequently the second call to pagedir_get_page())
+is only strictly required when the data spans across multiple pages. This could
+be detected using modulo arithmetic since we know the exact size of a page,
+and the second call to is_safe_user_ptr() could be avoided in many cases.
+
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
@@ -304,7 +317,35 @@ and return the return status of the child.
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
-TODO
+The core of our error handling is the is_safe_user_ptr() method inside
+syscall.c. This is a static method which takes a pointer and returns true iff
+it is safe, i.e. it points to a valid user virtual memory address. However, as
+a side effect, is_safe_user_ptr() also calls exit (-1) in its error case. This
+means that, in practice, it will never return false since the thread will have
+already been exited. This is made clear to the user in the implementations of
+the individual system calls by calling is_safe_user_ptr() inside an if
+statement, and using the NOT_REACHED () macro from debug.h to illustrate that
+the method will never return false since the thread will be exited before it
+can.
+
+To make our code as readable as possible, each system call is implemented in
+a separate method. These methods are called by a large switch statement inside
+syscall_handler, which checks that each of the arguments is safe before
+dereferencing the stack pointer and passing them. This means that the individual 
+methods can assume that their arguments are safe as a precondition. However, in
+the case where an argument to a system call is itself a pointer (such as the
+buffer in a read system call, or the string filename in open) it is the method's
+own responsibility to ensure safety. Again, this is done with a call (or two,
+see B4 for more details) to is_safe_user_ptr ().
+
+Because is_safe_user_ptr calls exit (-1) in its error case, we can rely on the
+exit system call to clean up any temporarily-allocated resources before it calls
+thread_exit(). This involves calling the close system call on each of the
+thread's open fds (implemented using a thread struct's open_fd list). We only
+use one lock in our system call implementation, filesys_lock, and we only
+acquire it after we have ensured that all pointers are safe. For this reason,
+there is no reason to ever free the lock inside the exit system call, as it
+will never be in acquired state when exit is called.
 
 
 ---- SYNCHRONIZATION ----
@@ -362,7 +403,28 @@ it exits.
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
-TODO
+We chose to implement user memory access by verifying a user-provided pointer
+before dereferencing it. This is done inside the is_safe_user_ptr() method
+of syscall.c, which does these checks by checking a pointer is not-null, and
+then calls is_user_vaddr() and pagedir_get_page() to make sure that the pointer
+is below PHYS_BASE (i.e. points to user virtual address space) and points to
+a page within the current thread's pagedir. Thanks to C's lazy evaluation on
+logical OR statements, all 3 of these checks can be combined into a single if
+statement without breaking the preconditions of is_user_vaddr() or
+pagedir_get_page().
+
+An alternative method that we considered was to simply check that the pointer
+was in user address space, and dereference it. An invalid pointer would lead to
+a page fault upon the dereference attempt, and could then be dealt with inside
+the page_fault() function of exception.c. Although this method would probably
+have been faster computationally, it would have been much more complicated to
+implement, especially when trying to free a thread's temporarily-allocated
+resources (locks, buffers, etc.) in an error case, since there is no way to
+return an error code from a memory access.
+
+One benefit to our technique is that all memory access code is implemented in
+the same file (syscall.c), which makes the code easier to understand to the
+reader.
 
 
 >> B10: What advantages or disadvantages can you see to your design
