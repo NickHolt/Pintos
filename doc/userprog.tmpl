@@ -46,10 +46,10 @@ pointers pushing them onto the stack (as we have already counted the number of
 elements when pushing them on - and this puts the pointers on 'back to front').
 Then a pointer to the start of argv is pushed, argc, and the void return value.
 
-To avoid overflowing the stack page, we have implemented a resonable constaint
+To avoid overflowing the stack page, we have implemented a reasonable constraint
 on the arguments a program can take. The number of arguments is limited to 99,
 as this is unlikely to ever be needed and gives a maximum average length of 40
-characters to each arguement as to fit on one 4KB page.
+characters per argument to fit on one 4 kB page.
 
 ---- RATIONALE ----
 
@@ -235,8 +235,11 @@ with error code -1; if it is safe, we carry on.
 Next we check if we are reading from STDIN. If we are, then we use a loop to
 make LENGTH calls to input_getc (), reading LENGTH characters from keyboard
 input. If we are not reading from STDIN but from a file, then we acquire the
-file system lock, retrieve the open file associated with the fd number, and call file_read() with that fd. We then release the lock and return the result of the file_read call. If there is a problem with the provided file descriptor (e.g. it
-isn't mapped, or belongs to a different thread), the static method fd_to_file() exits the process with error code -1.
+file system lock, retrieve the open file associated with the fd number, and call
+file_read() with that fd. We then release the lock and return the result of the
+file_read call. If there is a problem with the provided file descriptor (e.g. it
+isn't mapped, or belongs to a different thread), the static method fd_to_file()
+exits the process with error code -1.
 
 
 The write system call operates in a similar way. First, we check if we are
@@ -275,8 +278,8 @@ This means that, no matter how much data is being copied into the kernel, 2
 calls to pagedir_get_page() are made. This can be improved, since the second
 call to safe_user_ptr() (and consequently the second call to pagedir_get_page())
 is only strictly required when the data spans across multiple pages. This could
-be detected using modulo arithmetic since we know the exact size of a page,
-and the second call to is_safe_user_ptr() could be avoided in many cases.
+be detected using the pg_round_down() method, and the second call to
+is_safe_user_ptr() could be avoided in many cases.
 
 
 >> B5: Briefly describe your implementation of the "wait" system call
