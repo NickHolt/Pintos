@@ -43,14 +43,14 @@ First, we copy the arguments onto the stack in reverse' order and save their
 addresses. Then, we word align for faster stack access. Then NULL is placed on
 the stack to be the end of argv[], and we iterate backwards through the list of
 pointers pushing them onto the stack (as we have already counted the
-number of elements when pushing them on). Then a pointer to the start of argv
-is pushed, argc, and the void return value.
+number of elements when pushing them on - and this puts the pointers on 'back to
+front'). Then a pointer to the start of argv is pushed, argc, and the void
+return value.
 
-The arguments of argv[] are simply arranged by counting down the variable used
-to put the arguments on the stack in the first place. By only allowing 100
-arguments, the page cannot get too large, and probably less than a page, as few
-arguements are likely to be over 40 chars.
-
+To avoid overflowing the stack page, we have implemented a resonable constaint
+on the arguments a program can take. The number of arguments is limited to 99,
+as this is unlikely to ever be needed and gives a maximum average length of 40
+characters to each arguement as to fit on one 4KB page.
 
 ---- RATIONALE ----
 
