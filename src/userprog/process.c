@@ -50,8 +50,8 @@ process_execute (const char *file_name)
   for (args[i] = strtok_r (fn_copy, sep, &last); i < MAXARGS && args[i];
        args[++i] = strtok_r (NULL, sep, &last)) 
     {
-      char* string = calloc(strlen(args[i]), sizeof(char));
-      strlcpy(string, args[i], strlen(args[i]) + 1);
+      char *string = calloc (strlen(args[i]), sizeof(char));
+      strlcpy (string, args[i], strlen (args[i]) + 1);
       args[i] = string;
     }
 
