@@ -31,11 +31,24 @@ frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
   return a->page < b->page;
 }
 
+static void
+frame_destroy (struct hash_elem *f_, void *aux UNUSED)
+{
+  struct frame *f = hash_entry (f_, struct frame, elem);
+  free (f);
+}
+
 void
 frame_init (void)
 {
   lock_init (&frame_lock);
   hash_init (&frame_table, frame_hash, frame_less, NULL);
+}
+
+void
+frame_done (void)
+{
+  hash_destroy (&frame_table, frame_destroy);
 }
 
 void *
@@ -75,14 +88,9 @@ free_frame (void *page)
 
   struct frame f;
   f.page = page;
-
-  struct hash_elem *e = hash_find (&frame_table, &f.elem);
-
-  ASSERT (e != NULL);
-
-  struct frame *to_delete = hash_entry (e, struct frame, elem);
-  hash_delete (&frame_table, e);
-  free (to_delete);
+  hash_find (&frame_table, &f.elem);
+  struct hash_elem *e = hash_delete (&frame_table, &f.elem);
+  frame_destroy (e, NULL);
 
   lock_release (&frame_lock);
 }
