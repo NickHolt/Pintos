@@ -598,11 +598,11 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Either demand the full page from the file, create a zero page, or
          create a partially filled page from the file */
       if (page_read_bytes == PGSIZE)
-          new = create_full_page (file, ofs, writable);
+          new = create_full_page (file, ofs, writable, upage);
       else if (page_zero_bytes == PGSIZE)
           new = create_zero_page ();
       else
-          new = create_partial_page (file, ofs, writable, zero_bytes);
+          new = create_partial_page (file, ofs, writable, zero_bytes, upage);
 
       if (!add_sup_page (new))
         return false;

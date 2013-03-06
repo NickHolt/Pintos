@@ -14,6 +14,9 @@
 #include "userprog/process.h"
 #include "userprog/syscall.h"
 #endif
+#ifdef VM
+#include "vm/page.h"
+#endif
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -70,6 +73,9 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+static unsigned sup_pt_hash_func (const struct hash_elem *elem, void *aux);
+static bool sup_pt_less_func (const struct hash_elem *a,
+                              const struct hash_elem *b, void *aux);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -513,6 +519,10 @@ init_thread (struct thread *t, const char *name, int priority)
   lock_init (&t->cond_lock);
   cond_init (&t->child_waiter);
   list_init (&t->open_fds);
+  hash_init (&t->supp_pt, sup_pt_hash_func, sup_pt_less_func, NULL);
+
+  // TODO - possibly need to check for NULL on hash init, but I don't
+  // want to panic if it fails, because it could well happen in multi-oom etc.
 
 #endif
 
@@ -634,3 +644,29 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+#ifdef VM
+
+/* Hash function for supplemental page table */
+static unsigned
+sup_pt_hash_func (const struct hash_elem *elem, void *aux UNUSED)
+{
+  struct sup_page *p = hash_entry (elem, struct sup_page, pt_elem);
+  return hash_bytes (p->user_addr, sizeof (uint8_t*));
+}
+
+/* Comparsion function for supplemental page table */
+static bool
+sup_pt_less_func (const struct hash_elem *a, const struct hash_elem *b,
+                  void *aux UNUSED)
+{
+  struct sup_page *page_a = hash_entry (a, struct sup_page, pt_elem);
+  struct sup_page *page_b = hash_entry (b, struct sup_page, pt_elem);
+
+  ASSERT (page_a != NULL);
+  ASSERT (page_b != NULL);
+
+  return page_a->user_addr < page_b->user_addr;
+}
+
+#endif
