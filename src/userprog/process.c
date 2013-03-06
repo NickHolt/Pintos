@@ -20,6 +20,7 @@
 #include "threads/malloc.h"
 #ifdef VM
 #include "vm/frame.h"
+#include "vm/page.h"
 #endif
 
 static thread_func start_process NO_RETURN;
@@ -48,7 +49,7 @@ process_execute (const char *file_name)
   char **args = calloc ((strlen (fn_copy) / 2) + 1, sizeof (char *));
 
   for (args[i] = strtok_r (fn_copy, sep, &last); i < MAXARGS && args[i];
-       args[++i] = strtok_r (NULL, sep, &last)) 
+       args[++i] = strtok_r (NULL, sep, &last))
     {
       char* string = calloc(strlen(args[i]), sizeof(char));
       strlcpy(string, args[i], strlen(args[i]) + 1);
@@ -105,7 +106,7 @@ start_process (void *args_)
 
   /* Set the load_status of the threads parent */
   struct thread *current = thread_current ();
-  if (current->parent != NULL) 
+  if (current->parent != NULL)
     {
       current->parent->child_status = (success) ? LOADED : FAILED;
 
@@ -592,42 +593,26 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
-#ifdef VM
-      uint8_t *kpage = allocate_frame (PAL_USER);
-#else
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-#endif
-      if (kpage == NULL)
+      struct sup_page *new;
+
+      /* Either demand the full page from the file, create a zero page, or
+         create a partially filled page from the file */
+      if (page_read_bytes == PGSIZE)
+          new = create_full_page (file, ofs, writable);
+      else if (page_zero_bytes == PGSIZE)
+          new = create_zero_page ();
+      else
+          new = create_partial_page (file, ofs, writable, zero_bytes);
+
+      if (!add_sup_page (new))
         return false;
-
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-#ifdef VM
-          free_frame (kpage);
-#else
-          palloc_free_page (kpage);
-#endif
-          return false;
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable))
-        {
-#ifdef VM
-          free_frame (kpage);
-#else
-          palloc_free_page (kpage);
-#endif
-          return false;
-        }
 
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+
+      ofs += page_read_bytes;
     }
   return true;
 }
