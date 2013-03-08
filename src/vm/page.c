@@ -52,3 +52,17 @@ bool add_sup_page (struct sup_page *page)
 {
     return (hash_insert (&thread_current ()->supp_pt, &page->pt_elem) != NULL);
 }
+
+struct sup_page* get_sup_page (uint8_t *addr)
+{
+    struct sup_page *temp;
+    temp->user_addr = addr;
+
+    struct hash_elem *temp_elem 
+        = hash_find (&thread_current ()->supp_pt, &temp->pt_elem);
+
+    if (temp_elem == NULL)
+        return NULL;
+    else
+        return hash_entry (temp_elem, struct sup_page, pt_elem);
+}
