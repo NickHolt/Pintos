@@ -9,6 +9,8 @@
 #include "userprog/syscall.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "filesys/file.h"
+#include "userprog/pagedir.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -194,11 +196,12 @@ functions in ‘userprog/pagedir.c’.
           frame = allocate_frame (PAL_USER);
 
           lock_filesystem ();
-
+          file_read_at (page->file, frame, PGSIZE, page->offset);
           release_filesystem ();
         }
 
-
+      pagedir_set_page (thread_current ()->pagedir, fault_addr, frame, 
+                        page->writable);
     }
   else
     exit (-1);
