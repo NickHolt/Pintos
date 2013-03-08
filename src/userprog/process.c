@@ -25,6 +25,9 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static unsigned sup_pt_hash_func (const struct hash_elem *elem, void *aux);
+static bool sup_pt_less_func (const struct hash_elem *a,
+                              const struct hash_elem *b, void *aux);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -96,6 +99,9 @@ start_process (void *args_)
 
   struct intr_frame if_;
   bool success;
+
+  hash_init (&thread_current ()->supp_pt, sup_pt_hash_func, sup_pt_less_func,
+             NULL);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -195,6 +201,33 @@ start_process (void *args_)
   asm volatile ("movl %0, %%esp; jmp intr_exit" : : "g" (&if_) : "memory");
   NOT_REACHED ();
 }
+
+#ifdef VM
+
+/* Hash function for supplemental page table */
+static unsigned
+sup_pt_hash_func (const struct hash_elem *elem, void *aux UNUSED)
+{
+  struct sup_page *p = hash_entry (elem, struct sup_page, pt_elem);
+  return hash_bytes (&p->user_addr, sizeof (p->user_addr));
+}
+
+/* Comparsion function for supplemental page table */
+static bool
+sup_pt_less_func (const struct hash_elem *a, const struct hash_elem *b,
+                  void *aux UNUSED)
+{
+  struct sup_page *page_a = hash_entry (a, struct sup_page, pt_elem);
+  struct sup_page *page_b = hash_entry (b, struct sup_page, pt_elem);
+
+  ASSERT (page_a != NULL);
+  ASSERT (page_b != NULL);
+
+  return (page_a->user_addr - page_b->user_addr) < 0;
+}
+
+#endif
+
 
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
@@ -594,7 +627,8 @@ lazy_load (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       struct sup_page *new;
-
+          printf("\nzero bytes: %i\n", page_zero_bytes);
+          printf("read bytes: %i\n", page_read_bytes);
       /* Either demand the full page from the file, create a zero page, or
          create a partially filled page from the file */
       if (page_read_bytes == PGSIZE)
@@ -602,7 +636,7 @@ lazy_load (struct file *file, off_t ofs, uint8_t *upage,
       else if (page_zero_bytes == PGSIZE)
           new = create_zero_page ();
       else
-          new = create_partial_page (file, ofs, writable, zero_bytes, upage);
+          new = create_partial_page (file, ofs, zero_bytes, writable, upage, read_bytes);
 
       if (!add_sup_page (new))
         return false;

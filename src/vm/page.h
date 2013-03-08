@@ -12,6 +12,7 @@ struct sup_page
     bool writable;
     off_t offset;
     size_t zero_bytes;
+    size_t read_bytes;
     uint8_t *user_addr;
 
     struct hash_elem pt_elem;
@@ -22,8 +23,8 @@ struct sup_page* create_full_page (struct file*, off_t offset, bool writable,
                                    uint8_t *addr);
 struct sup_page* create_partial_page (struct file*, off_t offset,
                                       size_t zero_bytes, bool writable,
-                                      uint8_t *addr);
+                                      uint8_t *addr, size_t read_bytes);
 bool add_sup_page (struct sup_page *page);
-struct sup_page* get_sup_page (uint8_t *addr);
+struct sup_page* get_sup_page (struct hash *pt, uint8_t *addr);
 
 #endif

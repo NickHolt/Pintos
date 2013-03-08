@@ -11,6 +11,9 @@ struct sup_page* create_zero_page (void)
         PANIC ("Failed to allocate memory in create_zero_page()");
 
     zero_page->zero_bytes = PGSIZE;
+    zero_page->read_bytes = 0;
+
+    printf("%x\n", zero_page);
 
     return zero_page;
 }
@@ -26,14 +29,17 @@ struct sup_page* create_full_page (struct file *f, off_t offset,
     full_page->writable = writable;
     full_page->offset = offset;
     full_page->zero_bytes = 0;
+    full_page->read_bytes = PGSIZE;
     full_page->user_addr = addr;
+
+    printf("%x\n", full_page);
 
     return full_page;
 }
 
 struct sup_page* create_partial_page (struct file *f, off_t offset,
                                       size_t zero_bytes, bool writable,
-                                      uint8_t *addr)
+                                      uint8_t *addr, size_t read_bytes)
 {
     struct sup_page *partial_page = malloc (sizeof (struct sup_page));
     if (partial_page == NULL)
@@ -43,23 +49,27 @@ struct sup_page* create_partial_page (struct file *f, off_t offset,
     partial_page->writable = writable;
     partial_page->offset = offset;
     partial_page->zero_bytes = zero_bytes;
+    partial_page->zero_bytes = read_bytes;
     partial_page->user_addr = addr;
+
+    printf("%x\n", partial_page);
 
     return partial_page;
 }
 
 bool add_sup_page (struct sup_page *page)
 {
-    return (hash_insert (&thread_current ()->supp_pt, &page->pt_elem) != NULL);
+    printf("inserting %x \n\n", page);
+    return hash_insert (&thread_current ()->supp_pt, &page->pt_elem) == NULL;
 }
 
-struct sup_page* get_sup_page (uint8_t *addr)
+struct sup_page* get_sup_page (struct hash *pt, uint8_t *addr)
 {
-    struct sup_page *temp;
-    temp->user_addr = addr;
+    struct sup_page temp;
+    temp.user_addr = addr;
 
-    struct hash_elem *temp_elem 
-        = hash_find (&thread_current ()->supp_pt, &temp->pt_elem);
+    struct hash_elem *temp_elem
+        = hash_find (pt, &temp.pt_elem);
 
     if (temp_elem == NULL)
         return NULL;

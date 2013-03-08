@@ -11,6 +11,7 @@
 #include "vm/frame.h"
 #include "filesys/file.h"
 #include "userprog/pagedir.h"
+#include <string.h>
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -34,7 +35,7 @@ static void page_fault (struct intr_frame *);
    Refer to [IA32-v3a] section 5.15 "Exception and Interrupt
    Reference" for a description of each of these exceptions. */
 void
-exception_init (void) 
+exception_init (void)
 {
   /* These exceptions can be raised explicitly by a user program,
      e.g. via the INT, INT3, INTO, and BOUND instructions.  Thus,
@@ -69,14 +70,14 @@ exception_init (void)
 
 /* Prints exception statistics. */
 void
-exception_print_stats (void) 
+exception_print_stats (void)
 {
   printf ("Exception: %lld page faults\n", page_fault_cnt);
 }
 
 /* Handler for an exception (probably) caused by a user process. */
 static void
-kill (struct intr_frame *f) 
+kill (struct intr_frame *f)
 {
   /* This interrupt is one (probably) caused by a user process.
      For example, the process might have tried to access unmapped
@@ -85,7 +86,7 @@ kill (struct intr_frame *f)
      the kernel.  Real Unix-like operating systems pass most
      exceptions back to the process via signals, but we don't
      implement them. */
-     
+
   /* The interrupt frame's code segment value tells us where the
      exception originated. */
 
@@ -97,7 +98,7 @@ kill (struct intr_frame *f)
       printf ("%s: dying due to interrupt %#04x (%s).\n",
               thread_name (), f->vec_no, intr_name (f->vec_no));
       intr_dump_frame (f);
-      exit (-1); 
+      exit (-1);
 
     case SEL_KCSEG:
       /* Kernel's code segment, which indicates a kernel bug.
@@ -105,7 +106,7 @@ kill (struct intr_frame *f)
          may cause kernel exceptions--but they shouldn't arrive
          here.)  Panic the kernel to make the point.  */
       intr_dump_frame (f);
-      PANIC ("Kernel bug - unexpected interrupt in kernel"); 
+      PANIC ("Kernel bug - unexpected interrupt in kernel");
 
     default:
       /* Some other code segment?  Shouldn't happen.  Panic the
@@ -128,7 +129,7 @@ kill (struct intr_frame *f)
    description of "Interrupt 14--Page Fault Exception (#PF)" in
    [IA32-v3a] section 5.15 "Exception and Interrupt Reference". */
 static void
-page_fault (struct intr_frame *f) 
+page_fault (struct intr_frame *f)
 {
   bool not_present;  /* True: not-present page, false: writing r/o page. */
   bool write;        /* True: access was write, false: access was read. */
@@ -156,33 +157,21 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-/*
-1. Locate the page that faulted in the supplemental page table. If the memory reference is
-valid, use the supplemental page table entry to locate the data that goes in the page, which
-might be in the file system, or in a swap slot, or it might simply be an all-zero page. If you
-implement sharing, the page’s data might even already be in a page frame, but not in the
-page table.
-If the supplemental page table indicates that the user process should not expect any data
-at the address it was trying to access, or if the page lies within kernel virtual memory, or if
-the access is an attempt to write to a read-only page, then the access is invalid. Any invalid
-access terminates the process and thereby frees all of its resources.
-2. Obtain a frame to store the page. See Section 5.1.5 [Managing the Frame Table], page 39,
-for details.
-If you implement sharing, the data you need may already be in a frame, in which case you
-must be able to locate that frame.
-3. Fetch the data into the frame, by reading it from the file system or swap, zeroing it, etc.
-If you implement sharing, the page you need may already be in a frame, in which case no
-action is necessary in this step.
-4. Point the page table entry for the faulting virtual address to the frame. You can use the
-functions in ‘userprog/pagedir.c’.
-*/
+  if (pg_round_down(fault_addr) == NULL)
+    {
+      debug_backtrace();
+      exit (-1);
+    }
 
-  struct sup_page *page = get_sup_page (fault_addr);
+  struct thread *cur = thread_current ();
 
-  if (page != NULL || !page->writable || is_kernel_vaddr(fault_addr))
+  struct sup_page *page = get_sup_page (&cur->supp_pt, pg_round_down(fault_addr));
+
+  //printf("%x\nzero bytes - %i\nread bytes - %i\n\n", page, page->zero_bytes, page->read_bytes);
+  if (page != NULL && not_present && is_user_vaddr(fault_addr))
     {
       void* frame = NULL;
-      // Could be clever with bitwise operations here to remove if statement, 
+      // Could be clever with bitwise operations here to remove if statement,
       // but perhaps would make it less clear
       if (page->zero_bytes == PGSIZE)
         {
@@ -191,31 +180,36 @@ functions in ‘userprog/pagedir.c’.
         }
       else
         {
-          // Later there will be a case for swapping, but for now it's just reading 
+          // Later there will be a case for swapping, but for now it's just reading
           // from the file system
+
           frame = allocate_frame (PAL_USER);
 
+          //printf ("%x\n", page->file);
+
           lock_filesystem ();
-          file_read_at (page->file, frame, PGSIZE, page->offset);
+          file_seek (page->file, page->offset);
+          file_read (page->file, frame, page->read_bytes);
           release_filesystem ();
+          memset (frame + page->read_bytes, 0, page->zero_bytes);
         }
 
-      pagedir_set_page (thread_current ()->pagedir, fault_addr, frame, 
+      pagedir_set_page (cur->pagedir, page->user_addr, frame,
                         page->writable);
     }
   else
-    exit (-1);
+  {
     // TODO: invalid request - maybe more needed or special cases etc?
+    printf("Invalid: fault_addr = 0x%x, page = 0x%x.\n", fault_addr, page);
+    //exit (-1);
 
-/*
-  To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. 
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);*/
+    printf ("Page fault at %p: %s error %s page in %s context.\n",
+            fault_addr,
+            not_present ? "not present" : "rights violation",
+            write ? "writing" : "reading",
+            user ? "user" : "kernel");
+    kill (f);
+  }
+
 }
 

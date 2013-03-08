@@ -32,7 +32,7 @@ static struct hash fd_hash;
 static int next_fd = 2;
 
 
-// TODO: maybe move the filesystem locking into a more central location, now it 
+// TODO: maybe move the filesystem locking into a more central location, now it
 // is used in multiple places?
 
 struct lock filesys_lock;
