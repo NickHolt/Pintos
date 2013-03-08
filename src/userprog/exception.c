@@ -4,9 +4,11 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
 
 #include "userprog/syscall.h"
 #include "vm/page.h"
+#include "vm/frame.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -175,12 +177,32 @@ functions in ‘userprog/pagedir.c’.
 
   struct sup_page *page = get_sup_page (fault_addr);
 
-  if (page != NULL)
+  if (page != NULL || !page->writable || is_kernel_vaddr(fault_addr))
     {
+      void* frame = NULL;
+      // Could be clever with bitwise operations here to remove if statement, 
+      // but perhaps would make it less clear
+      if (page->zero_bytes == PGSIZE)
+        {
+          frame = allocate_frame (PAL_USER | PAL_ZERO);
+          // No need to memset here because it's done in palloc_get_page()
+        }
+      else
+        {
+          // Later there will be a case for swapping, but for now it's just reading 
+          // from the file system
+          frame = allocate_frame (PAL_USER);
+
+          lock_filesystem ();
+
+          release_filesystem ();
+        }
+
 
     }
   else
-    // TODO: invalid
+    exit (-1);
+    // TODO: invalid request - maybe more needed or special cases etc?
 
 /*
   To implement virtual memory, delete the rest of the function

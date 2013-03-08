@@ -33,6 +33,16 @@ static int next_fd = 2;
 
 struct lock filesys_lock;
 
+void lock_filesystem (void)
+{
+  lock_acquire (&filesys_lock);
+}
+
+void release_filesystem (void)
+{
+  lock_release (&filesys_lock);
+}
+
 struct fd_node
   {
     struct hash_elem hash_elem;
@@ -92,7 +102,7 @@ fd_to_file (int fd)
   if (e == NULL)
     {
       if (lock_held_by_current_thread (&filesys_lock))
-        lock_release (&filesys_lock);
+        release_filesystem ();
       exit (-1);
     }
 
@@ -102,7 +112,7 @@ fd_to_file (int fd)
   if (entry->thread != thread_current ())
     {
       if (lock_held_by_current_thread (&filesys_lock))
-        lock_release (&filesys_lock);
+        release_filesystem ();
       exit (-1);
     }
 
@@ -333,9 +343,9 @@ create (const char *file, unsigned initial_size)
 {
   if (is_safe_user_ptr (file))
     {
-      lock_acquire (&filesys_lock);
+      lock_filesystem ();
       bool status = filesys_create (file, initial_size);
-      lock_release (&filesys_lock);
+      release_filesystem ();
       return status;
     }
 
@@ -348,9 +358,9 @@ remove (const char *file)
 {
   if (is_safe_user_ptr (file))
     {
-      lock_acquire (&filesys_lock);
+      lock_filesystem ();
       bool status = filesys_remove (file);
-      lock_release (&filesys_lock);
+      release_filesystem ();
       return status;
     }
 
@@ -364,12 +374,12 @@ open (const char *filename)
 {
   if (is_safe_user_ptr (filename))
     {
-      lock_acquire (&filesys_lock);
+      lock_filesystem ();
 
       struct file *open_file = filesys_open (filename);
       if (open_file == NULL)
         {
-          lock_release (&filesys_lock);
+          release_filesystem ();
           return -1;
         }
 
@@ -390,7 +400,7 @@ open (const char *filename)
 
       list_push_back (&thread_current ()->open_fds, &fd->elem);
 
-      lock_release (&filesys_lock);
+      release_filesystem ();
       return node->fd;
     }
 
@@ -401,9 +411,9 @@ open (const char *filename)
 static int
 filesize (int fd)
 {
-  lock_acquire (&filesys_lock);
+  lock_filesystem ();
   int length = file_length (fd_to_file (fd));
-  lock_release (&filesys_lock);
+  release_filesystem ();
   return length;
 }
 
@@ -428,9 +438,9 @@ read (int fd, void *buffer, unsigned length)
         }
       else
         {
-          lock_acquire (&filesys_lock);
+          lock_filesystem ();
           int size = file_read (fd_to_file (fd), buffer, length);
-          lock_release (&filesys_lock);
+          release_filesystem ();
           return size;
         }
     }
@@ -473,9 +483,9 @@ write (int fd, const void *buffer, unsigned size)
         }
       else
         {
-          lock_acquire (&filesys_lock);
+          lock_filesystem ();
           int length = file_write (fd_to_file (fd), buffer, size);
-          lock_release (&filesys_lock);
+          release_filesystem ();
           return length;
         }
     }
@@ -488,9 +498,9 @@ write (int fd, const void *buffer, unsigned size)
 static void
 seek (int fd, unsigned position)
 {
-  lock_acquire (&filesys_lock);
+  lock_filesystem ();
   file_seek (fd_to_file (fd), position);
-  lock_release (&filesys_lock);
+  release_filesystem ();
 }
 
 /* Returns the position of the next byte to be read or written in open file fd,
@@ -498,9 +508,9 @@ seek (int fd, unsigned position)
 static unsigned
 tell (int fd)
 {
-  lock_acquire (&filesys_lock);
+  lock_filesystem ();
   unsigned next = file_tell (fd_to_file (fd));
-  lock_release (&filesys_lock);
+  release_filesystem ();
   return next;
 }
 
@@ -510,7 +520,7 @@ tell (int fd)
 static void
 close (int fd)
 {
-  lock_acquire (&filesys_lock);
+  lock_filesystem ();
 
   /* Close the file. */
   file_close (fd_to_file (fd));
@@ -540,5 +550,5 @@ close (int fd)
 
   list_remove (el);
   free (f);
-  lock_release (&filesys_lock);
+  release_filesystem ();
 }

@@ -117,22 +117,6 @@ palloc_get_page (enum palloc_flags flags)
 void
 palloc_free_multiple (void *pages, size_t page_cnt) 
 {
-  /*unsigned int i;
-  for (i = 0; i < page_cnt; ++i)
-    {
-      printf ("FREE: %p", __builtin_return_address (0));
-      void **frame;
-      int j = 0;
-      for (frame = __builtin_frame_address (1);
-           (uintptr_t) frame >= 0x1000 && frame[0] != NULL;
-           frame = frame[0])
-        {
-          printf (" %p", frame[1]);
-          if (j++ == 6) break;
-        }
-      printf("\n");
-    }*/
-
   struct pool *pool;
   size_t page_idx;
 
