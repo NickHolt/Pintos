@@ -316,6 +316,9 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
+  /* Destory the thread's suplementary page table */
+  reclaim_pages (&cur->supp_pt);
+
   /* Destory and free the list of child threads. Keep a temporaty pointer
      to the next item in the list, because we're killing list items as we
      loop */

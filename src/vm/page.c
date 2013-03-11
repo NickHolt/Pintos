@@ -3,8 +3,10 @@
 #include "lib/debug.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include <stdio.h>
 
-struct sup_page* create_zero_page (uint8_t *addr)
+struct sup_page*
+create_zero_page (uint8_t *addr)
 {
     struct sup_page *zero_page = malloc (sizeof (struct sup_page));
     if (zero_page == NULL)
@@ -17,8 +19,8 @@ struct sup_page* create_zero_page (uint8_t *addr)
     return zero_page;
 }
 
-struct sup_page* create_full_page (struct file *f, off_t offset,
-                                   bool writable, uint8_t *addr)
+struct sup_page*
+create_full_page (struct file *f, off_t offset, bool writable, uint8_t *addr)
 {
     struct sup_page *full_page = malloc (sizeof (struct sup_page));
     if (full_page == NULL)
@@ -34,9 +36,9 @@ struct sup_page* create_full_page (struct file *f, off_t offset,
     return full_page;
 }
 
-struct sup_page* create_partial_page (struct file *f, off_t offset,
-                                      size_t zero_bytes, bool writable,
-                                      uint8_t *addr, size_t read_bytes)
+struct sup_page*
+create_partial_page (struct file *f, off_t offset, size_t zero_bytes,
+                     bool writable, uint8_t *addr, size_t read_bytes)
 {
     struct sup_page *partial_page = malloc (sizeof (struct sup_page));
     if (partial_page == NULL)
@@ -52,12 +54,14 @@ struct sup_page* create_partial_page (struct file *f, off_t offset,
     return partial_page;
 }
 
-bool add_sup_page (struct sup_page *page)
+bool
+add_sup_page (struct sup_page *page)
 {
     return hash_insert (&thread_current ()->supp_pt, &page->pt_elem) == NULL;
 }
 
-struct sup_page* get_sup_page (struct hash *pt, uint8_t *addr)
+struct sup_page*
+get_sup_page (struct hash *pt, uint8_t *addr)
 {
     struct sup_page temp;
     temp.user_addr = addr;
@@ -69,4 +73,17 @@ struct sup_page* get_sup_page (struct hash *pt, uint8_t *addr)
         return NULL;
     else
         return hash_entry (temp_elem, struct sup_page, pt_elem);
+}
+
+static void
+free_sup_pages (struct hash_elem *page_elem, void *aux UNUSED)
+{
+    struct sup_page *page = hash_entry (page_elem, struct sup_page, pt_elem);
+    free (page);
+}
+
+void
+reclaim_pages (struct hash *pt)
+{
+    hash_destroy (pt, free_sup_pages);
 }

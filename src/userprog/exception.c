@@ -162,7 +162,8 @@ page_fault (struct intr_frame *f)
 
   struct thread *cur = thread_current ();
 
-  struct sup_page *page = get_sup_page (&cur->supp_pt, pg_round_down(fault_addr));
+  struct sup_page *page = get_sup_page (&cur->supp_pt,
+                                        pg_round_down(fault_addr));
 
   if (page != NULL && not_present && is_user_vaddr(fault_addr))
     {
@@ -182,8 +183,12 @@ page_fault (struct intr_frame *f)
           frame = allocate_frame (PAL_USER);
 
           lock_filesystem ();
+
           file_seek (page->file, page->offset);
-          file_read (page->file, frame, page->read_bytes);
+          if (file_read (page->file, frame, page->read_bytes) != (int)
+              page->read_bytes)
+            free_frame (frame);
+
           release_filesystem ();
           memset (frame + page->read_bytes, 0, page->zero_bytes);
         }
@@ -192,16 +197,15 @@ page_fault (struct intr_frame *f)
                         page->writable);
     }
   else
-  {
-    // TODO: invalid request - maybe more needed or special cases etc?
+    {
+      // TODO: invalid request - maybe more needed or special cases etc?
 
-    printf ("Page fault at %p: %s error %s page in %s context.\n",
-            fault_addr,
-            not_present ? "not present" : "rights violation",
-            write ? "writing" : "reading",
-            user ? "user" : "kernel");
-    kill (f);
-  }
+      printf ("Page fault at %p: %s error %s page in %s context.\n",
+              fault_addr,
+              not_present ? "not present" : "rights violation",
+              write ? "writing" : "reading",
+              user ? "user" : "kernel");
+      kill (f);
+    }
 
 }
-
