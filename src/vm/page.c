@@ -4,7 +4,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 
-struct sup_page* create_zero_page (void)
+struct sup_page* create_zero_page (uint8_t *addr)
 {
     struct sup_page *zero_page = malloc (sizeof (struct sup_page));
     if (zero_page == NULL)
@@ -12,8 +12,9 @@ struct sup_page* create_zero_page (void)
 
     zero_page->zero_bytes = PGSIZE;
     zero_page->read_bytes = 0;
+    zero_page->user_addr = addr;
 
-    printf("%x\n", zero_page);
+    printf("%x\n", addr);
 
     return zero_page;
 }
@@ -32,7 +33,7 @@ struct sup_page* create_full_page (struct file *f, off_t offset,
     full_page->read_bytes = PGSIZE;
     full_page->user_addr = addr;
 
-    printf("%x\n", full_page);
+    printf("%x\n", addr);
 
     return full_page;
 }
@@ -52,7 +53,7 @@ struct sup_page* create_partial_page (struct file *f, off_t offset,
     partial_page->zero_bytes = read_bytes;
     partial_page->user_addr = addr;
 
-    printf("%x\n", partial_page);
+    printf("%x\n", addr);
 
     return partial_page;
 }

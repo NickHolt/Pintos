@@ -18,7 +18,7 @@ struct sup_page
     struct hash_elem pt_elem;
   };
 
-struct sup_page* create_zero_page (void);
+struct sup_page* create_zero_page (uint8_t *addr);
 struct sup_page* create_full_page (struct file*, off_t offset, bool writable,
                                    uint8_t *addr);
 struct sup_page* create_partial_page (struct file*, off_t offset,

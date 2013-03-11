@@ -157,8 +157,10 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
+  printf("0x%x\n", pg_round_down(fault_addr));
   if (pg_round_down(fault_addr) == NULL)
     {
+      printf("0x%x\n", fault_addr);
       debug_backtrace();
       exit (-1);
     }
