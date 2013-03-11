@@ -627,8 +627,6 @@ lazy_load (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       struct sup_page *new;
-          printf("\nzero bytes: %i\n", page_zero_bytes);
-          printf("read bytes: %i\n", page_read_bytes);
       /* Either demand the full page from the file, create a zero page, or
          create a partially filled page from the file */
       if (page_read_bytes == PGSIZE)

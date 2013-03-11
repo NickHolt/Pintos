@@ -157,19 +157,13 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  printf("0x%x\n", pg_round_down(fault_addr));
   if (pg_round_down(fault_addr) == NULL)
-    {
-      printf("0x%x\n", fault_addr);
-      debug_backtrace();
       exit (-1);
-    }
 
   struct thread *cur = thread_current ();
 
   struct sup_page *page = get_sup_page (&cur->supp_pt, pg_round_down(fault_addr));
 
-  //printf("%x\nzero bytes - %i\nread bytes - %i\n\n", page, page->zero_bytes, page->read_bytes);
   if (page != NULL && not_present && is_user_vaddr(fault_addr))
     {
       void* frame = NULL;
@@ -187,8 +181,6 @@ page_fault (struct intr_frame *f)
 
           frame = allocate_frame (PAL_USER);
 
-          //printf ("%x\n", page->file);
-
           lock_filesystem ();
           file_seek (page->file, page->offset);
           file_read (page->file, frame, page->read_bytes);
@@ -202,8 +194,6 @@ page_fault (struct intr_frame *f)
   else
   {
     // TODO: invalid request - maybe more needed or special cases etc?
-    printf("Invalid: fault_addr = 0x%x, page = 0x%x.\n", fault_addr, page);
-    //exit (-1);
 
     printf ("Page fault at %p: %s error %s page in %s context.\n",
             fault_addr,

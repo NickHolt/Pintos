@@ -14,8 +14,6 @@ struct sup_page* create_zero_page (uint8_t *addr)
     zero_page->read_bytes = 0;
     zero_page->user_addr = addr;
 
-    printf("%x\n", addr);
-
     return zero_page;
 }
 
@@ -33,8 +31,6 @@ struct sup_page* create_full_page (struct file *f, off_t offset,
     full_page->read_bytes = PGSIZE;
     full_page->user_addr = addr;
 
-    printf("%x\n", addr);
-
     return full_page;
 }
 
@@ -50,17 +46,14 @@ struct sup_page* create_partial_page (struct file *f, off_t offset,
     partial_page->writable = writable;
     partial_page->offset = offset;
     partial_page->zero_bytes = zero_bytes;
-    partial_page->zero_bytes = read_bytes;
+    partial_page->read_bytes = read_bytes;
     partial_page->user_addr = addr;
-
-    printf("%x\n", addr);
 
     return partial_page;
 }
 
 bool add_sup_page (struct sup_page *page)
 {
-    printf("inserting %x \n\n", page);
     return hash_insert (&thread_current ()->supp_pt, &page->pt_elem) == NULL;
 }
 
