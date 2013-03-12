@@ -7,7 +7,7 @@
 void
 init_swap_structures (void)
 {
-  /* Initilaise the BLOCK_SWAP device */
+  /* Initialise the BLOCK_SWAP device */
   block_device = block_get_role (BLOCK_SWAP);
 
   /* Calculate how big we need to make the bitmap. Everything is initialised 
@@ -21,6 +21,8 @@ init_swap_structures (void)
 size_t
 pick_slot_and_swap (void *page)
 {
+  /* Finds the first slot which has value false (so it's free) and flips it,
+     returning the index */
   size_t index = bitmap_scan_and_flip (swap_slot_map, 0, 1, false);
 
   /* Write the ith BLOCK_SECTOR_SIZE bytes of the page to the block device. We 
@@ -39,7 +41,18 @@ pick_slot_and_swap (void *page)
 }
 
 void
-free_slot (void)
+free_slot (void *page, size_t index)
 {
+  /* Mark the slot as free again */
+  ASSERT (bitmap_test (swap_slot_map, index));
+  bitmap_flip (swap_slot_map, index);
 
+  /* This is almost identical to the loop in pick_slot_and_swap, we're just 
+     going the other way */
+  int i = 0;
+  for (; i < SECTORS_PER_PAGE; ++i)
+    {
+      block_read (block_device, (index * SECTORS_PER_PAGE) + i, 
+                   page + (BLOCK_SECTOR_SIZE * i));
+    }
 }

@@ -9,6 +9,6 @@ struct bitmap *swap_slot_map;
 
 void init_swap_structures (void);
 size_t pick_slot_and_swap (void *page);
-void free_slot (void);
+void free_slot (void *page, size_t index);
 
 #endif
