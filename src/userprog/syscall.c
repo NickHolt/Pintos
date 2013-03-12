@@ -595,11 +595,22 @@ static mapid_t mmap (int fd, void *addr)
 
   /* TODO: map the file. */
 
+  struct mapid_node *m = malloc (sizeof (struct mapid_node));
+  m->mapid = thread_current ()->next_mapid++;
+  m->file = file;
+  hash_insert (&thread_current ()->file_map, &m->elem);
+
   release_filesystem ();
-  return -1;
+
+  return m->mapid;
 }
 
-static void munmap (mapid_t mapping UNUSED)
+static void munmap (mapid_t mapping)
 {
-  return;
+  struct mapid_node m;
+  m.mapid = mapping;
+
+  struct hash_elem *e = hash_find (&thread_current ()->file_map, &m.elem);
+  if (e != NULL)
+    hash_delete (&thread_current()->file_map, e);
 }

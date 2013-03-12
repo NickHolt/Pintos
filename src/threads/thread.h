@@ -132,6 +132,7 @@ struct thread
 
 
     struct hash file_map;               /* Maps mapids to files. */
+    int next_mapid;                     /* Used in mapid allocation. */
 #endif
 
     /* Owned by thread.c. */

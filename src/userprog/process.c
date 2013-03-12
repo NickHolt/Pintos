@@ -92,12 +92,6 @@ process_execute (const char *file_name)
 }
 
 /* TODO: move these somewhere more logical. */
-struct mapid_node {
-  struct hash_elem elem;
-  mapid_t mapid;
-  struct file *file;
-};
-
 static unsigned
 mapid_hash (const struct hash_elem *m_, void *aux UNUSED)
 {
@@ -140,6 +134,7 @@ start_process (void *args_)
              NULL);
 
   hash_init (&thread_current ()->file_map, mapid_hash, mapid_less, NULL);
+  thread_current()->next_mapid = 0;
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
