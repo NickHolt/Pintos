@@ -1,8 +1,13 @@
 #include "vm/swap.h"
 #include "threads/vaddr.h"
+#include "devices/block.h"
+#include <bitmap.h>
 
 /* This is always 2, but for neatness we define it here */
 #define SECTORS_PER_PAGE (PGSIZE / BLOCK_SECTOR_SIZE)
+
+struct block *block_device;
+struct bitmap *swap_slot_map;
 
 void
 init_swap_structures (void)
@@ -55,4 +60,10 @@ free_slot (void *page, size_t index)
       block_read (block_device, (index * SECTORS_PER_PAGE) + i, 
                    page + (BLOCK_SECTOR_SIZE * i));
     }
+}
+
+void
+destroy_swap_map (void)
+{
+  bitmap_destroy (swap_slot_map);
 }
