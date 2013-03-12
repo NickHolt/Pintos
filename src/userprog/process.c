@@ -21,6 +21,7 @@
 #ifdef VM
 #include "vm/frame.h"
 #include "vm/page.h"
+#include "userprog/syscall.h"
 #endif
 
 static thread_func start_process NO_RETURN;
@@ -90,10 +91,18 @@ process_execute (const char *file_name)
   return tid;
 }
 
+/* TODO: move these somewhere more logical. */
+struct mapid_node {
+  struct hash_elem elem;
+  mapid_t mapid;
+  struct file *file;
+};
+
 static unsigned
 mapid_hash (const struct hash_elem *m_, void *aux UNUSED)
 {
-  return 0;
+  struct mapid_node *m = hash_entry (m_, struct mapid_node, elem);
+  return hash_bytes (&m->mapid, sizeof m->mapid);
 }
 
 static bool
@@ -101,7 +110,20 @@ mapid_less (const struct hash_elem *a_ UNUSED,
             const struct hash_elem *b_ UNUSED,
             void *aux UNUSED)
 {
-  return false;
+  struct mapid_node *a = hash_entry (a_, struct mapid_node, elem);
+  struct mapid_node *b = hash_entry (b_, struct mapid_node, elem);
+
+  ASSERT (a != NULL);
+  ASSERT (b != NULL);
+
+  return a->mapid < b->mapid;
+}
+
+void
+mapid_destroy (struct hash_elem *m_, void *aux UNUSED)
+{
+  struct mapid_node *m = hash_entry (m_, struct mapid_node, elem);
+  free (m);
 }
 
 /* A thread function that loads a user process and starts it
@@ -117,8 +139,7 @@ start_process (void *args_)
   hash_init (&thread_current ()->supp_pt, sup_pt_hash_func, sup_pt_less_func,
              NULL);
 
-  hash_init (&thread_current ()->file_map, sup_pt_hash_func, sup_pt_less_func,
-             NULL);
+  hash_init (&thread_current ()->file_map, mapid_hash, mapid_less, NULL);
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -335,6 +356,8 @@ process_exit (void)
 
   /* Destory the thread's suplementary page table */
   reclaim_pages (&cur->supp_pt);
+
+  hash_destroy (&cur->file_map, mapid_destroy);
 
   /* Destory and free the list of child threads. Keep a temporaty pointer
      to the next item in the list, because we're killing list items as we
