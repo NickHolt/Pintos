@@ -572,6 +572,8 @@ close (int fd)
 
 static mapid_t mmap (int fd, void *addr)
 {
+  /* Error if trying to map STDIO, or if the given address is zero or not page-
+     aligned. */
   if (fd == STDIN_FILENO || fd == STDOUT_FILENO || addr == 0 ||
       pg_round_down (addr) != addr)
     return -1;
@@ -590,6 +592,8 @@ static mapid_t mmap (int fd, void *addr)
       release_filesystem ();
       return -1;
     }
+
+  /* TODO: map the file. */
 
   release_filesystem ();
   return -1;
