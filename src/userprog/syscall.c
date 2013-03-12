@@ -610,6 +610,9 @@ static void munmap (mapid_t mapping)
   struct mapid_node m;
   m.mapid = mapping;
 
+  /* TODO: should there be an exit (-1) if munmap gets called on an unmapped
+           mapid? */
+
   struct hash_elem *e = hash_find (&thread_current ()->file_map, &m.elem);
   if (e != NULL)
     hash_delete (&thread_current()->file_map, e);
