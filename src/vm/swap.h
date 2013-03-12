@@ -8,7 +8,7 @@ struct block *block_device;
 struct bitmap *swap_slot_map;
 
 void init_swap_structures (void);
-void pick_slot (void);
+size_t pick_slot_and_swap (void *page);
 void free_slot (void);
 
 #endif
