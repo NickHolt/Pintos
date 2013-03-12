@@ -17,7 +17,6 @@ After that: eviction, swapping, sharing. (Anything else?)
 Current test status
 -------------------
 
-pass tests/filesys/base/syn-write  
 pass tests/userprog/args-none  
 pass tests/userprog/args-single  
 pass tests/userprog/args-multiple  
@@ -50,7 +49,7 @@ pass tests/userprog/close-stdout
 pass tests/userprog/close-bad-fd  
 pass tests/userprog/read-normal  
 pass tests/userprog/read-bad-ptr  
-pass tests/userprog/read-boundary  
+FAIL tests/userprog/read-boundary  
 pass tests/userprog/read-zero  
 pass tests/userprog/read-stdout  
 pass tests/userprog/read-bad-fd  
@@ -116,7 +115,7 @@ FAIL tests/vm/mmap-remove
 FAIL tests/vm/mmap-zero  
 pass tests/filesys/base/lg-create  
 pass tests/filesys/base/lg-full  
-pass tests/filesys/base/lg-random  
+FAIL tests/filesys/base/lg-random  
 pass tests/filesys/base/lg-seq-block  
 pass tests/filesys/base/lg-seq-random  
 pass tests/filesys/base/sm-create  
@@ -126,5 +125,5 @@ pass tests/filesys/base/sm-seq-block
 pass tests/filesys/base/sm-seq-random  
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
-pass tests/filesys/base/syn-write  
-29 of 109 tests failed.
+FAIL tests/filesys/base/syn-write  
+32 of 109 tests failed.
