@@ -570,8 +570,28 @@ close (int fd)
   release_filesystem ();
 }
 
-static mapid_t mmap (int fd UNUSED, void *addr UNUSED)
+static mapid_t mmap (int fd, void *addr)
 {
+  if (fd == STDIN_FILENO || fd == STDOUT_FILENO || addr == 0 ||
+      pg_round_down (addr) != addr)
+    return -1;
+
+  /* TODO: fail if the range of pages mapped overlaps any existing set of
+           mapped pages, including the stack or pages mapped at executable load
+           time. */
+
+  lock_filesystem ();
+
+  struct file *file = fd_to_file (fd);
+  int length = file_length (file);
+
+  if (length == 0)
+    {
+      release_filesystem ();
+      return -1;
+    }
+
+  release_filesystem ();
   return -1;
 }
 
