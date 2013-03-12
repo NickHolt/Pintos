@@ -9,6 +9,7 @@
 #include "userprog/syscall.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 #include "filesys/file.h"
 #include "userprog/pagedir.h"
 #include <string.h>
@@ -172,14 +173,12 @@ page_fault (struct intr_frame *f)
       // but perhaps would make it less clear
       if (page->zero_bytes == PGSIZE)
         {
+          /* An all zero page */
           frame = allocate_frame (PAL_USER | PAL_ZERO);
-          // No need to memset here because it's done in palloc_get_page()
         }
-      else
+      else if (!page->is_swapped)
         {
-          // Later there will be a case for swapping, but for now it's just reading
-          // from the file system
-
+          /* Page data is in the file system */
           frame = allocate_frame (PAL_USER);
 
           lock_filesystem ();
@@ -192,9 +191,16 @@ page_fault (struct intr_frame *f)
           release_filesystem ();
           memset (frame + page->read_bytes, 0, page->zero_bytes);
         }
+      else
+        {
+          /* Page data is in a swap slot */
+          frame = allocate_frame (PAL_USER);
+          free_slot (frame, page->swap_index);
+        }
 
-      pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                        page->writable);
+      if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                        page->writable))
+        free_frame (frame);
     }
   else
     {

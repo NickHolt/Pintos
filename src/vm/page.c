@@ -15,6 +15,7 @@ create_zero_page (uint8_t *addr)
     zero_page->zero_bytes = PGSIZE;
     zero_page->read_bytes = 0;
     zero_page->user_addr = addr;
+    zero_page->is_swapped = false;
 
     return zero_page;
 }
@@ -32,6 +33,7 @@ create_full_page (struct file *f, off_t offset, bool writable, uint8_t *addr)
     full_page->zero_bytes = 0;
     full_page->read_bytes = PGSIZE;
     full_page->user_addr = addr;
+    full_page->is_swapped = false;
 
     return full_page;
 }
@@ -50,6 +52,7 @@ create_partial_page (struct file *f, off_t offset, size_t zero_bytes,
     partial_page->zero_bytes = zero_bytes;
     partial_page->read_bytes = read_bytes;
     partial_page->user_addr = addr;
+    partial_page->is_swapped = false;
 
     return partial_page;
 }

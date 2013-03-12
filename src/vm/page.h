@@ -14,6 +14,8 @@ struct sup_page
     size_t zero_bytes;
     size_t read_bytes;
     uint8_t *user_addr;
+    bool is_swapped;
+    size_t swap_index;
 
     struct hash_elem pt_elem;
   };
