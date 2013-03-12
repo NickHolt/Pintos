@@ -90,6 +90,20 @@ process_execute (const char *file_name)
   return tid;
 }
 
+static unsigned
+mapid_hash (const struct hash_elem *m_, void *aux UNUSED)
+{
+  return 0;
+}
+
+static bool
+mapid_less (const struct hash_elem *a_ UNUSED,
+            const struct hash_elem *b_ UNUSED,
+            void *aux UNUSED)
+{
+  return false;
+}
+
 /* A thread function that loads a user process and starts it
    running. */
 static void
@@ -101,6 +115,9 @@ start_process (void *args_)
   bool success;
 
   hash_init (&thread_current ()->supp_pt, sup_pt_hash_func, sup_pt_less_func,
+             NULL);
+
+  hash_init (&thread_current ()->file_map, sup_pt_hash_func, sup_pt_less_func,
              NULL);
 
   /* Initialize interrupt frame and load executable. */

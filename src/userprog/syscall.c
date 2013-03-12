@@ -575,7 +575,7 @@ static mapid_t mmap (int fd, void *addr)
   /* Error if trying to map STDIO, or if the given address is zero or not page-
      aligned. */
   if (fd == STDIN_FILENO || fd == STDOUT_FILENO || addr == 0 ||
-      pg_round_down (addr) != addr)
+      pg_ofs (addr) != 0)
     return -1;
 
   /* TODO: fail if the range of pages mapped overlaps any existing set of
