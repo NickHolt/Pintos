@@ -27,6 +27,8 @@ static int write (int fd, const void *buffer, unsigned size);
 static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
 static void close (int fd);
+static mapid_t mmap (int fd, void *addr);
+static void munmap (mapid_t mapping);
 
 static struct hash fd_hash;
 static int next_fd = 2;
@@ -244,6 +246,17 @@ syscall_handler (struct intr_frame *f)
           case SYS_CLOSE:
             if (is_safe_user_ptr (stack_pointer + 1))
               close (*(stack_pointer + 1));
+            break;
+
+          case SYS_MMAP:
+            if (is_safe_user_ptr (stack_pointer + 1) &&
+                is_safe_user_ptr (stack_pointer + 2))
+              mmap (*(stack_pointer + 1), (void *) *(stack_pointer + 2));
+            break;
+
+          case SYS_MUNMAP:
+            if (is_safe_user_ptr (stack_pointer + 1))
+              munmap (*(stack_pointer + 1));
             break;
 
           default:
@@ -555,4 +568,14 @@ close (int fd)
   list_remove (el);
   free (f);
   release_filesystem ();
+}
+
+static mapid_t mmap (int fd UNUSED, void *addr UNUSED)
+{
+  return -1;
+}
+
+static void munmap (mapid_t mapping UNUSED)
+{
+  return;
 }
