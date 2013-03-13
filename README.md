@@ -106,8 +106,8 @@ FAIL tests/vm/mmap-shuffle
 pass tests/vm/mmap-bad-fd  
 FAIL tests/vm/mmap-clean  
 FAIL tests/vm/mmap-inherit  
-FAIL tests/vm/mmap-misalign  
-FAIL tests/vm/mmap-null  
+pass tests/vm/mmap-misalign  
+pass tests/vm/mmap-null  
 FAIL tests/vm/mmap-over-code  
 FAIL tests/vm/mmap-over-data  
 FAIL tests/vm/mmap-over-stk  
@@ -126,4 +126,4 @@ pass tests/filesys/base/sm-seq-random
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-28 of 109 tests failed.
+26 of 109 tests failed.

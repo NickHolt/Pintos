@@ -251,7 +251,8 @@ syscall_handler (struct intr_frame *f)
           case SYS_MMAP:
             if (is_safe_user_ptr (stack_pointer + 1) &&
                 is_safe_user_ptr (stack_pointer + 2))
-              mmap (*(stack_pointer + 1), (void *) *(stack_pointer + 2));
+              f->eax = mmap (*(stack_pointer + 1),
+                             (void *) *(stack_pointer + 2));
             break;
 
           case SYS_MUNMAP:
@@ -596,6 +597,9 @@ static mapid_t mmap (int fd, void *addr)
   /* TODO: map the file. */
 
   struct mapid_node *m = malloc (sizeof (struct mapid_node));
+  if (m == NULL)
+    PANIC ("Failed to allocate memory for file mapping.");
+
   m->mapid = thread_current ()->next_mapid++;
   m->file = file;
   hash_insert (&thread_current ()->file_map, &m->elem);
