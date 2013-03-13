@@ -1,3 +1,6 @@
 #ignore Sublime stuff
 *.sublime-workspace
 *.sublime-project
+
+#Mac Idiocy
+.DS_Store
