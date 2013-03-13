@@ -17,6 +17,7 @@ struct mapid_node {
   struct hash_elem elem;
   mapid_t mapid;
   struct file *file;
+  void *addr;
 };
 
 #endif /* userprog/process.h */

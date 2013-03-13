@@ -13,6 +13,7 @@
 #include <hash.h>
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+#include "vm/page.h"
 
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);
@@ -579,10 +580,6 @@ static mapid_t mmap (int fd, void *addr)
       pg_ofs (addr) != 0)
     return -1;
 
-  /* TODO: fail if the range of pages mapped overlaps any existing set of
-           mapped pages, including the stack or pages mapped at executable load
-           time. */
-
   lock_filesystem ();
 
   struct file *file = fd_to_file (fd);
@@ -594,7 +591,30 @@ static mapid_t mmap (int fd, void *addr)
       return -1;
     }
 
-  /* TODO: map the file. */
+  /* Fail if the range of pages to be mapped (based on the given addr and size
+     file) overlaps an already-mapped page. */
+  int offset;
+  struct mapid_node mn;
+  for (offset = 0; offset < length; offset += PGSIZE)
+    {
+      /* TODO: this works, but are there cases that mean I should actually
+               check the supp_pt instead? */
+      if (pagedir_get_page (thread_current ()->pagedir, addr + offset))
+        {
+          release_filesystem ();
+          return -1;
+        }
+
+      mn.addr = addr + offset; /* This is definitely page-aligned since the
+                                  initial value of addris, and we're adding a
+                                  multiple of PGSIZE each time. */
+      struct hash_elem *e = hash_find (&thread_current ()->file_map, &mn.elem);
+      if (e != NULL)
+        {
+          release_filesystem ();
+          return -1;
+        }
+    }
 
   struct mapid_node *m = malloc (sizeof (struct mapid_node));
   if (m == NULL)
@@ -602,6 +622,7 @@ static mapid_t mmap (int fd, void *addr)
 
   m->mapid = thread_current ()->next_mapid++;
   m->file = file;
+  m->addr = addr;
   hash_insert (&thread_current ()->file_map, &m->elem);
 
   release_filesystem ();
