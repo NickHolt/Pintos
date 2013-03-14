@@ -45,7 +45,7 @@ create_partial_page (struct file *f, off_t offset, size_t zero_bytes,
   struct sup_page *partial_page = malloc (sizeof (struct sup_page));
   if (partial_page == NULL)
     PANIC ("Failed to allocate memory in create_full_page()");
-  
+
   partial_page->file = f;
   partial_page->writable = writable;
   partial_page->offset = offset;

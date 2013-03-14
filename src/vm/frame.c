@@ -2,9 +2,7 @@
 #include <debug.h>
 #include <hash.h>
 #include "threads/malloc.h"
-#include "threads/palloc.h"
 #include "threads/synch.h"
-#include "threads/thread.h"
 #include "vm/swap.h"
 #include "userprog/pagedir.h"
 #include "vm/page.h"
@@ -38,7 +36,7 @@ frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
 
   ASSERT (a != NULL);
   ASSERT (b != NULL);
-  
+
   return a->page < b->page;
 }
 
@@ -93,7 +91,7 @@ allocate_frame (enum palloc_flags flags)
 /* Set the page table entry as PT_ENTRY and the user page as USER_ADDR on the
    frame with page PAGE. */
 void
-set_page_table_entry (void* page, uint8_t *user_addr, uint8_t *pt_entry)
+set_page_table_entry (void *page, uint8_t *user_addr, uint8_t *pt_entry)
 {
   struct frame temp;
   struct hash_elem *e;
@@ -113,7 +111,6 @@ evict_frame (void)
      thread */
   struct frame *choice = select_frame_to_evict ();
   struct thread *owner = get_thread (choice->thread);
-  ASSERT (owner != NULL);
 
   /* Get the supplemental page table entry associated with the chosen frame */
   struct sup_page *sp = get_sup_page (&owner->supp_pt, choice->user_addr);
@@ -124,6 +121,7 @@ evict_frame (void)
       sp->is_swapped = true;
       sp->swap_index = index;
     }
+
 
   pagedir_clear_page (owner->pagedir, choice->user_addr);
 
@@ -145,7 +143,6 @@ select_frame_to_evict (void)
 void
 free_frame (void *page)
 {
-
   palloc_free_page (page);
 
   struct frame f;

@@ -262,6 +262,7 @@ syscall_handler (struct intr_frame *f)
             break;
 
           default:
+            printf("%i\n", syscall_number);
             NOT_REACHED ();
         }
     }
@@ -446,6 +447,7 @@ read (int fd, void *buffer, unsigned length)
     exit (-1);
   else
     {
+      printf("%p\n", buffer);
       if (fd == STDIN_FILENO)
         {
           unsigned i = 0;
