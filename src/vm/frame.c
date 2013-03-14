@@ -10,7 +10,7 @@
 struct frame {
   struct hash_elem elem; /* Hash table element. */
   void *page;            /* Page occupying this frame. */
-  struct thread *thread; /* Owner of this frame. */
+  tid_t thread;          /* TID of owner of this frame. */
   uint8_t *user_addr;    /* Stored to associate frames and sup_pt entries */
 };
 
@@ -77,7 +77,7 @@ allocate_frame (enum palloc_flags flags, uint8_t *user_addr)
 
   f->page = page;
   f->user_addr = user_addr;
-  f->thread = thread_current ();
+  f->thread = thread_current ()->tid;
   hash_insert (&frame_table, &f->elem);
 
   lock_release (&frame_lock);
@@ -88,8 +88,19 @@ allocate_frame (enum palloc_flags flags, uint8_t *user_addr)
 static struct frame*
 evict_frame (void)
 {
+  /* Choose a frame to evict */
   struct frame *choice = select_frame_to_evict ();
-  size_t swap_index = pick_slot_and_swap (choice->page);
+
+  struct thread *owner = get_thread (choice->thread);
+  ASSERT (owner != NULL);
+
+  /* Get the supplemental page table entry associated with the chosen frame */
+  struct sup_page *sp = get_sup_page (owner->supp_pt, choice->user_addr);
+  size_t index = pick_slot_and_swap (choice->page);
+
+  sp->is_swapped = true;
+  sp->swap_index = index;
+
   return choice;
 }
 

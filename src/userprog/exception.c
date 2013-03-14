@@ -194,8 +194,9 @@ page_fault (struct intr_frame *f)
       else
         {
           /* Page data is in a swap slot */
-          //frame = allocate_frame (PAL_USER);
-          //free_slot (frame, page->swap_index);
+          frame = allocate_frame (PAL_USER, page->user_addr);
+          free_slot (frame, page->swap_index);
+          page->is_swapped = false;
         }
 
       if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
