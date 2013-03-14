@@ -5,15 +5,19 @@
 #include "threads/palloc.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include "vm/swap.h"
 
 struct frame {
   struct hash_elem elem; /* Hash table element. */
   void *page;            /* Page occupying this frame. */
   struct thread *thread; /* Owner of this frame. */
+  uint8_t *user_addr;    /* Stored to associate frames and sup_pt entries */
 };
 
 static struct lock frame_lock;
 static struct hash frame_table;
+static struct frame* evict_frame (void);
+static struct frame* select_frame_to_evict (void);
 
 static unsigned
 frame_hash (const struct hash_elem *f_, void *aux UNUSED)
@@ -52,31 +56,41 @@ frame_done (void)
 }
 
 void *
-allocate_frame (enum palloc_flags flags)
+allocate_frame (enum palloc_flags flags, uint8_t *user_addr)
 {
   lock_acquire (&frame_lock);
 
   void *page = palloc_get_page (flags);
+  struct frame *f;
 
   if (page != NULL)
     {
-      struct frame *f = malloc (sizeof (struct frame));
+      f = malloc (sizeof (struct frame));
       if (f == NULL)
         PANIC ("Failed to allocate memory for frame.");
-
-      f->page = page;
-      f->thread = thread_current ();
-      hash_insert (&frame_table, &f->elem);
-
-      lock_release (&frame_lock);
-
-      return page;
     }
   else
     {
-      /* Eventually, eviction and swapping will take place here. */
-      PANIC ("Out of frames.");
+      f = evict_frame ();
+      ASSERT (f != NULL);
     }
+
+  f->page = page;
+  f->user_addr = user_addr;
+  f->thread = thread_current ();
+  hash_insert (&frame_table, &f->elem);
+
+  lock_release (&frame_lock);
+
+  return page;
+}
+
+static struct frame*
+evict_frame (void)
+{
+  struct frame *choice = select_frame_to_evict ();
+  size_t swap_index = pick_slot_and_swap (choice->page);
+  return choice;
 }
 
 void

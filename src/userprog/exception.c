@@ -174,12 +174,12 @@ page_fault (struct intr_frame *f)
       if (page->zero_bytes == PGSIZE)
         {
           /* An all zero page */
-          frame = allocate_frame (PAL_USER | PAL_ZERO);
+          frame = allocate_frame (PAL_USER | PAL_ZERO, page->user_addr);
         }
       else if (!page->is_swapped)
         {
           /* Page data is in the file system */
-          frame = allocate_frame (PAL_USER);
+          frame = allocate_frame (PAL_USER, page->user_addr);
 
           lock_filesystem ();
 
@@ -194,8 +194,8 @@ page_fault (struct intr_frame *f)
       else
         {
           /* Page data is in a swap slot */
-          frame = allocate_frame (PAL_USER);
-          free_slot (frame, page->swap_index);
+          //frame = allocate_frame (PAL_USER);
+          //free_slot (frame, page->swap_index);
         }
 
       if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,

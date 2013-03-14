@@ -661,7 +661,7 @@ setup_stack (void **esp)
   bool success = false;
 
 #ifdef VM
-  kpage = allocate_frame (PAL_USER | PAL_ZERO);
+  kpage = allocate_frame (PAL_USER | PAL_ZERO, NULL);
 #else
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
 #endif
