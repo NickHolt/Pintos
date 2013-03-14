@@ -286,7 +286,6 @@ syscall_done (void)
 void
 exit (int status)
 {
-  debug_backtrace ();
   struct thread *exiting_thread = thread_current();
 
   /* Print the terminating message */
@@ -597,6 +596,7 @@ static mapid_t mmap (int fd, void *addr)
      space. */
   int offset;
   struct mapid_node mn;
+  int num_pages = 0;
   for (offset = 0; offset < length; offset += PGSIZE)
     {
       /* TODO: this works, but are there cases that mean I should actually
@@ -616,6 +616,7 @@ static mapid_t mmap (int fd, void *addr)
           release_filesystem ();
           return -1;
         }
+      ++num_pages;
     }
 
   struct mapid_node *m = malloc (sizeof (struct mapid_node));
@@ -625,6 +626,7 @@ static mapid_t mmap (int fd, void *addr)
   m->mapid = thread_current ()->next_mapid++;
   m->file = file; /* TODO: should this be file_reopen (file)? */
   m->addr = addr;
+  m->num_pages = num_pages;
   hash_insert (&thread_current ()->file_map, &m->elem);
 
   release_filesystem ();

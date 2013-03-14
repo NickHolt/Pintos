@@ -18,6 +18,7 @@ struct mapid_node {
   mapid_t mapid;
   struct file *file;
   void *addr;
+  int num_pages;
 };
 
 #endif /* userprog/process.h */

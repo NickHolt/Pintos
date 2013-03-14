@@ -95,7 +95,7 @@ FAIL tests/vm/page-merge-par
 FAIL tests/vm/page-merge-stk  
 FAIL tests/vm/page-merge-mm  
 pass tests/vm/page-shuffle  
-FAIL tests/vm/mmap-read  
+pass tests/vm/mmap-read  
 FAIL tests/vm/mmap-close  
 pass tests/vm/mmap-unmap  
 pass tests/vm/mmap-overlap  

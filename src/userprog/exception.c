@@ -160,8 +160,6 @@ page_fault (struct intr_frame *f)
 
   if (pg_round_down (fault_addr) == NULL)
     {
-      printf ("%p rounds down to %p, dying.", fault_addr,
-              pg_round_down (fault_addr));
       exit (-1);
       /* TODO: not entirely happy about this. Should we not be printing a
                message and using kill like the original failure code? */
@@ -203,34 +201,56 @@ page_fault (struct intr_frame *f)
       pagedir_set_page (cur->pagedir, page->user_addr, frame, page->writable);
     }
   else
-    { 
-      struct mapid_node m;
-      m.addr = pg_round_down (fault_addr);
-      struct hash_elem *e = hash_find (&cur->file_map, &m.elem);
+    {
+      ASSERT (page == NULL); /* This might not be right. */
+      page = create_zero_page (pg_round_down (fault_addr));
 
-      if (e != NULL)
+
+      struct hash_iterator i;
+      hash_first (&i, &cur->file_map);
+      while (hash_next (&i))
         {
-          /* Address is mapped to a file. */
-          struct mapid_node *mn = hash_entry (e, struct mapid_node, elem);
+          struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
+                                             elem);
 
-          void *frame = allocate_frame (PAL_USER | PAL_ZERO);
+          ASSERT (m != NULL);
 
-          /* TODO: for mmap-read test, we already hold the filesystem lock.
-                  Will this always be the case? */
+          /* This mapping is of no interest to us - no point doing further
+             inspection. */
+          if (m->addr < pg_round_down (fault_addr))
+            continue;
 
-          int size = file_read (mn->file, frame, PGSIZE);
+          if (m->addr == pg_round_down (fault_addr))
+            {
+              /* Address is mapped to a file. */
+              void *frame = allocate_frame (PAL_USER | PAL_ZERO);
 
-          pagedir_set_page (cur->pagedir, page->user_addr, frame, page->writable);
+              /* TODO: for mmap-read test, we already hold the filesystem lock.
+                      Will this always be the case? */
+
+              file_read (m->file, frame, PGSIZE);
+
+
+              pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                                page->writable);
+              return;
+            }
+          else if (pg_round_down (fault_addr) <=
+                   m->addr + (m->num_pages * PGSIZE))
+            {
+              /* Accessing a memory mapped file somewhere in its range, but
+                 not in it's first page. I think this needs implementing? */
+              NOT_REACHED ();
+            }
         }
-      else
-        {
-          printf ("Page fault at %p: %s error %s page in %s context.\n",
-                  fault_addr,
-                  not_present ? "not present" : "rights violation",
-                  write ? "writing" : "reading",
-                  user ? "user" : "kernel");
-          kill (f);
-        }
+
+        /* No suitable mem->file map found. This is a legit page fault, die. */
+        printf ("Page fault at %p: %s error %s page in %s context.\n",
+                fault_addr,
+                not_present ? "not present" : "rights violation",
+                write ? "writing" : "reading",
+                user ? "user" : "kernel");
+        kill (f);
     }
 
 }
