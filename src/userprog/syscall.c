@@ -286,6 +286,7 @@ syscall_done (void)
 void
 exit (int status)
 {
+  debug_backtrace ();
   struct thread *exiting_thread = thread_current();
 
   /* Print the terminating message */
@@ -622,7 +623,7 @@ static mapid_t mmap (int fd, void *addr)
     PANIC ("Failed to allocate memory for file mapping.");
 
   m->mapid = thread_current ()->next_mapid++;
-  m->file = file;
+  m->file = file; /* TODO: should this be file_reopen (file)? */
   m->addr = addr;
   hash_insert (&thread_current ()->file_map, &m->elem);
 

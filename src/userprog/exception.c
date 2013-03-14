@@ -159,7 +159,13 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
   if (pg_round_down (fault_addr) == NULL)
+    {
+      printf ("%p rounds down to %p, dying.", fault_addr,
+              pg_round_down (fault_addr));
       exit (-1);
+      /* TODO: not entirely happy about this. Should we not be printing a
+               message and using kill like the original failure code? */
+    }
 
   struct thread *cur = thread_current ();
 
@@ -200,15 +206,21 @@ page_fault (struct intr_frame *f)
     { 
       struct mapid_node m;
       m.addr = pg_round_down (fault_addr);
-
       struct hash_elem *e = hash_find (&cur->file_map, &m.elem);
+
       if (e != NULL)
         {
           /* Address is mapped to a file. */
-          struct file *f = m.file;
-          void *buffer;
+          struct mapid_node *mn = hash_entry (e, struct mapid_node, elem);
 
-          // int size = file_read (m.file, pg_round_down (fault_addr), PGSIZE);
+          void *frame = allocate_frame (PAL_USER | PAL_ZERO);
+
+          /* TODO: for mmap-read test, we already hold the filesystem lock.
+                  Will this always be the case? */
+
+          int size = file_read (mn->file, frame, PGSIZE);
+
+          pagedir_set_page (cur->pagedir, page->user_addr, frame, page->writable);
         }
       else
         {
