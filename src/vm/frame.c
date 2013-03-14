@@ -61,7 +61,6 @@ frame_done (void)
 void *
 allocate_frame (enum palloc_flags flags)
 {
-  lock_acquire (&frame_lock);
   void *page = palloc_get_page (flags);
   struct frame *f;
 
@@ -73,8 +72,9 @@ allocate_frame (enum palloc_flags flags)
 
       f->page = page;
       f->thread = thread_current ()->tid;
-      hash_insert (&frame_table, &f->elem);
 
+      lock_acquire (&frame_lock);
+      hash_insert (&frame_table, &f->elem);
       lock_release (&frame_lock);
       return page;
     }
@@ -82,8 +82,6 @@ allocate_frame (enum palloc_flags flags)
     {
       f = evict_frame ();
       ASSERT (f != NULL);
-
-      lock_release (&frame_lock);
       return f->page;
     }
 }
@@ -143,15 +141,15 @@ select_frame_to_evict (void)
 void
 free_frame (void *page)
 {
-  lock_acquire (&frame_lock);
 
   palloc_free_page (page);
 
   struct frame f;
   f.page = page;
   hash_find (&frame_table, &f.elem);
-  struct hash_elem *e = hash_delete (&frame_table, &f.elem);
-  frame_destroy (e, NULL);
 
+  lock_acquire (&frame_lock);
+  struct hash_elem *e = hash_delete (&frame_table, &f.elem);
   lock_release (&frame_lock);
+  frame_destroy (e, NULL);
 }
