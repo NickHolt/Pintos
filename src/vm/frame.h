@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 void frame_init (void);
-void * allocate_frame (enum palloc_flags flags, uint8_t *user_addr);
+void * allocate_frame (enum palloc_flags flags);
 void free_frame (void *page);
 void frame_done (void);
 

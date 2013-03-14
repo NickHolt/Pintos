@@ -14,6 +14,7 @@ struct frame {
   void *page;            /* Page occupying this frame. */
   tid_t thread;          /* TID of owner of this frame. */
   uint8_t *user_addr;    /* Stored to associate frames and sup_pt entries */
+  uint8_t *pt_entry;     /* The page table entry for this frame */
 };
 
 static struct lock frame_lock;
@@ -58,7 +59,7 @@ frame_done (void)
 }
 
 void *
-allocate_frame (enum palloc_flags flags, uint8_t *user_addr)
+allocate_frame (enum palloc_flags flags)
 {
   lock_acquire (&frame_lock);
   void *page = palloc_get_page (flags);
@@ -71,7 +72,6 @@ allocate_frame (enum palloc_flags flags, uint8_t *user_addr)
         PANIC ("Failed to allocate memory for frame.");
 
       f->page = page;
-      f->user_addr = user_addr;
       f->thread = thread_current ()->tid;
       hash_insert (&frame_table, &f->elem);
 
@@ -88,6 +88,22 @@ allocate_frame (enum palloc_flags flags, uint8_t *user_addr)
     }
 }
 
+/* Set the page table entry as PT_ENTRY and the user page as USER_ADDR on the
+   frame with page PAGE. */
+void
+set_page_table_entry (void* page, uint8_t *user_addr, uint8_t *pt_entry)
+{
+  struct frame temp;
+  struct hash_elem *e;
+
+  temp.page = page;
+  e = hash_find (&frame_table, &temp.elem);
+  struct frame *res = hash_entry (e, struct frame, elem);
+
+  res->user_addr = user_addr;
+  res->pt_entry = pt_entry;
+}
+
 static struct frame*
 evict_frame (void)
 {
@@ -96,7 +112,6 @@ evict_frame (void)
   struct frame *choice = select_frame_to_evict ();
   struct thread *owner = get_thread (choice->thread);
   ASSERT (owner != NULL);
-
 
   /* Get the supplemental page table entry associated with the chosen frame */
   struct sup_page *sp = get_sup_page (&owner->supp_pt, choice->user_addr);

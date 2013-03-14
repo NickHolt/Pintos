@@ -637,7 +637,7 @@ lazy_load (struct file *file, off_t ofs, uint8_t *upage,
       else if (page_zero_bytes == PGSIZE)
           new = create_zero_page (upage);
       else
-          new = create_partial_page (file, ofs, page_zero_bytes, writable, 
+          new = create_partial_page (file, ofs, page_zero_bytes, writable,
                                      upage, read_bytes);
 
       if (!add_sup_page (new))
@@ -662,7 +662,7 @@ setup_stack (void **esp)
   bool success = false;
 
 #ifdef VM
-  kpage = allocate_frame (PAL_USER | PAL_ZERO, NULL);
+  kpage = allocate_frame (PAL_USER | PAL_ZERO);
 #else
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
 #endif

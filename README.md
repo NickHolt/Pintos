@@ -85,11 +85,11 @@ FAIL tests/vm/pt-grow-pusha
 pass tests/vm/pt-grow-bad  
 FAIL tests/vm/pt-big-stk-obj  
 pass tests/vm/pt-bad-addr  
-pass tests/vm/pt-bad-read  
+FAIL tests/vm/pt-bad-read  
 pass tests/vm/pt-write-code  
 FAIL tests/vm/pt-write-code2  
 FAIL tests/vm/pt-grow-stk-sc  
-FAIL tests/vm/page-linear  
+pass tests/vm/page-linear  
 FAIL tests/vm/page-parallel  
 FAIL tests/vm/page-merge-seq  
 FAIL tests/vm/page-merge-par  
