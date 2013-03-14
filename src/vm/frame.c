@@ -6,6 +6,8 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include "vm/swap.h"
+#include "userprog/pagedir.h"
+#include "vm/page.h"
 
 struct frame {
   struct hash_elem elem; /* Hash table element. */
@@ -59,7 +61,6 @@ void *
 allocate_frame (enum palloc_flags flags, uint8_t *user_addr)
 {
   lock_acquire (&frame_lock);
-
   void *page = palloc_get_page (flags);
   struct frame *f;
 
@@ -68,39 +69,59 @@ allocate_frame (enum palloc_flags flags, uint8_t *user_addr)
       f = malloc (sizeof (struct frame));
       if (f == NULL)
         PANIC ("Failed to allocate memory for frame.");
+
+      f->page = page;
+      f->user_addr = user_addr;
+      f->thread = thread_current ()->tid;
+      hash_insert (&frame_table, &f->elem);
+
+      lock_release (&frame_lock);
+      return page;
     }
   else
     {
       f = evict_frame ();
       ASSERT (f != NULL);
+
+      lock_release (&frame_lock);
+      return f->page;
     }
-
-  f->page = page;
-  f->user_addr = user_addr;
-  f->thread = thread_current ()->tid;
-  hash_insert (&frame_table, &f->elem);
-
-  lock_release (&frame_lock);
-
-  return page;
 }
 
 static struct frame*
 evict_frame (void)
 {
-  /* Choose a frame to evict */
+  /* Choose a frame to evict and clear it from the page directory of its owner
+     thread */
   struct frame *choice = select_frame_to_evict ();
-
   struct thread *owner = get_thread (choice->thread);
   ASSERT (owner != NULL);
 
+
   /* Get the supplemental page table entry associated with the chosen frame */
-  struct sup_page *sp = get_sup_page (owner->supp_pt, choice->user_addr);
-  size_t index = pick_slot_and_swap (choice->page);
+  struct sup_page *sp = get_sup_page (&owner->supp_pt, choice->user_addr);
 
-  sp->is_swapped = true;
-  sp->swap_index = index;
+  if (sp->writable && pagedir_is_dirty (owner->pagedir, choice->user_addr))
+    {
+      size_t index = pick_slot_and_swap (choice->page);
+      sp->is_swapped = true;
+      sp->swap_index = index;
+    }
 
+  pagedir_clear_page (owner->pagedir, choice->user_addr);
+
+  return choice;
+}
+
+static struct frame*
+select_frame_to_evict (void)
+{
+  /* For now, we just get the first entry in the frame table */
+  struct hash_iterator i;
+  hash_first (&i, &frame_table);
+  hash_next (&i);
+
+  struct frame *choice = hash_entry (hash_cur (&i), struct frame, elem);
   return choice;
 }
 

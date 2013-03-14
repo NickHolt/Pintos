@@ -427,9 +427,9 @@ filesize (int fd)
 static int
 read (int fd, void *buffer, unsigned length)
 {
-  if (fd == STDOUT_FILENO)
+  if (fd == STDOUT_FILENO || !is_user_vaddr (buffer))
     exit (-1);
-  else if (is_safe_user_ptr (buffer) && is_safe_user_ptr (buffer + length))
+  else
     {
       if (fd == STDIN_FILENO)
         {

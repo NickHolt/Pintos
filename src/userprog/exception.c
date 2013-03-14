@@ -165,7 +165,6 @@ page_fault (struct intr_frame *f)
 
   struct sup_page *page = get_sup_page (&cur->supp_pt,
                                         pg_round_down(fault_addr));
-
   if (page != NULL && not_present && is_user_vaddr(fault_addr))
     {
       void* frame = NULL;
@@ -184,9 +183,7 @@ page_fault (struct intr_frame *f)
           lock_filesystem ();
 
           file_seek (page->file, page->offset);
-          if (file_read (page->file, frame, page->read_bytes) != (int)
-              page->read_bytes)
-            free_frame (frame);
+          file_read (page->file, frame, page->read_bytes);
 
           release_filesystem ();
           memset (frame + page->read_bytes, 0, page->zero_bytes);
@@ -200,7 +197,7 @@ page_fault (struct intr_frame *f)
         }
 
       if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                        page->writable))
+                             page->writable))
         free_frame (frame);
     }
   else
