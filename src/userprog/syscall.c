@@ -606,7 +606,7 @@ static mapid_t mmap (int fd, void *addr)
         }
 
       mn.addr = addr + offset; /* This is definitely page-aligned since the
-                                  initial value of addris, and we're adding a
+                                  initial value of addr is, and we're adding a
                                   multiple of PGSIZE each time. */
       struct hash_elem *e = hash_find (&thread_current ()->file_map, &mn.elem);
       if (e != NULL)

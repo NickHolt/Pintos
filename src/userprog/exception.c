@@ -157,48 +157,47 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (pg_round_down(fault_addr) == NULL)
+  if (pg_round_down (fault_addr) == NULL)
       exit (-1);
 
   struct thread *cur = thread_current ();
 
   struct sup_page *page = get_sup_page (&cur->supp_pt,
-                                        pg_round_down(fault_addr));
+                                        pg_round_down (fault_addr));
 
-  if (page != NULL && not_present && is_user_vaddr(fault_addr))
+  if (page != NULL && not_present && is_user_vaddr (fault_addr))
     {
-      void* frame = NULL;
-      // Could be clever with bitwise operations here to remove if statement,
-      // but perhaps would make it less clear
+      void *frame = NULL;
+      /* TODO: could be clever with bitwise operations here to remove if
+               statement, but perhaps would make it less clear. */
       if (page->zero_bytes == PGSIZE)
         {
           frame = allocate_frame (PAL_USER | PAL_ZERO);
-          // No need to memset here because it's done in palloc_get_page()
+          /* No need to memset here because it's done in palloc_get_page(). */
         }
       else
         {
-          // Later there will be a case for swapping, but for now it's just reading
-          // from the file system
+          /* Later there will be a case for swapping, but for now it's just
+             reading from the file system. */
 
           frame = allocate_frame (PAL_USER);
 
           lock_filesystem ();
 
           file_seek (page->file, page->offset);
-          if (file_read (page->file, frame, page->read_bytes) != (int)
-              page->read_bytes)
+          if (file_read (page->file, frame, page->read_bytes) !=
+              (int) page->read_bytes)
             free_frame (frame);
 
           release_filesystem ();
           memset (frame + page->read_bytes, 0, page->zero_bytes);
         }
 
-      pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                        page->writable);
+      pagedir_set_page (cur->pagedir, page->user_addr, frame, page->writable);
     }
   else
     {
-      // TODO: invalid request - maybe more needed or special cases etc?
+      /* TODO: invalid request - maybe more needed or special cases etc? */
 
       printf ("Page fault at %p: %s error %s page in %s context.\n",
               fault_addr,
