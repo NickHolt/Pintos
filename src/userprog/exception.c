@@ -12,6 +12,7 @@
 #include "filesys/file.h"
 #include "userprog/pagedir.h"
 #include <string.h>
+#include "userprog/process.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -196,15 +197,28 @@ page_fault (struct intr_frame *f)
       pagedir_set_page (cur->pagedir, page->user_addr, frame, page->writable);
     }
   else
-    {
-      /* TODO: invalid request - maybe more needed or special cases etc? */
+    { 
+      struct mapid_node m;
+      m.addr = pg_round_down (fault_addr);
 
-      printf ("Page fault at %p: %s error %s page in %s context.\n",
-              fault_addr,
-              not_present ? "not present" : "rights violation",
-              write ? "writing" : "reading",
-              user ? "user" : "kernel");
-      kill (f);
+      struct hash_elem *e = hash_find (&cur->file_map, &m.elem);
+      if (e != NULL)
+        {
+          /* Address is mapped to a file. */
+          struct file *f = m.file;
+          void *buffer;
+
+          // int size = file_read (m.file, pg_round_down (fault_addr), PGSIZE);
+        }
+      else
+        {
+          printf ("Page fault at %p: %s error %s page in %s context.\n",
+                  fault_addr,
+                  not_present ? "not present" : "rights violation",
+                  write ? "writing" : "reading",
+                  user ? "user" : "kernel");
+          kill (f);
+        }
     }
 
 }

@@ -574,10 +574,10 @@ close (int fd)
 
 static mapid_t mmap (int fd, void *addr)
 {
-  /* Error if trying to map STDIO, or if the given address is zero or not page-
-     aligned. */
-  if (fd == STDIN_FILENO || fd == STDOUT_FILENO || addr == 0 ||
-      pg_ofs (addr) != 0)
+  /* Error if trying to map STDIO, or if the given address is outside the user
+     space, NULL, or not page-aligned. */
+  if (fd == STDIN_FILENO || fd == STDOUT_FILENO || addr == NULL ||
+      !is_user_vaddr (addr) || pg_ofs (addr) != 0)
     return -1;
 
   lock_filesystem ();
@@ -592,7 +592,8 @@ static mapid_t mmap (int fd, void *addr)
     }
 
   /* Fail if the range of pages to be mapped (based on the given addr and size
-     file) overlaps an already-mapped page. */
+     file) overlaps an already-mapped page, or spreads into kernel address
+     space. */
   int offset;
   struct mapid_node mn;
   for (offset = 0; offset < length; offset += PGSIZE)
@@ -609,7 +610,7 @@ static mapid_t mmap (int fd, void *addr)
                                   initial value of addr is, and we're adding a
                                   multiple of PGSIZE each time. */
       struct hash_elem *e = hash_find (&thread_current ()->file_map, &mn.elem);
-      if (e != NULL)
+      if (e != NULL || !is_user_vaddr (mn.addr))
         {
           release_filesystem ();
           return -1;
