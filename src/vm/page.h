@@ -8,7 +8,7 @@
    This gets inserted into a thread's struct hash supp_pt member */
 struct sup_page
   {
-    struct file* file;
+    struct file *file;
     bool writable;
     off_t offset;
     size_t zero_bytes;

@@ -13,6 +13,7 @@
 #include <hash.h>
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+#include "vm/page.h"
 
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);
@@ -27,6 +28,8 @@ static int write (int fd, const void *buffer, unsigned size);
 static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
 static void close (int fd);
+static mapid_t mmap (int fd, void *addr);
+static void munmap (mapid_t mapping);
 
 static struct hash fd_hash;
 static int next_fd = 2;
@@ -244,6 +247,18 @@ syscall_handler (struct intr_frame *f)
           case SYS_CLOSE:
             if (is_safe_user_ptr (stack_pointer + 1))
               close (*(stack_pointer + 1));
+            break;
+
+          case SYS_MMAP:
+            if (is_safe_user_ptr (stack_pointer + 1) &&
+                is_safe_user_ptr (stack_pointer + 2))
+              f->eax = mmap (*(stack_pointer + 1),
+                             (void *) *(stack_pointer + 2));
+            break;
+
+          case SYS_MUNMAP:
+            if (is_safe_user_ptr (stack_pointer + 1))
+              munmap (*(stack_pointer + 1));
             break;
 
           default:
@@ -555,4 +570,81 @@ close (int fd)
   list_remove (el);
   free (f);
   release_filesystem ();
+}
+
+static mapid_t
+mmap (int fd, void *addr)
+{
+  /* Error if trying to map STDIO, or if the given address is outside the user
+     space, NULL, or not page-aligned. */
+  if (fd == STDIN_FILENO || fd == STDOUT_FILENO || addr == NULL ||
+      !is_user_vaddr (addr) || pg_ofs (addr) != 0)
+    return -1;
+
+  lock_filesystem ();
+
+  struct file *file = fd_to_file (fd);
+  int length = file_length (file);
+
+  if (length == 0)
+    {
+      release_filesystem ();
+      return -1;
+    }
+
+  /* Fail if the range of pages to be mapped (based on the given addr and size
+     file) overlaps an already-mapped page, or spreads into kernel address
+     space. */
+  int offset;
+  struct mapid_node mn;
+  int num_pages = 0;
+  for (offset = 0; offset < length; offset += PGSIZE)
+    {
+      /* TODO: this works, but are there cases that mean I should actually
+               check the supp_pt instead? */
+      if (pagedir_get_page (thread_current ()->pagedir, addr + offset))
+        {
+          release_filesystem ();
+          return -1;
+        }
+
+      mn.addr = addr + offset; /* This is definitely page-aligned since the
+                                  initial value of addr is, and we're adding a
+                                  multiple of PGSIZE each time. */
+      struct hash_elem *e = hash_find (&thread_current ()->file_map, &mn.elem);
+      if (e != NULL || !is_user_vaddr (mn.addr))
+        {
+          release_filesystem ();
+          return -1;
+        }
+      ++num_pages;
+    }
+
+  struct mapid_node *m = malloc (sizeof (struct mapid_node));
+  if (m == NULL)
+    PANIC ("Failed to allocate memory for file mapping.");
+
+  m->mapid = thread_current ()->next_mapid++;
+  m->file = file; /* TODO: should this be file_reopen (file)? */
+  m->addr = addr;
+  m->num_pages = num_pages;
+  hash_insert (&thread_current ()->file_map, &m->elem);
+
+  release_filesystem ();
+
+  return m->mapid;
+}
+
+static void
+munmap (mapid_t mapping)
+{
+  struct mapid_node m;
+  m.mapid = mapping;
+
+  /* TODO: should there be an exit (-1) if munmap gets called on an unmapped
+           mapid? */
+
+  struct hash_elem *e = hash_find (&thread_current ()->file_map, &m.elem);
+  if (e != NULL)
+    hash_delete (&thread_current()->file_map, e);
 }

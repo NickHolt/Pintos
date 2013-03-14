@@ -35,6 +35,10 @@ frame_less (const struct hash_elem *a_, const struct hash_elem *b_,
 {
   struct frame *a = hash_entry (a_, struct frame, elem);
   struct frame *b = hash_entry (b_, struct frame, elem);
+
+  ASSERT (a != NULL);
+  ASSERT (b != NULL);
+  
   return a->page < b->page;
 }
 
