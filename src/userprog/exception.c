@@ -200,56 +200,45 @@ page_fault (struct intr_frame *f)
 
       pagedir_set_page (cur->pagedir, page->user_addr, frame, page->writable);
     }
-  else
+  else if (is_mapped (fault_addr))
     {
       ASSERT (page == NULL); /* This might not be right. */
       page = create_zero_page (pg_round_down (fault_addr));
 
-      struct hash_iterator i;
-      hash_first (&i, &cur->file_map);
-      while (hash_next (&i))
+      struct mapid_node *m = addr_to_map (fault_addr);
+
+      if (m->addr == pg_round_down (fault_addr))
         {
-          struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
-                                             elem);
+          /* We're on a page boundary. */
 
-          ASSERT (m != NULL);
+          void *frame = allocate_frame (PAL_USER | PAL_ZERO);
 
-          /* This mapping is of no interest to us - no point doing further
-             inspection. */
-          if (pg_round_down (fault_addr) < m->addr)
-            continue;
+          /* TODO: for mmap-read test, we already hold the filesystem lock.
+                  Will this always be the case? */
 
-          if (m->addr == pg_round_down (fault_addr))
-            {
-              /* Address is mapped to a file. */
-              void *frame = allocate_frame (PAL_USER | PAL_ZERO);
+          file_read (m->file, frame, PGSIZE);
 
-              /* TODO: for mmap-read test, we already hold the filesystem lock.
-                      Will this always be the case? */
-
-              file_read (m->file, frame, PGSIZE);
-
-
-              pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                                page->writable);
-              return;
-            }
-          else if (pg_round_down (fault_addr) <
-                   m->addr + (m->num_pages * PGSIZE))
-            {
-              /* Accessing a memory mapped file somewhere in its range, but
-                 not in it's first page. I think this needs implementing? */
-              NOT_REACHED ();
-            }
+          pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                            page->writable);
+          return;
         }
+      else
+        {
+          /* Accessing a memory mapped file somewhere in its range, but
+             not in it's first page. I think this needs implementing? */
 
-        /* No suitable mem->file map found. This is a legit page fault, die. */
-        printf ("Page fault at %p: %s error %s page in %s context.\n",
-                fault_addr,
-                not_present ? "not present" : "rights violation",
-                write ? "writing" : "reading",
-                user ? "user" : "kernel");
-        kill (f);
+          NOT_REACHED ();
+        }
+    }
+  else
+    {
+      /* No suitable mem->file map found. This is a legit page fault, die. */
+      printf ("Page fault at %p: %s error %s page in %s context.\n",
+              fault_addr,
+              not_present ? "not present" : "rights violation",
+              write ? "writing" : "reading",
+              user ? "user" : "kernel");
+      kill (f);
     }
 
 }

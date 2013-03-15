@@ -572,6 +572,39 @@ close (int fd)
   release_filesystem ();
 }
 
+
+/* Returns true iff a given address is mapped to a file in the current
+   thread. */
+bool
+is_mapped (void *addr)
+{
+  return addr_to_map (addr) != NULL;
+}
+
+struct mapid_node *
+addr_to_map (void *addr)
+{
+  struct hash_iterator i;
+  hash_first (&i, &thread_current ()->file_map);
+  while (hash_next (&i))
+    {
+      struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
+                                         elem);
+
+      ASSERT (m != NULL);
+
+      /* This mapping is of no interest to us - no point doing further
+         inspection. */
+      if (pg_round_down (addr) < m->addr)
+        continue;
+
+      if (m->addr == pg_round_down (addr) ||
+          pg_round_down (addr) < m->addr + (m->num_pages * PGSIZE))
+        return m;
+    }
+  return NULL;
+}
+
 static mapid_t
 mmap (int fd, void *addr)
 {
@@ -602,7 +635,8 @@ mmap (int fd, void *addr)
     {
       /* TODO: this works, but are there cases that mean I should actually
                check the supp_pt instead? */
-      if (pagedir_get_page (thread_current ()->pagedir, addr + offset))
+      if (pagedir_get_page (thread_current ()->pagedir, addr + offset) ||
+          is_mapped (addr + offset))
         {
           release_filesystem ();
           return -1;
