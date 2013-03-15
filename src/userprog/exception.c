@@ -202,47 +202,37 @@ page_fault (struct intr_frame *f)
     }
   else if (is_mapped (fault_addr))
     {
-      /* The fault address has been mapped by mmap. */
-      if (write)
+      /* Read the relevant page from the file and copy it into a new page
+         at pg_round_down (fault_addr). */
+
+      ASSERT (page == NULL); /* This might not be right. */
+      page = create_zero_page (pg_round_down (fault_addr));
+
+      struct mapid_node *m = addr_to_map (fault_addr);
+
+      ASSERT (m != NULL); /* Otherwise, is_mapped () would have failed. */
+
+      if (m->addr == pg_round_down (fault_addr))
         {
-          /* Write data to file. */
-          
-          NOT_REACHED ();
+          /* We're on a page boundary. */
+
+          void *frame = allocate_frame (PAL_USER | PAL_ZERO);
+
+          /* TODO: for mmap-read test, we already hold the filesystem lock.
+                  Will this always be the case? */
+
+          file_read (m->file, frame, PGSIZE);
+
+          pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                            page->writable);
+          return;
         }
       else
         {
-          /* Read the relevant page from the file and copy it into a new page
-             at pg_round_down (fault_addr). */
+          /* Accessing a memory mapped file somewhere in its range, but
+             not in it's first page. I think this needs implementing? */
 
-          ASSERT (page == NULL); /* This might not be right. */
-          page = create_zero_page (pg_round_down (fault_addr));
-
-          struct mapid_node *m = addr_to_map (fault_addr);
-
-          ASSERT (m != NULL); /* Otherwise, is_mapped () would have failed. */
-
-          if (m->addr == pg_round_down (fault_addr))
-            {
-              /* We're on a page boundary. */
-
-              void *frame = allocate_frame (PAL_USER | PAL_ZERO);
-
-              /* TODO: for mmap-read test, we already hold the filesystem lock.
-                      Will this always be the case? */
-
-              file_read (m->file, frame, PGSIZE);
-
-              pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                                page->writable);
-              return;
-            }
-          else
-            {
-              /* Accessing a memory mapped file somewhere in its range, but
-                 not in it's first page. I think this needs implementing? */
-
-              NOT_REACHED ();
-            }
+          NOT_REACHED ();
         }
     }
   else

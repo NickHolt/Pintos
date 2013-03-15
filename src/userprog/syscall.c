@@ -680,5 +680,21 @@ static void munmap (mapid_t mapping)
 
   struct hash_elem *e = hash_find (&thread_current ()->file_map, &m.elem);
   if (e != NULL)
-    hash_delete (&thread_current()->file_map, e);
+    {
+      struct mapid_node *found = hash_entry (e, struct mapid_node, elem);
+      struct file *f = found->file;
+
+      if (found->num_pages == 1)
+        {
+          lock_filesystem ();
+          file_write_at (f, found->addr, PGSIZE, 0);
+          release_filesystem ();
+        }
+      else
+        {
+          NOT_REACHED ();
+        }
+
+      hash_delete (&thread_current()->file_map, e);
+    }
 }
