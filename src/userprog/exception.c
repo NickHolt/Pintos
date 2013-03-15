@@ -216,7 +216,7 @@ page_fault (struct intr_frame *f)
 
           /* This mapping is of no interest to us - no point doing further
              inspection. */
-          if (m->addr < pg_round_down (fault_addr))
+          if (pg_round_down (fault_addr) < m->addr)
             continue;
 
           if (m->addr == pg_round_down (fault_addr))
@@ -234,7 +234,7 @@ page_fault (struct intr_frame *f)
                                 page->writable);
               return;
             }
-          else if (pg_round_down (fault_addr) <=
+          else if (pg_round_down (fault_addr) <
                    m->addr + (m->num_pages * PGSIZE))
             {
               /* Accessing a memory mapped file somewhere in its range, but

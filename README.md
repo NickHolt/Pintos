@@ -110,7 +110,7 @@ pass tests/vm/mmap-misalign
 pass tests/vm/mmap-null  
 pass tests/vm/mmap-over-code  
 pass tests/vm/mmap-over-data  
-pass tests/vm/mmap-over-stk  
+pass tests/vm/mmap-over-stk
 pass tests/vm/mmap-remove  
 pass tests/vm/mmap-zero  
 pass tests/filesys/base/lg-create  

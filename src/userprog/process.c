@@ -96,7 +96,7 @@ static unsigned
 mapid_hash (const struct hash_elem *m_, void *aux UNUSED)
 {
   struct mapid_node *m = hash_entry (m_, struct mapid_node, elem);
-  return hash_bytes (&m->mapid, sizeof m->mapid);
+  return hash_bytes (&m->addr, sizeof m->addr);
 }
 
 static bool
@@ -110,7 +110,7 @@ mapid_less (const struct hash_elem *a_ UNUSED,
   ASSERT (a != NULL);
   ASSERT (b != NULL);
 
-  return a->mapid < b->mapid;
+  return a->addr < b->addr;
 }
 
 void

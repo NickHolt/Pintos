@@ -35,8 +35,8 @@ static struct hash fd_hash;
 static int next_fd = 2;
 
 
-// TODO: maybe move the filesystem locking into a more central location, now it
-// is used in multiple places?
+/* TODO: maybe move the filesystem locking into a more central location, now it
+         is used in multiple places? */
 
 struct lock filesys_lock;
 
@@ -572,7 +572,8 @@ close (int fd)
   release_filesystem ();
 }
 
-static mapid_t mmap (int fd, void *addr)
+static mapid_t
+mmap (int fd, void *addr)
 {
   /* Error if trying to map STDIO, or if the given address is outside the user
      space, NULL, or not page-aligned. */
@@ -611,8 +612,9 @@ static mapid_t mmap (int fd, void *addr)
                                   initial value of addr is, and we're adding a
                                   multiple of PGSIZE each time. */
       struct hash_elem *e = hash_find (&thread_current ()->file_map, &mn.elem);
-      if (e != NULL || !is_user_vaddr (mn.addr))
+      if (e != NULL || !is_user_vaddr (addr + offset))
         {
+          /* Already mapped, or we're about to spread into kernel space. */
           release_filesystem ();
           return -1;
         }
