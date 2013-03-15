@@ -105,7 +105,7 @@ FAIL tests/vm/mmap-exit
 FAIL tests/vm/mmap-shuffle  
 pass tests/vm/mmap-bad-fd  
 pass tests/vm/mmap-clean  
-pass  tests/vm/mmap-inherit  
+pass tests/vm/mmap-inherit  
 pass tests/vm/mmap-misalign  
 pass tests/vm/mmap-null  
 pass tests/vm/mmap-over-code  
