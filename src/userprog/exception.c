@@ -193,7 +193,7 @@ page_fault (struct intr_frame *f)
           release_filesystem ();
           memset (frame + page->read_bytes, 0, page->zero_bytes);
         }
-      else
+      else if (page->is_swapped)
         {
           /* Page data is in a swap slot */
           frame = allocate_frame (PAL_USER);

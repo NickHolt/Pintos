@@ -447,7 +447,6 @@ read (int fd, void *buffer, unsigned length)
     exit (-1);
   else
     {
-      printf("%p\n", buffer);
       if (fd == STDIN_FILENO)
         {
           unsigned i = 0;

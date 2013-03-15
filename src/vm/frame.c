@@ -7,12 +7,13 @@
 #include "userprog/pagedir.h"
 #include "vm/page.h"
 
+
 struct frame {
   struct hash_elem elem; /* Hash table element. */
   void *page;            /* Page occupying this frame. */
   tid_t thread;          /* TID of owner of this frame. */
   uint8_t *user_addr;    /* Stored to associate frames and sup_pt entries */
-  uint8_t *pt_entry;     /* The page table entry for this frame */
+  uint32_t *pt_entry;    /* The page table entry for this frame */
 };
 
 static struct lock frame_lock;
@@ -91,7 +92,7 @@ allocate_frame (enum palloc_flags flags)
 /* Set the page table entry as PT_ENTRY and the user page as USER_ADDR on the
    frame with page PAGE. */
 void
-set_page_table_entry (void *page, uint8_t *user_addr, uint8_t *pt_entry)
+set_page_table_entry (void *page, uint8_t *user_addr, uint32_t *pt_entry)
 {
   struct frame temp;
   struct hash_elem *e;
@@ -111,6 +112,12 @@ evict_frame (void)
      thread */
   struct frame *choice = select_frame_to_evict ();
   struct thread *owner = get_thread (choice->thread);
+  
+  if (owner == NULL || owner->pagedir == NULL)
+    {
+      free_frame (choice->page);
+      return evict_frame ();
+    }
 
   /* Get the supplemental page table entry associated with the chosen frame */
   struct sup_page *sp = get_sup_page (&owner->supp_pt, choice->user_addr);
@@ -121,7 +128,6 @@ evict_frame (void)
       sp->is_swapped = true;
       sp->swap_index = index;
     }
-
 
   pagedir_clear_page (owner->pagedir, choice->user_addr);
 

@@ -5,6 +5,7 @@
 #include "threads/init.h"
 #include "threads/pte.h"
 #include "threads/palloc.h"
+#include "vm/frame.h"
 
 static uint32_t *active_pd (void);
 static void invalidate_pagedir (uint32_t *);
@@ -62,6 +63,7 @@ lookup_page (uint32_t *pd, const void *vaddr, bool create)
 
   /* Shouldn't create new kernel virtual mappings. */
   ASSERT (!create || is_user_vaddr (vaddr));
+
 
   /* Check for a page table for VADDR.
      If one is missing, create one if requested. */

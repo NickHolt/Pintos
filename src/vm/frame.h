@@ -10,6 +10,6 @@ void frame_done (void);
 void *allocate_frame (enum palloc_flags flags);
 void free_frame (void *page);
 void frame_done (void);
-void set_page_table_entry (void* page, uint8_t *user_addr, uint8_t *pt_entry);
+void set_page_table_entry (void* page, uint8_t *user_addr, uint32_t *pt_entry);
 
 #endif /* vm/frame.h */
