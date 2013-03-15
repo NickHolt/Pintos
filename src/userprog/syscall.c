@@ -326,17 +326,19 @@ exit (int status)
   while (hash_next (&i))
     {
       struct hash_elem *e = hash_cur (&i);
+      ASSERT (e != NULL);
+
       struct mapid_node *m = hash_entry (e, struct mapid_node,
                                          elem);
 
       ASSERT (m != NULL);
       ASSERT (m->file != NULL);
 
-      hash_delete (&exiting_thread->file_map, e);
       file_close (m->file);
       // free (m);
       /* TODO: make this work. */
     }
+  hash_clear (&exiting_thread->file_map, NULL);
 
   thread_exit();
 }
