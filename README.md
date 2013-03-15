@@ -18,7 +18,7 @@ Current test status
 -------------------
 
 pass tests/userprog/args-none  
-FAIL tests/userprog/args-single  
+pass tests/userprog/args-single  
 pass tests/userprog/args-multiple  
 pass tests/userprog/args-many  
 pass tests/userprog/args-dbl-space  
@@ -126,4 +126,4 @@ pass tests/filesys/base/sm-seq-random
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-16 of 109 tests failed.
+15 of 109 tests failed.

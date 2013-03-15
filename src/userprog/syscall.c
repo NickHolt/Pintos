@@ -693,37 +693,50 @@ mmap (int fd, void *addr)
 
 static void munmap (mapid_t mapping)
 {
-  struct mapid_node m;
-  m.mapid = mapping;
+  struct mapid_node *m = NULL;
+  struct hash_elem *e = NULL;
+
+  /* Have to loop through because we're searching by mapid, not the key
+     (addr). */
+  /* TODO: can avoid loop by hashing by mapid instead. No point hashing by addr
+           since I'll have to iterate to look across page boundaries anyway. */
+  struct hash_iterator i;
+  hash_first (&i, &thread_current ()->file_map);
+  while (hash_next (&i))
+    {
+      e = hash_cur (&i);
+
+      struct mapid_node *found = hash_entry (e, struct mapid_node, elem);
+      ASSERT (found != NULL);
+      if (found->mapid == mapping)
+        {
+          m = found;
+          break;
+        }
+    }
 
   /* TODO: should there be an exit (-1) if munmap gets called on an unmapped
            mapid? */
+  ASSERT (m != NULL); /* Temporary. */
 
-  struct hash_elem *e = hash_find (&thread_current ()->file_map, &m.elem);
-  if (e != NULL)
+  struct file *f = m->file;
+  ASSERT (f != NULL);
+
+  if (m->num_pages == 1)
     {
-      struct mapid_node *found = hash_entry (e, struct mapid_node, elem);
-      struct file *f = found->file;
-
-      ASSERT (found != NULL);
-      ASSERT (f != NULL);
-
-      if (found->num_pages == 1)
+      if (m->touched)
         {
-          if (found->touched)
-            {
-              lock_filesystem ();
-              file_write_at (f, found->addr, PGSIZE, 0);
-              release_filesystem ();
-            }
+          lock_filesystem ();
+          file_write_at (f, m->addr, PGSIZE, 0);
+          release_filesystem ();
         }
-      else
-        {
-          NOT_REACHED ();
-        }
-
-      hash_delete (&thread_current()->file_map, e);
-      file_close (f);
-      free (found);
     }
+  else
+    {
+      NOT_REACHED ();
+    }
+
+  hash_delete (&thread_current()->file_map, e);
+  file_close (f);
+  free (m);
 }
