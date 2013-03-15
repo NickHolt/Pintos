@@ -325,10 +325,7 @@ exit (int status)
   hash_first (&i, &exiting_thread->file_map);
   while (hash_next (&i))
     {
-      struct hash_elem *e = hash_cur (&i);
-      ASSERT (e != NULL);
-
-      struct mapid_node *m = hash_entry (e, struct mapid_node,
+      struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
                                          elem);
 
       ASSERT (m != NULL);
@@ -612,15 +609,9 @@ addr_to_map (void *addr)
 
       ASSERT (m != NULL);
 
-      /* This mapping is of no interest to us - no point doing further
-         inspection. */
-      if (pg_round_down (addr) < m->addr)
-        continue;
-
       if (m->addr == pg_round_down (addr) ||
           pg_round_down (addr) < m->addr + (m->num_pages * PGSIZE))
         return m;
-
     }
   return NULL;
 }
