@@ -321,6 +321,23 @@ exit (int status)
       close (fd->fd);
     }
 
+  struct hash_iterator i;
+  hash_first (&i, &exiting_thread->file_map);
+  while (hash_next (&i))
+    {
+      struct hash_elem *e = hash_cur (&i);
+      struct mapid_node *m = hash_entry (e, struct mapid_node,
+                                         elem);
+
+      ASSERT (m != NULL);
+      ASSERT (m->file != NULL);
+
+      hash_delete (&exiting_thread->file_map, e);
+      file_close (m->file);
+      // free (m);
+      /* TODO: make this work. */
+    }
+
   thread_exit();
 }
 
@@ -601,6 +618,7 @@ addr_to_map (void *addr)
       if (m->addr == pg_round_down (addr) ||
           pg_round_down (addr) < m->addr + (m->num_pages * PGSIZE))
         return m;
+
     }
   return NULL;
 }
@@ -660,7 +678,7 @@ mmap (int fd, void *addr)
     PANIC ("Failed to allocate memory for file mapping.");
 
   m->mapid = thread_current ()->next_mapid++;
-  m->file = file_reopen (file);
+  m->file = file_reopen (file); /* TODO: close this somewhere */
   m->addr = addr;
   m->num_pages = num_pages;
   hash_insert (&thread_current ()->file_map, &m->elem);
@@ -684,11 +702,17 @@ static void munmap (mapid_t mapping)
       struct mapid_node *found = hash_entry (e, struct mapid_node, elem);
       struct file *f = found->file;
 
+      ASSERT (found != NULL);
+      ASSERT (f != NULL);
+
       if (found->num_pages == 1)
         {
-          lock_filesystem ();
-          file_write_at (f, found->addr, PGSIZE, 0);
-          release_filesystem ();
+          if (pagedir_get_page (thread_current ()->pagedir, found->addr))
+            {
+              lock_filesystem ();
+              file_write_at (f, found->addr, PGSIZE, 0);
+              release_filesystem ();
+            }
         }
       else
         {
@@ -696,5 +720,7 @@ static void munmap (mapid_t mapping)
         }
 
       hash_delete (&thread_current()->file_map, e);
+      file_close (f);
+      free (found);
     }
 }

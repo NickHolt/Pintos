@@ -223,6 +223,9 @@ page_fault (struct intr_frame *f)
 
           file_read (m->file, frame, PGSIZE);
 
+          /*printf ("pagedir_set_page (%p, %p, %p, %i)\n", cur->pagedir,
+                  page->user_addr, frame, page->writable);*/
+
           pagedir_set_page (cur->pagedir, page->user_addr, frame,
                             page->writable);
           return;

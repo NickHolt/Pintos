@@ -97,14 +97,14 @@ FAIL tests/vm/page-merge-mm
 pass tests/vm/page-shuffle  
 pass tests/vm/mmap-read  
 pass tests/vm/mmap-close  
-FAIL tests/vm/mmap-unmap  
+pass tests/vm/mmap-unmap  
 pass tests/vm/mmap-overlap  
 pass tests/vm/mmap-twice  
 pass tests/vm/mmap-write  
 FAIL tests/vm/mmap-exit  
 FAIL tests/vm/mmap-shuffle  
 pass tests/vm/mmap-bad-fd  
-pass tests/vm/mmap-clean  
+FAIL tests/vm/mmap-clean  
 pass tests/vm/mmap-inherit  
 pass tests/vm/mmap-misalign  
 pass tests/vm/mmap-null  
@@ -126,4 +126,4 @@ pass tests/filesys/base/sm-seq-random
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
 FAIL tests/filesys/base/syn-write  
-17 of 109 tests failed.
+16 of 109 tests failed.

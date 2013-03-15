@@ -113,13 +113,6 @@ mapid_less (const struct hash_elem *a_ UNUSED,
   return a->addr < b->addr;
 }
 
-void
-mapid_destroy (struct hash_elem *m_, void *aux UNUSED)
-{
-  struct mapid_node *m = hash_entry (m_, struct mapid_node, elem);
-  free (m);
-}
-
 /* A thread function that loads a user process and starts it
    running. */
 static void
@@ -352,7 +345,8 @@ process_exit (void)
   /* Destory the thread's suplementary page table */
   reclaim_pages (&cur->supp_pt);
 
-  hash_destroy (&cur->file_map, mapid_destroy);
+  ASSERT (hash_empty (&cur->file_map));
+  hash_destroy (&cur->file_map, NULL);
 
   /* Destory and free the list of child threads. Keep a temporaty pointer
      to the next item in the list, because we're killing list items as we
