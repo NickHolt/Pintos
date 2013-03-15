@@ -624,7 +624,7 @@ static mapid_t mmap (int fd, void *addr)
     PANIC ("Failed to allocate memory for file mapping.");
 
   m->mapid = thread_current ()->next_mapid++;
-  m->file = file; /* TODO: should this be file_reopen (file)? */
+  m->file = file_reopen (file);
   m->addr = addr;
   m->num_pages = num_pages;
   hash_insert (&thread_current ()->file_map, &m->elem);

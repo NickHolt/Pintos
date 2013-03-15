@@ -205,7 +205,6 @@ page_fault (struct intr_frame *f)
       ASSERT (page == NULL); /* This might not be right. */
       page = create_zero_page (pg_round_down (fault_addr));
 
-
       struct hash_iterator i;
       hash_first (&i, &cur->file_map);
       while (hash_next (&i))
