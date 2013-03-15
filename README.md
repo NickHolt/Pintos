@@ -18,7 +18,7 @@ Current test status
 -------------------
 
 pass tests/userprog/args-none  
-pass tests/userprog/args-single  
+FAIL tests/userprog/args-single  
 pass tests/userprog/args-multiple  
 pass tests/userprog/args-many  
 pass tests/userprog/args-dbl-space  
@@ -104,7 +104,7 @@ pass tests/vm/mmap-write
 FAIL tests/vm/mmap-exit  
 FAIL tests/vm/mmap-shuffle  
 pass tests/vm/mmap-bad-fd  
-FAIL tests/vm/mmap-clean  
+pass tests/vm/mmap-clean  
 pass tests/vm/mmap-inherit  
 pass tests/vm/mmap-misalign  
 pass tests/vm/mmap-null  

@@ -209,8 +209,10 @@ page_fault (struct intr_frame *f)
       page = create_zero_page (pg_round_down (fault_addr));
 
       struct mapid_node *m = addr_to_map (fault_addr);
-
       ASSERT (m != NULL); /* Otherwise, is_mapped () would have failed. */
+
+      if (write)
+        m->touched = true;
 
       if (m->addr == pg_round_down (fault_addr))
         {

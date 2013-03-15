@@ -681,6 +681,7 @@ mmap (int fd, void *addr)
   m->file = file_reopen (file); /* TODO: close this somewhere */
   m->addr = addr;
   m->num_pages = num_pages;
+  m->touched = false;
   hash_insert (&thread_current ()->file_map, &m->elem);
 
   release_filesystem ();
@@ -707,7 +708,7 @@ static void munmap (mapid_t mapping)
 
       if (found->num_pages == 1)
         {
-          if (pagedir_get_page (thread_current ()->pagedir, found->addr))
+          if (found->touched)
             {
               lock_filesystem ();
               file_write_at (f, found->addr, PGSIZE, 0);
