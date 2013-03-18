@@ -3,6 +3,7 @@
 #include "lib/debug.h"
 #include "threads/thread.h"
 #include <stdio.h>
+#include "threads/vaddr.h"
 
 struct sup_page*
 create_sup_page (struct file *f, off_t offset, size_t zero_bytes,
@@ -62,4 +63,18 @@ void
 reclaim_pages (struct hash *pt)
 {
   hash_destroy (pt, free_sup_pages);
+}
+
+void
+print_sp (struct sup_page *page)
+{
+  printf("Page at %p:\n", page);
+  printf("File: %p\n", page->file);
+  printf("zero_bytes: %i\n", page->zero_bytes);
+  printf("read_bytes: %i\n", page->read_bytes);
+  printf("addr: %p\n", page->user_addr);
+  printf("swapped: %i\n", page->is_swapped);
+
+  ASSERT(page->read_bytes <= PGSIZE);
+  ASSERT(page->zero_bytes <= PGSIZE);
 }

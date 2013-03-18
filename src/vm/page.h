@@ -28,5 +28,6 @@ bool add_sup_page (struct sup_page *page);
 struct sup_page* get_sup_page (struct hash *pt, uint8_t *addr);
 void delete_sup_page (struct sup_page *page);
 void reclaim_pages (struct hash *pt);
+void print_sp (struct sup_page *page);
 
 #endif

@@ -667,7 +667,7 @@ lazy_load (struct file *file, off_t ofs, uint8_t *upage,
       /* Either demand the full page from the file, create a zero page, or
          create a partially filled page from the file */
       new = create_sup_page (file, ofs, page_zero_bytes, writable, upage,
-                             read_bytes);
+                             page_read_bytes);
 
       if (!add_sup_page (new))
         return false;

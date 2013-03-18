@@ -192,7 +192,6 @@ evict_frame (void)
 static struct frame*
 select_frame_to_evict (void)
 {
-  printf("%i\n", hash_size (&frame_table));
   struct hash_iterator i;
   struct frame *choice = NULL;
 
@@ -217,7 +216,6 @@ select_frame_to_evict (void)
             {
               /* A perfect frame to evict */
               lock_release (&owner->pd_lock);
-              printf("picked %p perfect\n", choice);
               return choice;
             }
 
@@ -241,7 +239,6 @@ select_frame_to_evict (void)
               !pagedir_is_accessed (owner->pagedir, choice->user_addr))
             {
               lock_release (&owner->pd_lock);
-              printf("picked %p imperfect\n", choice);
               return choice;
             }
 

@@ -171,7 +171,6 @@ page_fault (struct intr_frame *f)
   struct sup_page *page = get_sup_page (&cur->supp_pt,
                                         pg_round_down(fault_addr));
 
-
   if (page != NULL && !page->loaded && is_user_vaddr(fault_addr))
     {
       void *frame = NULL;
@@ -180,6 +179,8 @@ page_fault (struct intr_frame *f)
           /* Page data is in the file system */
           frame = allocate_frame (PAL_USER);
 
+          /* filesystem lock will only be acquired if current thread does not
+             hold it. This prevents issues when coming from a read syscall */
           lock_filesystem ();
           file_seek (page->file, page->offset);
           file_read (page->file, frame, page->read_bytes);
@@ -212,8 +213,8 @@ page_fault (struct intr_frame *f)
           pin_by_addr (frame);
           free_slot (frame, page->swap_index);
           unpin_by_addr (frame);
-
-          delete_sup_page (page);
+          page->loaded = true;
+          page->is_swapped = false;
         }
     }
   else

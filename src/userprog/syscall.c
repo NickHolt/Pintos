@@ -42,12 +42,14 @@ struct lock filesys_lock;
 
 void lock_filesystem (void)
 {
-  lock_acquire (&filesys_lock);
+  if (!lock_held_by_current_thread (&filesys_lock))
+    lock_acquire (&filesys_lock);
 }
 
 void release_filesystem (void)
 {
-  lock_release (&filesys_lock);
+  if (lock_held_by_current_thread (&filesys_lock))
+    lock_release (&filesys_lock);
 }
 
 struct fd_node
