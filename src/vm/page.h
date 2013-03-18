@@ -15,6 +15,7 @@ struct sup_page
     size_t read_bytes;
     uint8_t *user_addr;
     bool is_swapped;
+    bool loaded;
     size_t swap_index;
 
     struct hash_elem pt_elem;
@@ -28,6 +29,7 @@ struct sup_page* create_partial_page (struct file*, off_t offset,
                                       uint8_t *addr, size_t read_bytes);
 bool add_sup_page (struct sup_page *page);
 struct sup_page* get_sup_page (struct hash *pt, uint8_t *addr);
+void delete_sup_page (struct sup_page *page);
 void reclaim_pages (struct hash *pt);
 
 #endif

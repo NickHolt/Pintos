@@ -16,6 +16,7 @@ create_zero_page (uint8_t *addr)
   zero_page->read_bytes = 0;
   zero_page->user_addr = addr;
   zero_page->is_swapped = false;
+  zero_page->loaded = false;
 
   return zero_page;
 }
@@ -34,6 +35,7 @@ create_full_page (struct file *f, off_t offset, bool writable, uint8_t *addr)
   full_page->read_bytes = PGSIZE;
   full_page->user_addr = addr;
   full_page->is_swapped = false;
+  full_page->loaded = false;
 
   return full_page;
 }
@@ -53,6 +55,7 @@ create_partial_page (struct file *f, off_t offset, size_t zero_bytes,
   partial_page->read_bytes = read_bytes;
   partial_page->user_addr = addr;
   partial_page->is_swapped = false;
+  partial_page->loaded = false;
 
   return partial_page;
 }
@@ -76,6 +79,12 @@ get_sup_page (struct hash *pt, uint8_t *addr)
     return NULL;
   else
     return hash_entry (temp_elem, struct sup_page, pt_elem);
+}
+
+void
+delete_sup_page (struct sup_page *page)
+{
+  hash_delete (&thread_current ()->supp_pt, &page->pt_elem);
 }
 
 static void

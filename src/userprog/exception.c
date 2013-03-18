@@ -159,7 +159,7 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (pg_round_down (fault_addr) == NULL)
+  if (pg_round_down (fault_addr) == NULL || !not_present)
     {
       exit (-1);
       /* TODO: not entirely happy about this. Should we not be printing a
@@ -171,7 +171,8 @@ page_fault (struct intr_frame *f)
   struct sup_page *page = get_sup_page (&cur->supp_pt,
                                         pg_round_down(fault_addr));
 
-  if (page != NULL && not_present && is_user_vaddr(fault_addr))
+
+  if (page != NULL && !page->loaded && is_user_vaddr(fault_addr))
     {
       void *frame = NULL;
       /* TODO: could be clever with bitwise operations here to remove if
@@ -180,30 +181,50 @@ page_fault (struct intr_frame *f)
         {
           /* An all zero page */
           frame = allocate_frame (PAL_USER | PAL_ZERO);
+
+          lock_acquire (&cur->pd_lock);
+          if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                                 page->writable))
+            free_frame (frame);
+
+          lock_release (&cur->pd_lock);
+          page->loaded = true;
         }
       else if (!page->is_swapped)
         {
           /* Page data is in the file system */
           frame = allocate_frame (PAL_USER);
-
           lock_filesystem ();
 
           file_seek (page->file, page->offset);
           file_read (page->file, frame, page->read_bytes);
           release_filesystem ();
           memset (frame + page->read_bytes, 0, page->zero_bytes);
+
+          lock_acquire (&cur->pd_lock);
+          if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                                 page->writable))
+            free_frame (frame);
+
+          lock_release (&cur->pd_lock);
+          page->loaded = true;
         }
       else if (page->is_swapped)
         {
           /* Page data is in a swap slot */
           frame = allocate_frame (PAL_USER);
-          free_slot (frame, page->swap_index);
-          page->is_swapped = false;
-        }
 
-      if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                             page->writable))
-        free_frame (frame);
+          lock_acquire (&cur->pd_lock);
+          if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                                 page->writable))
+            free_frame (frame);
+
+          lock_release (&cur->pd_lock);
+
+          free_slot (frame, page->swap_index);
+
+          delete_sup_page (page);
+        }
     }
   else
     {
@@ -234,9 +255,11 @@ page_fault (struct intr_frame *f)
 
               file_read (m->file, frame, PGSIZE);
 
-
+              lock_acquire (&cur->pd_lock);
               pagedir_set_page (cur->pagedir, page->user_addr, frame,
                                 page->writable);
+              lock_release (&cur->pd_lock);
+              page->loaded = true;
               return;
             }
           else if (pg_round_down (fault_addr) <=

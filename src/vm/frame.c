@@ -11,15 +11,19 @@
 struct frame {
   struct hash_elem elem; /* Hash table element. */
   void *page;            /* Page occupying this frame. */
-  tid_t thread;          /* TID of owner of this frame. */
+  struct thread* thread; /* Owner of this frame. */
   uint8_t *user_addr;    /* Stored to associate frames and sup_pt entries */
   uint32_t *pt_entry;    /* The page table entry for this frame */
+  bool pinned;           /* Is the frame pinned? */
+  bool from_file;        /* Is the frame holding file data? */
 };
 
 static struct lock frame_lock;
 static struct hash frame_table;
 static struct frame* evict_frame (void);
 static struct frame* select_frame_to_evict (void);
+static void pin_frame (struct frame* f);
+static void unpin_frame (struct frame *f);
 
 static unsigned
 frame_hash (const struct hash_elem *f_, void *aux UNUSED)
@@ -64,7 +68,9 @@ frame_done (void)
 void *
 allocate_frame (enum palloc_flags flags)
 {
+  lock_acquire (&frame_lock);
   void *page = palloc_get_page (flags);
+  lock_release (&frame_lock);
   struct frame *f;
 
   if (page != NULL)
@@ -74,7 +80,7 @@ allocate_frame (enum palloc_flags flags)
         PANIC ("Failed to allocate memory for frame.");
 
       f->page = page;
-      f->thread = thread_current ()->tid;
+      f->thread = thread_current ();
 
       lock_acquire (&frame_lock);
       hash_insert (&frame_table, &f->elem);
@@ -105,14 +111,24 @@ set_page_table_entry (void *page, uint8_t *user_addr, uint32_t *pt_entry)
   res->pt_entry = pt_entry;
 }
 
+void pin_frame (struct frame* f)
+{
+  f->pinned = true;
+}
+
+void unpin_frame (struct frame *f)
+{
+  f->pinned = false;
+}
+
 static struct frame*
 evict_frame (void)
 {
   /* Choose a frame to evict and clear it from the page directory of its owner
      thread */
   struct frame *choice = select_frame_to_evict ();
-  struct thread *owner = get_thread (choice->thread);
-  
+  struct thread *owner = choice->thread;
+
   if (owner == NULL || owner->pagedir == NULL)
     {
       free_frame (choice->page);
@@ -122,14 +138,29 @@ evict_frame (void)
   /* Get the supplemental page table entry associated with the chosen frame */
   struct sup_page *sp = get_sup_page (&owner->supp_pt, choice->user_addr);
 
-  if (sp->writable && pagedir_is_dirty (owner->pagedir, choice->user_addr))
+  if (sp == NULL)
     {
+      sp = malloc (sizeof (struct sup_page));
+      if (sp == NULL)
+        PANIC ("Failed to allocate memory in create_full_page()");
+
+      sp->user_addr = choice->user_addr;
+    }
+
+  if (pagedir_is_dirty (owner->pagedir, choice->user_addr))
+    {
+      pin_frame (choice);
       size_t index = pick_slot_and_swap (choice->page);
       sp->is_swapped = true;
       sp->swap_index = index;
+      unpin_frame (choice);
     }
 
+  lock_acquire (&owner->pd_lock);
   pagedir_clear_page (owner->pagedir, choice->user_addr);
+  lock_release (&owner->pd_lock);
+
+  sp->loaded = false;
 
   return choice;
 }
@@ -139,11 +170,65 @@ select_frame_to_evict (void)
 {
   /* For now, we just get the first entry in the frame table */
   struct hash_iterator i;
-  hash_first (&i, &frame_table);
-  hash_next (&i);
+  struct frame *choice = NULL;
 
-  struct frame *choice = hash_entry (hash_cur (&i), struct frame, elem);
-  return choice;
+  /* Second chance page replacement algorithm. We always ignore pinned
+     frames */
+  int j = 0;
+  for (; j < 2; ++j)
+    {
+      /* The first loop finds any perfect candidates for eviction - one that
+         is neither accessed nor dirty. */
+      hash_first (&i, &frame_table);
+      while (hash_next (&i))
+        {
+          choice = hash_entry (hash_cur (&i), struct frame, elem);
+          if (choice->pinned)
+            continue;
+
+          struct thread* owner = choice->thread;
+          lock_acquire (&owner->pd_lock);
+          if (!pagedir_is_dirty (owner->pagedir, choice->user_addr) &&
+              !pagedir_is_accessed (owner->pagedir, choice->user_addr))
+            {
+              /* A perfect frame to evict */
+              lock_release (&owner->pd_lock);
+              return choice;
+            }
+
+          lock_release (&owner->pd_lock);
+        }
+
+      /* The second loop looks for slightly worse candidates - ones that are
+         not accessed but dirty. If they do not match this criteria, they are
+         given a second chance - their accessed bit is set, and we execute the
+         for loop again. */
+      hash_first (&i, &frame_table);
+      while (hash_next (&i))
+        {
+          choice = hash_entry (hash_cur (&i), struct frame, elem);
+          if (choice->pinned)
+            continue;
+
+          struct thread* owner = choice->thread;
+          lock_acquire (&owner->pd_lock);
+          if (pagedir_is_dirty (owner->pagedir, choice->user_addr) &&
+              !pagedir_is_accessed (owner->pagedir, choice->user_addr))
+            {
+              lock_release (&owner->pd_lock);
+              return choice;
+            }
+
+          /* Frames that reach here will be hit earlier the next time round,
+             in the first while loop or the second depending on whether they
+             are dirty or not */
+          pagedir_set_accessed (owner->pagedir, choice->user_addr, false);
+          lock_release (&owner->pd_lock);
+        }
+    }
+
+  /* This will only get hit if every frame in existence is pinned */
+  return NULL;
 }
 
 void

@@ -101,7 +101,6 @@ bool
 pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
 {
   uint32_t *pte;
-
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (pg_ofs (kpage) == 0);
   ASSERT (is_user_vaddr (upage));
@@ -109,7 +108,6 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
   ASSERT (pd != init_page_dir);
 
   pte = lookup_page (pd, upage, true);
-
   if (pte != NULL)
     {
       /* Fill in details in the frame table now we know the page table entry */
@@ -130,7 +128,6 @@ void *
 pagedir_get_page (uint32_t *pd, const void *uaddr)
 {
   uint32_t *pte;
-
   ASSERT (is_user_vaddr (uaddr));
 
   pte = lookup_page (pd, uaddr, false);
