@@ -90,6 +90,7 @@ allocate_frame (enum palloc_flags flags)
   else
     {
       f = evict_frame ();
+      f->thread = thread_current ();
       ASSERT (f != NULL);
       return f->page;
     }
@@ -111,14 +112,36 @@ set_page_table_entry (void *page, uint8_t *user_addr, uint32_t *pt_entry)
   res->pt_entry = pt_entry;
 }
 
-void pin_frame (struct frame* f)
+static void pin_frame (struct frame* f)
 {
   f->pinned = true;
 }
 
-void unpin_frame (struct frame *f)
+static void unpin_frame (struct frame *f)
 {
   f->pinned = false;
+}
+
+void pin_by_addr (void *page)
+{
+  struct frame temp;
+  struct hash_elem *e;
+
+  temp.page = page;
+  e = hash_find (&frame_table, &temp.elem);
+  struct frame *res = hash_entry (e, struct frame, elem);
+  res->pinned = true;
+}
+
+void unpin_by_addr (void *page)
+{
+  struct frame temp;
+  struct hash_elem *e;
+
+  temp.page = page;
+  e = hash_find (&frame_table, &temp.elem);
+  struct frame *res = hash_entry (e, struct frame, elem);
+  res->pinned = false;
 }
 
 static struct frame*

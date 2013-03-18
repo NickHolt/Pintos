@@ -106,7 +106,7 @@ free the frame we just allocated.
 >> alternatively how do you avoid the issue?
 
 We only ever make calls to pagedir_is_dirty via user virtual addresses, so we
-avoid the aliasing issue.
+avoid the aliasing issue. This is also true of calls to pagedir_is_accessed.
 
 TODO: more detail, check that this is actually correct
 
@@ -202,9 +202,18 @@ table a maximum of 4 times in the worst case.
 >> process Q, how do you adjust the page table (and any other data
 >> structures) to reflect the frame Q no longer has?
 
+When the frame is taken from Q for P to use, we call pagedir_clear_page, which
+removes Q's ownership of the frame. We can do this because we store the a
+pointer to the thread which owns the frame in the frame struct. This allows
+us to look up the thread's page directory. We then change the thread pointer
+in the frame struct to point to P instead of Q.
+
+
 >> B4: Explain your heuristic for deciding whether a page fault for an
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
+
+TODO: Dan
 
 ---- SYNCHRONIZATION ----
 
@@ -213,21 +222,55 @@ table a maximum of 4 times in the worst case.
 >> textbook for an explanation of the necessary conditions for
 >> deadlock.)
 
+The frame table and the swap table are both global data structures, and they
+both have a lock associated with them. The supplemental page table is
+implemented on a per thread level, and a thread will only ever perform delete
+and insert operations on it's own supplemental page table, so a lock or
+similar is not required here.
+
+The same cannot be said of a thread's page directory. In the eviction process,
+a thread could clear a page from another thread's page directory, so this
+requires some internal synchronisation. We implemented this in the form of
+another lock in the thread structure.
+
+We also use the file system locks outside of the file system related system
+calls now - the file system is locked when data from a file is read into
+a frame.
+
+To try and avoid a deadlock in this situation, we made sure that the critical
+section was as small as possible; only the file system operations happen
+between the lock being acquired and being released.
+
+
 >> B6: A page fault in process P can cause another process Q's frame
 >> to be evicted.  How do you ensure that Q cannot access or modify
 >> the page during the eviction process?  How do you avoid a race
 >> between P evicting Q's frame and Q faulting the page back in?
+
+TODO: No idea.
+
 
 >> B7: Suppose a page fault in process P causes a page to be read from
 >> the file system or swap.  How do you ensure that a second process Q
 >> cannot interfere by e.g. attempting to evict the frame while it is
 >> still being read in?
 
+We use frame pinning to stop this from occurring. When a frame is being
+read from the file system or swap, or is being read into swap, we set the
+frame's pinned property to true. Any frames which have this property set to
+true are ignored by the eviction algorithm. Once the crucial operation is
+complete, we reset the frame's pinned property to false, and the frame is
+now eligible for eviction again.
+
+
 >> B8: Explain how you handle access to paged-out pages that occur
 >> during system calls.  Do you use page faults to bring in pages (as
 >> in user programs), or do you have a mechanism for "locking" frames
 >> into physical memory, or do you use some other design?  How do you
 >> gracefully handle attempted accesses to invalid virtual addresses?
+
+TODO: Dan I think, maybe these frames can be pinned?
+
 
 ---- RATIONALE ----
 
@@ -237,6 +280,17 @@ table a maximum of 4 times in the worst case.
 >> possibility for deadlock but allows for high parallelism.  Explain
 >> where your design falls along this continuum and why you chose to
 >> design it this way.
+
+We fall somewhere in the middle on this one. We have global locks for the
+frame and swap tables and for the file system, but then we have individual
+locks for the page directory of each thread.
+
+We made this choice because we wanted to allow as much parallelism as possible,
+but since our frame and swap tables are global data structures, they have to
+have global synchronisation primitives. However, we tried throughout to make
+the operations that happen inside locking as small as possible, to reduce the
+wait that other processes might have.
+
 
              MEMORY MAPPED FILES
              ===================

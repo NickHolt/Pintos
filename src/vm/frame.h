@@ -11,5 +11,7 @@ void *allocate_frame (enum palloc_flags flags);
 void free_frame (void *page);
 void frame_done (void);
 void set_page_table_entry (void* page, uint8_t *user_addr, uint32_t *pt_entry);
+void pin_by_addr (void *page);
+void unpin_by_addr (void *page);
 
 #endif /* vm/frame.h */

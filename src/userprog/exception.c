@@ -194,12 +194,15 @@ page_fault (struct intr_frame *f)
         {
           /* Page data is in the file system */
           frame = allocate_frame (PAL_USER);
-          lock_filesystem ();
 
+          lock_filesystem ();
           file_seek (page->file, page->offset);
           file_read (page->file, frame, page->read_bytes);
           release_filesystem ();
+
+          pin_by_addr (frame);
           memset (frame + page->read_bytes, 0, page->zero_bytes);
+          unpin_by_addr (frame);
 
           lock_acquire (&cur->pd_lock);
           if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
@@ -221,7 +224,9 @@ page_fault (struct intr_frame *f)
 
           lock_release (&cur->pd_lock);
 
+          pin_by_addr (frame);
           free_slot (frame, page->swap_index);
+          unpin_by_addr (frame);
 
           delete_sup_page (page);
         }
