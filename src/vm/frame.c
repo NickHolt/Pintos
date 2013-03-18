@@ -6,14 +6,14 @@
 #include "vm/swap.h"
 #include "userprog/pagedir.h"
 #include "vm/page.h"
-
+#include <string.h>
+#include "threads/vaddr.h"
 
 struct frame {
   struct hash_elem elem; /* Hash table element. */
   void *page;            /* Page occupying this frame. */
   struct thread* thread; /* Owner of this frame. */
   uint8_t *user_addr;    /* Stored to associate frames and sup_pt entries */
-  uint32_t *pt_entry;    /* The page table entry for this frame */
   bool pinned;           /* Is the frame pinned? */
   bool from_file;        /* Is the frame holding file data? */
 };
@@ -90,16 +90,16 @@ allocate_frame (enum palloc_flags flags)
   else
     {
       f = evict_frame ();
-      f->thread = thread_current ();
       ASSERT (f != NULL);
+      f->thread = thread_current ();
+      f->user_addr = NULL;
       return f->page;
     }
 }
 
-/* Set the page table entry as PT_ENTRY and the user page as USER_ADDR on the
-   frame with page PAGE. */
+/* Set the user page as USER_ADDR on the frame with page PAGE. */
 void
-set_page_table_entry (void *page, uint8_t *user_addr, uint32_t *pt_entry)
+set_user_address (void *page, uint8_t *user_addr)
 {
   struct frame temp;
   struct hash_elem *e;
@@ -109,7 +109,6 @@ set_page_table_entry (void *page, uint8_t *user_addr, uint32_t *pt_entry)
   struct frame *res = hash_entry (e, struct frame, elem);
 
   res->user_addr = user_addr;
-  res->pt_entry = pt_entry;
 }
 
 static void pin_frame (struct frame* f)
@@ -179,19 +178,21 @@ evict_frame (void)
       unpin_frame (choice);
     }
 
+  memset (choice->page, 0, PGSIZE);
+
   lock_acquire (&owner->pd_lock);
   pagedir_clear_page (owner->pagedir, choice->user_addr);
   lock_release (&owner->pd_lock);
 
   sp->loaded = false;
-
   return choice;
+
 }
 
 static struct frame*
 select_frame_to_evict (void)
 {
-  /* For now, we just get the first entry in the frame table */
+  printf("%i\n", hash_size (&frame_table));
   struct hash_iterator i;
   struct frame *choice = NULL;
 
@@ -216,6 +217,7 @@ select_frame_to_evict (void)
             {
               /* A perfect frame to evict */
               lock_release (&owner->pd_lock);
+              printf("picked %p perfect\n", choice);
               return choice;
             }
 
@@ -239,6 +241,7 @@ select_frame_to_evict (void)
               !pagedir_is_accessed (owner->pagedir, choice->user_addr))
             {
               lock_release (&owner->pd_lock);
+              printf("picked %p imperfect\n", choice);
               return choice;
             }
 

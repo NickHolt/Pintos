@@ -666,13 +666,8 @@ lazy_load (struct file *file, off_t ofs, uint8_t *upage,
       struct sup_page *new;
       /* Either demand the full page from the file, create a zero page, or
          create a partially filled page from the file */
-      if (page_read_bytes == PGSIZE)
-          new = create_full_page (file, ofs, writable, upage);
-      else if (page_zero_bytes == PGSIZE)
-          new = create_zero_page (upage);
-      else
-          new = create_partial_page (file, ofs, page_zero_bytes, writable,
-                                     upage, read_bytes);
+      new = create_sup_page (file, ofs, page_zero_bytes, writable, upage,
+                             read_bytes);
 
       if (!add_sup_page (new))
         return false;

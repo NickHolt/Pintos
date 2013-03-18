@@ -175,22 +175,7 @@ page_fault (struct intr_frame *f)
   if (page != NULL && !page->loaded && is_user_vaddr(fault_addr))
     {
       void *frame = NULL;
-      /* TODO: could be clever with bitwise operations here to remove if
-               statement, but perhaps would make it less clear. */
-      if (page->zero_bytes == PGSIZE)
-        {
-          /* An all zero page */
-          frame = allocate_frame (PAL_USER | PAL_ZERO);
-
-          lock_acquire (&cur->pd_lock);
-          if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                                 page->writable))
-            free_frame (frame);
-
-          lock_release (&cur->pd_lock);
-          page->loaded = true;
-        }
-      else if (!page->is_swapped)
+      if (!page->is_swapped)
         {
           /* Page data is in the file system */
           frame = allocate_frame (PAL_USER);
@@ -234,7 +219,8 @@ page_fault (struct intr_frame *f)
   else
     {
       ASSERT (page == NULL); /* This might not be right. */
-      page = create_zero_page (pg_round_down (fault_addr));
+      page = create_sup_page (NULL, 0, PGSIZE, true,
+                              pg_round_down (fault_addr), 0);
 
       struct hash_iterator i;
       hash_first (&i, &cur->file_map);

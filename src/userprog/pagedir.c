@@ -111,7 +111,7 @@ pagedir_set_page (uint32_t *pd, void *upage, void *kpage, bool writable)
   if (pte != NULL)
     {
       /* Fill in details in the frame table now we know the page table entry */
-      set_page_table_entry (kpage, upage, pte);
+      set_user_address (kpage, upage);
       ASSERT ((*pte & PTE_P) == 0);
       *pte = pte_create_user (kpage, writable);
       return true;
