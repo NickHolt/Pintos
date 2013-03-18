@@ -13,6 +13,7 @@
 #include "filesys/file.h"
 #include "userprog/pagedir.h"
 #include <string.h>
+#include "userprog/process.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -159,54 +160,66 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (pg_round_down(fault_addr) == NULL)
+  if (pg_round_down (fault_addr) == NULL || !not_present)
+    {
       exit (-1);
+      /* TODO: not entirely happy about this. Should we not be printing a
+               message and using kill like the original failure code? */
+    }
 
   struct thread *cur = thread_current ();
 
   struct sup_page *page = get_sup_page (&cur->supp_pt,
                                         pg_round_down(fault_addr));
 
-  if (page != NULL && not_present && is_user_vaddr(fault_addr))
+  if (page != NULL && !page->loaded && is_user_vaddr(fault_addr))
     {
-      void* frame = NULL;
-      // Could be clever with bitwise operations here to remove if statement,
-      // but perhaps would make it less clear
-      if (page->zero_bytes == PGSIZE)
-        {
-          /* An all zero page */
-          frame = allocate_frame (PAL_USER | PAL_ZERO);
-        }
-      else if (!page->is_swapped)
+      void *frame = NULL;
+      if (!page->is_swapped)
         {
           /* Page data is in the file system */
           frame = allocate_frame (PAL_USER);
 
+          /* filesystem lock will only be acquired if current thread does not
+             hold it. This prevents issues when coming from a read syscall */
           lock_filesystem ();
-
           file_seek (page->file, page->offset);
-          if (file_read (page->file, frame, page->read_bytes) != (int)
-              page->read_bytes)
+          file_read (page->file, frame, page->read_bytes);
+          release_filesystem ();
+
+          pin_by_addr (frame);
+          memset (frame + page->read_bytes, 0, page->zero_bytes);
+          unpin_by_addr (frame);
+
+          lock_acquire (&cur->pd_lock);
+          if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                                 page->writable))
             free_frame (frame);
 
-          release_filesystem ();
-          memset (frame + page->read_bytes, 0, page->zero_bytes);
+          lock_release (&cur->pd_lock);
+          page->loaded = true;
         }
-      else
+      else if (page->is_swapped)
         {
           /* Page data is in a swap slot */
           frame = allocate_frame (PAL_USER);
-          free_slot (frame, page->swap_index);
-        }
 
-      if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                        page->writable))
-        free_frame (frame);
+          lock_acquire (&cur->pd_lock);
+          if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                                 page->writable))
+            free_frame (frame);
+
+          lock_release (&cur->pd_lock);
+
+          pin_by_addr (frame);
+          free_slot (frame, page->swap_index);
+          unpin_by_addr (frame);
+          page->loaded = true;
+          page->is_swapped = false;
+        }
     }
-  else
-    {
       // TODO: invalid request - maybe more needed or special cases etc?
-      if ((uint8_t *) fault_addr >= stack_pointer - 32
+      else if ((uint8_t *) fault_addr >= stack_pointer - 32
             && PHYS_BASE - fault_addr + PGSIZE < MAXSIZE
             && is_user_vaddr(fault_addr)
             && page == NULL)
@@ -217,8 +230,55 @@ page_fault (struct intr_frame *f)
           return;
         }
 
-      if (!user && is_user_vaddr(fault_addr))
+      else if (!user && is_user_vaddr(fault_addr))
         exit (-1);
+      else
+      {
+      ASSERT (page == NULL); /* This might not be right. */
+      page = create_sup_page (NULL, 0, PGSIZE, true,
+                              pg_round_down (fault_addr), 0);
+
+      struct hash_iterator i;
+      hash_first (&i, &cur->file_map);
+      while (hash_next (&i))
+        {
+          struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
+                                             elem);
+
+          ASSERT (m != NULL);
+
+          /* This mapping is of no interest to us - no point doing further
+             inspection. */
+          if (m->addr < pg_round_down (fault_addr))
+            continue;
+
+          if (m->addr == pg_round_down (fault_addr))
+            {
+              /* Address is mapped to a file. */
+              void *frame = allocate_frame (PAL_USER | PAL_ZERO);
+
+              /* TODO: for mmap-read test, we already hold the filesystem lock.
+                      Will this always be the case? */
+
+              file_read (m->file, frame, PGSIZE);
+
+              lock_acquire (&cur->pd_lock);
+              pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                                page->writable);
+              lock_release (&cur->pd_lock);
+              page->loaded = true;
+              return;
+            }
+          else if (pg_round_down (fault_addr) <=
+                   m->addr + (m->num_pages * PGSIZE))
+            {
+              /* Accessing a memory mapped file somewhere in its range, but
+                 not in it's first page. I think this needs implementing? */
+              NOT_REACHED ();
+            }
+        }
+
+      /* No suitable mem->file map found. This is a legit page fault, die. */
       printf ("Page fault at %p: %s error %s page in %s context.\n",
               fault_addr,
               not_present ? "not present" : "rights violation",
@@ -226,5 +286,4 @@ page_fault (struct intr_frame *f)
               user ? "user" : "kernel");
       kill (f);
     }
-
 }

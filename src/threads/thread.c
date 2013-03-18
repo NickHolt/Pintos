@@ -515,9 +515,7 @@ init_thread (struct thread *t, const char *name, int priority)
   lock_init (&t->cond_lock);
   cond_init (&t->child_waiter);
   list_init (&t->open_fds);
-
-  // TODO - possibly need to check for NULL on hash init, but I don't
-  // want to panic if it fails, because it could well happen in multi-oom etc.
+  lock_init (&t->pd_lock);
 
 #endif
 
