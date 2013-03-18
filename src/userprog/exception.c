@@ -136,6 +136,7 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
+  uint8_t *stack_pointer = f->esp;
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -205,7 +206,19 @@ page_fault (struct intr_frame *f)
   else
     {
       // TODO: invalid request - maybe more needed or special cases etc?
+      if ((uint8_t *) fault_addr >= stack_pointer - 32
+            && PHYS_BASE - fault_addr + PGSIZE < MAXSIZE
+            && is_user_vaddr(fault_addr)
+            && page == NULL)
+        {
+          void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
+          pagedir_set_page (cur->pagedir, pg_round_down(fault_addr), new_frame,
+                        true);
+          return;
+        }
 
+      if (!user && is_user_vaddr(fault_addr))
+        exit (-1);
       printf ("Page fault at %p: %s error %s page in %s context.\n",
               fault_addr,
               not_present ? "not present" : "rights violation",

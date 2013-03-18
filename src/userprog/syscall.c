@@ -13,6 +13,11 @@
 #include <hash.h>
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+#include "vm/frame.h"
+#include "vm/page.h"
+#include "userprog/exception.h"
+#include <string.h>
+#include "vm/swap.h"
 
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);
@@ -22,7 +27,7 @@ static bool create (const char *file, unsigned initial_size);
 static bool remove (const char *file);
 static int open (const char *file);
 static int filesize (int fd);
-static int read (int fd, void *buffer, unsigned length);
+static int read (int fd_ptr, void *buffer, unsigned length, uint32_t *stack_pointer);
 static int write (int fd, const void *buffer, unsigned size);
 static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
@@ -163,7 +168,7 @@ syscall_handler (struct intr_frame *f)
   ASSERT (f != NULL);
   ASSERT (f->esp != NULL);
 
-  int *stack_pointer = f->esp;
+  uint32_t *stack_pointer = f->esp;
 
   if (is_safe_user_ptr (stack_pointer))
     {
@@ -216,11 +221,13 @@ syscall_handler (struct intr_frame *f)
             if (is_safe_user_ptr (stack_pointer + 1) &&
                 is_safe_user_ptr (stack_pointer + 2) &&
                 is_safe_user_ptr (stack_pointer + 3))
-              f->eax = read (*(stack_pointer + 1),
-                             (void *) *(stack_pointer + 2),
-                             *(stack_pointer + 3));
-            break;
-
+                  {
+                    f->eax = read (*(stack_pointer + 1),
+                                   (void *) *(stack_pointer + 2),
+                                   *(stack_pointer + 3),
+                                   stack_pointer);
+                    break;
+                  }
           case SYS_WRITE:
             if (is_safe_user_ptr (stack_pointer + 1) &&
                 is_safe_user_ptr (stack_pointer + 2) &&
@@ -425,12 +432,35 @@ filesize (int fd)
    bytes actually read, or -1 if the file could not be read.
    fd == 0 reads from the keyboard using input_getc(). */
 static int
-read (int fd, void *buffer, unsigned length)
+read (int fd, void *buffer, unsigned length, uint32_t *stack_pointer)
 {
   if (fd == STDOUT_FILENO)
-    exit (-1);
-  else if (is_safe_user_ptr (buffer) && is_safe_user_ptr (buffer + length))
     {
+      exit (-1);
+    }
+  else if (is_user_vaddr (buffer))
+    {
+      struct thread *cur = thread_current ();
+      struct sup_page *page = get_sup_page (&cur->supp_pt,
+                                            pg_round_down (buffer));
+      if (page == NULL
+            && (stack_pointer - 32)  <= (uint32_t* ) buffer
+            && pagedir_get_page (cur->pagedir, buffer) == NULL)
+        {
+          unsigned counter = 0;
+          while(counter < 8 * length)
+          /*(buffer + counter + PGSIZE) >= stack_pointer - 32
+                && PHYS_BASE - buffer + counter + PGSIZE < MAXSIZE)*/
+            {
+              void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
+              pagedir_set_page (cur->pagedir,
+                                pg_round_down(buffer + counter),
+                                new_frame,
+                                true);
+              counter += PGSIZE;
+            }
+          }
+
       if (fd == STDIN_FILENO)
         {
           unsigned i = 0;
@@ -440,7 +470,10 @@ read (int fd, void *buffer, unsigned length)
 
           return length;
         }
-      else
+      else if ((page != NULL
+                      && pagedir_get_page (cur->pagedir, buffer) == NULL)
+                  || (is_safe_user_ptr (buffer)
+                      && is_safe_user_ptr (buffer + length)))
         {
           lock_filesystem ();
           int size = file_read (fd_to_file (fd), buffer, length);
@@ -448,8 +481,7 @@ read (int fd, void *buffer, unsigned length)
           return size;
         }
     }
-
-  NOT_REACHED ();
+  exit (-1);
 }
 
 /* Writes size bytes from buffer to the open file fd. Returns the number of
