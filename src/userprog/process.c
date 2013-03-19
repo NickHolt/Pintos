@@ -261,7 +261,6 @@ sup_pt_less_func (const struct hash_elem *a, const struct hash_elem *b,
 
 #endif
 
-
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -669,7 +668,7 @@ lazy_load (struct file *file, off_t ofs, uint8_t *upage,
       new = create_sup_page (file, ofs, page_zero_bytes, writable, upage,
                              page_read_bytes);
 
-      if (!add_sup_page (new))
+      if (!add_sup_page (&thread_current()->supp_pt, new))
         return false;
 
       /* Advance. */

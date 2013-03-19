@@ -296,6 +296,9 @@ syscall_done (void)
 void
 exit (int status)
 {
+  if (status == -1)
+    debug_backtrace();
+
   struct thread *exiting_thread = thread_current();
 
   /* Print the terminating message */
@@ -489,10 +492,8 @@ read (int fd, void *buffer, unsigned length, uint32_t *stack_pointer)
 
           return length;
         }
-      else if ((page != NULL
-                      && pagedir_get_page (cur->pagedir, buffer) == NULL)
-                  || (is_safe_user_ptr (buffer)
-                      && is_safe_user_ptr (buffer + length)))
+      else if ((page != NULL && pagedir_get_page (cur->pagedir, buffer) == NULL)
+                || (buffer + length != NULL && is_user_vaddr (buffer + length)))
         {
           lock_filesystem ();
           int size = file_read (fd_to_file (fd), buffer, length);

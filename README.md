@@ -80,15 +80,15 @@ pass tests/userprog/bad-read2
 pass tests/userprog/bad-write2  
 pass tests/userprog/bad-jump  
 pass tests/userprog/bad-jump2  
-FAIL tests/vm/pt-grow-stack  
-FAIL tests/vm/pt-grow-pusha  
+pass tests/vm/pt-grow-stack  
+pass tests/vm/pt-grow-pusha  
 pass tests/vm/pt-grow-bad  
-FAIL tests/vm/pt-big-stk-obj  
+pass tests/vm/pt-big-stk-obj  
 pass tests/vm/pt-bad-addr  
-FAIL tests/vm/pt-bad-read  
-FAIL tests/vm/pt-write-code  
-FAIL tests/vm/pt-write-code2  
-FAIL tests/vm/pt-grow-stk-sc  
+pass tests/vm/pt-bad-read  
+pass tests/vm/pt-write-code  
+pass tests/vm/pt-write-code2  
+pass tests/vm/pt-grow-stk-sc  
 pass tests/vm/page-linear  
 FAIL tests/vm/page-parallel  
 FAIL tests/vm/page-merge-seq  
@@ -127,4 +127,4 @@ pass tests/filesys/base/sm-seq-random
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
 pass tests/filesys/base/syn-write  
-19 of 109 tests failed.  
+12 of 109 tests failed.  

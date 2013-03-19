@@ -101,8 +101,8 @@ shutdown_power_off (void)
 #endif
 
 #ifdef VM
-  frame_done ();
-  destroy_swap_map ();
+  //frame_done ();
+  //destroy_swap_map ();
 #endif
 
   print_stats ();
