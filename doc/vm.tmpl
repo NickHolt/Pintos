@@ -88,7 +88,7 @@ can look at the properties of the entry to see what to do next.
 If the number of zero bytes in the page is equal to PGSIZE, then we just
 allocate a frame from the zero pool. If this isn't true, then we check if the
 is_swapped flag is set. If it isn't then the data is in the file system. We
-get a frame from the user pool, lock the filesystem, and read the data from the
+get a frame from the user pool, lock the file system, and read the data from the
 appropriate file into the frame we just allocated. If we need to set any
 remaining bytes to zero then we do that with a memset call.
 
@@ -127,13 +127,17 @@ function.
 >> A5: Why did you choose the data structure(s) that you did for
 >> representing virtual-to-physical mappings?
 
-We decided to use a hash table for the supplemental page table and for the
-frame table. This was done because our main priority when using the VM system
-is speed of lookup and access to properties of a page and a frame.
+We decided to use a hash table for the supplemental page table.
+This was done because our main priority when using the VM system
+is speed of lookup and access to properties of a supplemental page.
 
-The frame table is implemented in a global scope. This makes eviction a much
-simpler process, since only one data structure is involved. Implementing a
-frame table for each process would make eviction much more complex.
+The frame table is implemented as a list in the global scope. This makes
+eviction a much simpler process, since only one data structure is involved.
+Implementing a frame table for each process would make eviction much more
+complex. Originally, we used a hash table for the frame table, but we changed
+this when we implemented our more advanced eviction algorithm, because we
+wanted to represent a circular queue, and a list was a much more sensible
+choice of data structure for that.
 
 The swap table is implemented using a bitmap. We only care about one piece of
 information to do with a swap slot - whether it is free or not. This makes a
@@ -183,7 +187,8 @@ iteration checks for any frames which are neither dirty nor accessed. If a
 frame that matches this criteria is found, it is chosen. Otherwise, we move
 onto the second iteration, where frames which are not accessed but are dirty
 can be chosen. If a frame does not fall into this category either, then it's
-access bit is set to false (it is given a "second chance").
+access bit is set to false (it is given a "second chance"), and it is moved
+to the back of the queue.
 
 If no frame is chosen after these two loops, then we repeat the two loops. This
 time though, there will be multiple frames with their accessed bit set to 0,

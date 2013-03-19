@@ -27,8 +27,10 @@ static struct lock eviction_lock;
 
 static struct frame *select_frame_to_evict (void);
 static bool save_evicted_frame (struct frame *);
-
 static void *evict_frame (void);
+static void pin_frame (struct frame *);
+static void unpin_frame (struct frame *);
+static struct frame *get_frame (void* page);
 
 void
 frame_init (void)
@@ -54,6 +56,7 @@ allocate_frame (enum palloc_flags flags)
 
       f->thread = thread_current ();
       f->page = page;
+      f->pinned = false;
 
       lock_acquire (&frame_lock);
       list_push_back (&frame_table, &f->elem);
@@ -73,20 +76,7 @@ allocate_frame (enum palloc_flags flags)
 void
 set_user_address (void *page, uint32_t *pte, void *upage)
 {
-  struct frame *f;
-  struct list_elem *e;
-
-  lock_acquire (&frame_lock);
-  for (e = list_begin (&frame_table); e != list_end (&frame_table);
-       e = list_next (e))
-    {
-      f = list_entry (e, struct frame, elem);
-      if (f->page == page)
-        break;
-
-      f = NULL;
-    }
-  lock_release (&frame_lock);
+  struct frame *f = get_frame (page);
 
   if (f != NULL)
     {
@@ -127,7 +117,10 @@ evict_frame (void)
      from a file */
   if (pagedir_is_dirty (t->pagedir, page->user_addr) || (page->type != FILE))
     {
+      pin_frame (choice);
       swap_index = pick_slot_and_swap (page->user_addr);
+      unpin_frame (choice);
+
       if (swap_index == BITMAP_ERROR)
         PANIC ("Could not swap out frame");
 
@@ -243,4 +236,51 @@ free_frame (void *page)
   lock_release (&frame_lock);
 
   palloc_free_page (page);
+}
+
+static void
+pin_frame (struct frame *frame)
+{
+  frame->pinned = true;
+}
+
+static void
+unpin_frame (struct frame *frame)
+{
+  frame->pinned = false;
+}
+
+void
+pin_frame_by_page (void* kpage)
+{
+  struct frame *f = get_frame (kpage);
+  f->pinned = true;
+}
+
+void
+unpin_frame_by_page (void* kpage)
+{
+  struct frame *f = get_frame (kpage);
+  f->pinned = false;
+}
+
+static struct frame*
+get_frame (void* page)
+{
+  struct frame *f;
+  struct list_elem *e;
+
+  lock_acquire (&frame_lock);
+  for (e = list_begin (&frame_table); e != list_end (&frame_table);
+       e = list_next (e))
+    {
+      f = list_entry (e, struct frame, elem);
+      if (f->page == page)
+        break;
+
+      f = NULL;
+    }
+  lock_release (&frame_lock);
+
+  return f;
 }

@@ -193,7 +193,9 @@ page_fault (struct intr_frame *f)
 
             release_filesystem ();
 
+            pin_frame_by_page (frame);
             memset (frame + page->read_bytes, 0, page->zero_bytes);
+            unpin_frame_by_page (frame);
 
             lock_acquire (&cur->pd_lock);
             if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
@@ -217,7 +219,9 @@ page_fault (struct intr_frame *f)
 
             lock_release (&cur->pd_lock);
 
+            pin_frame_by_page (frame);
             free_slot (page->user_addr, page->swap_index);
+            unpin_frame_by_page (frame);
 
             if (page->type == SWAP)
                 hash_delete (&cur->supp_pt, &page->pt_elem);
