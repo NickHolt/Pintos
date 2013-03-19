@@ -1,6 +1,7 @@
 #ifndef USERPROG_PROCESS_H
 #define USERPROG_PROCESS_H
 
+#include <stdbool.h>
 #include "threads/thread.h"
 #include "userprog/syscall.h"
 
@@ -14,11 +15,12 @@ void mapid_destroy (struct hash_elem *m_, void *aux UNUSED);
 
 /* TODO: move this somewhere more logical. */
 struct mapid_node {
-  struct hash_elem elem;
   mapid_t mapid;
   struct file *file;
   void *addr;
   int num_pages;
+  bool touched;
+  struct hash_elem elem;
 };
 
 #endif /* userprog/process.h */

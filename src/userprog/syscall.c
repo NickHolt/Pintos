@@ -40,8 +40,8 @@ static struct hash fd_hash;
 static int next_fd = 2;
 
 
-// TODO: maybe move the filesystem locking into a more central location, now it
-// is used in multiple places?
+/* TODO: maybe move the filesystem locking into a more central location, now it
+         is used in multiple places? */
 
 struct lock filesys_lock;
 
@@ -331,6 +331,20 @@ exit (int status)
       close (fd->fd);
     }
 
+  struct hash_iterator i;
+  hash_first (&i, &exiting_thread->file_map);
+  while (hash_next (&i))
+    {
+      struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
+                                         elem);
+
+      ASSERT (m != NULL);
+      ASSERT (m->file != NULL);
+
+      munmap (m->mapid);
+    }
+  hash_clear (&exiting_thread->file_map, NULL);
+
   thread_exit();
 }
 
@@ -496,10 +510,8 @@ read (int fd, void *buffer, unsigned length, uint32_t *stack_pointer)
 
       /* Checking if the buffer is safe to write to, either it has been loaded
          or can be loaded in a page fault. */
-      else if ((page != NULL
-                      && pagedir_get_page (cur->pagedir, buffer) == NULL)
-                  || (is_safe_user_ptr (buffer)
-                      && is_safe_user_ptr (buffer + length)))
+      else if ((page != NULL && pagedir_get_page (cur->pagedir, buffer) == NULL)
+                || (buffer + length != NULL && is_user_vaddr (buffer + length)))
         {
           lock_filesystem ();
           int size = file_read (fd_to_file (fd), buffer, length);
@@ -615,6 +627,33 @@ close (int fd)
   release_filesystem ();
 }
 
+/* Returns true iff a given address is mapped to a file in the current
+   thread. */
+bool
+is_mapped (void *addr)
+{
+  return addr_to_map (addr) != NULL;
+}
+
+struct mapid_node *
+addr_to_map (void *addr)
+{
+  struct hash_iterator i;
+  hash_first (&i, &thread_current ()->file_map);
+  while (hash_next (&i))
+    {
+      struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
+                                         elem);
+
+      ASSERT (m != NULL);
+
+      if (m->addr == pg_round_down (addr) ||
+          pg_round_down (addr) < m->addr + (m->num_pages * PGSIZE))
+        return m;
+    }
+  return NULL;
+}
+
 static mapid_t
 mmap (int fd, void *addr)
 {
@@ -645,7 +684,8 @@ mmap (int fd, void *addr)
     {
       /* TODO: this works, but are there cases that mean I should actually
                check the supp_pt instead? */
-      if (pagedir_get_page (thread_current ()->pagedir, addr + offset))
+      if (pagedir_get_page (thread_current ()->pagedir, addr + offset) ||
+          is_mapped (addr + offset))
         {
           release_filesystem ();
           return -1;
@@ -655,8 +695,9 @@ mmap (int fd, void *addr)
                                   initial value of addr is, and we're adding a
                                   multiple of PGSIZE each time. */
       struct hash_elem *e = hash_find (&thread_current ()->file_map, &mn.elem);
-      if (e != NULL || !is_user_vaddr (mn.addr))
+      if (e != NULL || !is_user_vaddr (addr + offset))
         {
+          /* Already mapped, or we're about to spread into kernel space. */
           release_filesystem ();
           return -1;
         }
@@ -668,9 +709,10 @@ mmap (int fd, void *addr)
     PANIC ("Failed to allocate memory for file mapping.");
 
   m->mapid = thread_current ()->next_mapid++;
-  m->file = file; /* TODO: should this be file_reopen (file)? */
+  m->file = file_reopen (file); /* TODO: close this somewhere */
   m->addr = addr;
   m->num_pages = num_pages;
+  m->touched = false;
   hash_insert (&thread_current ()->file_map, &m->elem);
 
   release_filesystem ();
@@ -681,13 +723,51 @@ mmap (int fd, void *addr)
 static void
 munmap (mapid_t mapping)
 {
-  struct mapid_node m;
-  m.mapid = mapping;
+  struct mapid_node *m = NULL;
+  struct hash_elem *e = NULL;
+
+  /* Have to loop through because we're searching by mapid, not the key
+     (addr). */
+  /* TODO: can avoid loop by hashing by mapid instead. No point hashing by addr
+           since I'll have to iterate to look across page boundaries anyway. */
+  struct hash_iterator i;
+  hash_first (&i, &thread_current ()->file_map);
+  while (hash_next (&i))
+    {
+      e = hash_cur (&i);
+
+      struct mapid_node *found = hash_entry (e, struct mapid_node, elem);
+      ASSERT (found != NULL);
+      if (found->mapid == mapping)
+        {
+          m = found;
+          break;
+        }
+    }
 
   /* TODO: should there be an exit (-1) if munmap gets called on an unmapped
            mapid? */
+  ASSERT (m != NULL); /* Temporary. */
 
-  struct hash_elem *e = hash_find (&thread_current ()->file_map, &m.elem);
-  if (e != NULL)
-    hash_delete (&thread_current()->file_map, e);
+  struct file *f = m->file;
+  ASSERT (f != NULL);
+
+  if (m->num_pages == 1)
+    {
+      if (m->touched)
+        {
+          lock_filesystem ();
+          file_write_at (f, m->addr, PGSIZE, 0);
+          release_filesystem ();
+          // palloc_free_page ()
+        }
+    }
+  else
+    {
+      NOT_REACHED ();
+    }
+
+  hash_delete (&thread_current()->file_map, e);
+  // file_close (f);
+  // free (m);
 }

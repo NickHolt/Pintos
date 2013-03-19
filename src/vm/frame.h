@@ -1,17 +1,14 @@
-#ifndef VM_FRAME_H
-#define VM_FRAME_H
+#ifndef frame_H
+#define frame_H
 
-#include "threads/palloc.h"
-#include <stdint.h>
 #include "threads/thread.h"
+#include "threads/palloc.h"
 
 void frame_init (void);
-void frame_done (void);
 void *allocate_frame (enum palloc_flags flags);
-void free_frame (void *page);
-void frame_done (void);
-void set_user_address (void* page, uint8_t *user_addr);
-void pin_by_addr (void *page);
-void unpin_by_addr (void *page);
+void free_frame (void *);
+void set_user_address (void*, uint32_t *, void *);
+void pin_frame_by_page (void* kpage);
+void unpin_frame_by_page (void* kpage);
 
 #endif /* vm/frame.h */

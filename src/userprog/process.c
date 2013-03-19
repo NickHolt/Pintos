@@ -96,7 +96,7 @@ static unsigned
 mapid_hash (const struct hash_elem *m_, void *aux UNUSED)
 {
   struct mapid_node *m = hash_entry (m_, struct mapid_node, elem);
-  return hash_bytes (&m->mapid, sizeof m->mapid);
+  return hash_bytes (&m->addr, sizeof m->addr);
 }
 
 static bool
@@ -110,14 +110,7 @@ mapid_less (const struct hash_elem *a_ UNUSED,
   ASSERT (a != NULL);
   ASSERT (b != NULL);
 
-  return a->mapid < b->mapid;
-}
-
-void
-mapid_destroy (struct hash_elem *m_, void *aux UNUSED)
-{
-  struct mapid_node *m = hash_entry (m_, struct mapid_node, elem);
-  free (m);
+  return a->addr < b->addr;
 }
 
 /* A thread function that loads a user process and starts it
@@ -261,7 +254,6 @@ sup_pt_less_func (const struct hash_elem *a, const struct hash_elem *b,
 
 #endif
 
-
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -351,7 +343,7 @@ process_exit (void)
   /* Destory the thread's suplementary page table */
   reclaim_pages (&cur->supp_pt);
 
-  hash_destroy (&cur->file_map, mapid_destroy);
+  hash_destroy (&cur->file_map, NULL);
 
   /* Destory and free the list of child threads. Keep a temporaty pointer
      to the next item in the list, because we're killing list items as we
@@ -669,7 +661,7 @@ lazy_load (struct file *file, off_t ofs, uint8_t *upage,
       new = create_sup_page (file, ofs, page_zero_bytes, writable, upage,
                              page_read_bytes);
 
-      if (!add_sup_page (new))
+      if (!add_sup_page (&thread_current()->supp_pt, new))
         return false;
 
       /* Advance. */

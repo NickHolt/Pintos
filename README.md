@@ -80,15 +80,15 @@ pass tests/userprog/bad-read2
 pass tests/userprog/bad-write2  
 pass tests/userprog/bad-jump  
 pass tests/userprog/bad-jump2  
-FAIL tests/vm/pt-grow-stack  
-FAIL tests/vm/pt-grow-pusha  
+pass tests/vm/pt-grow-stack  
+pass tests/vm/pt-grow-pusha  
 pass tests/vm/pt-grow-bad  
-FAIL tests/vm/pt-big-stk-obj  
+pass tests/vm/pt-big-stk-obj  
 pass tests/vm/pt-bad-addr  
-FAIL tests/vm/pt-bad-read  
-FAIL tests/vm/pt-write-code  
-FAIL tests/vm/pt-write-code2  
-FAIL tests/vm/pt-grow-stk-sc  
+pass tests/vm/pt-bad-read  
+pass tests/vm/pt-write-code  
+pass tests/vm/pt-write-code2  
+pass tests/vm/pt-grow-stk-sc  
 pass tests/vm/page-linear  
 FAIL tests/vm/page-parallel  
 FAIL tests/vm/page-merge-seq  
@@ -97,22 +97,22 @@ FAIL tests/vm/page-merge-stk
 FAIL tests/vm/page-merge-mm  
 pass tests/vm/page-shuffle  
 pass tests/vm/mmap-read  
-FAIL tests/vm/mmap-close  
+pass tests/vm/mmap-close  
 pass tests/vm/mmap-unmap  
-pass tests/vm/mmap-overlap  
+FAIL tests/vm/mmap-overlap  
 FAIL tests/vm/mmap-twice  
-FAIL tests/vm/mmap-write  
-FAIL tests/vm/mmap-exit  
+pass tests/vm/mmap-write  
+pass tests/vm/mmap-exit  
 FAIL tests/vm/mmap-shuffle  
 pass tests/vm/mmap-bad-fd  
-FAIL tests/vm/mmap-clean  
+pass tests/vm/mmap-clean  
 pass tests/vm/mmap-inherit  
 pass tests/vm/mmap-misalign  
 pass tests/vm/mmap-null  
 pass tests/vm/mmap-over-code  
 pass tests/vm/mmap-over-data  
 pass tests/vm/mmap-over-stk  
-FAIL tests/vm/mmap-remove  
+pass tests/vm/mmap-remove  
 pass tests/vm/mmap-zero  
 pass tests/filesys/base/lg-create  
 pass tests/filesys/base/lg-full  
@@ -127,4 +127,4 @@ pass tests/filesys/base/sm-seq-random
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
 pass tests/filesys/base/syn-write  
-19 of 109 tests failed.  
+8 of 109 tests failed.  

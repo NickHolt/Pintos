@@ -1,9 +1,15 @@
 #include "vm/page.h"
-#include "threads/malloc.h"
-#include "lib/debug.h"
-#include "threads/thread.h"
-#include <stdio.h>
+#include "threads/pte.h"
+#include "vm/frame.h"
 #include "threads/vaddr.h"
+#include "userprog/pagedir.h"
+#include "threads/malloc.h"
+#include "filesys/file.h"
+#include "string.h"
+#include "userprog/syscall.h"
+#include "vm/swap.h"
+
+static void free_sup_page (struct hash_elem *, void * UNUSED);
 
 struct sup_page*
 create_sup_page (struct file *f, off_t offset, size_t zero_bytes,
@@ -14,21 +20,21 @@ create_sup_page (struct file *f, off_t offset, size_t zero_bytes,
     PANIC ("Failed to allocate memory in create_full_page()");
 
   partial_page->file = f;
+  partial_page->type = FILE;
   partial_page->writable = writable;
   partial_page->offset = offset;
   partial_page->zero_bytes = zero_bytes;
   partial_page->read_bytes = read_bytes;
   partial_page->user_addr = addr;
-  partial_page->is_swapped = false;
-  partial_page->loaded = false;
+  partial_page->is_loaded = false;
 
   return partial_page;
 }
 
 bool
-add_sup_page (struct sup_page *page)
+add_sup_page (struct hash *pt, struct sup_page *page)
 {
-  return hash_insert (&thread_current ()->supp_pt, &page->pt_elem) == NULL;
+  return hash_insert (pt, &page->pt_elem) == NULL;
 }
 
 struct sup_page*
@@ -63,18 +69,4 @@ void
 reclaim_pages (struct hash *pt)
 {
   hash_destroy (pt, free_sup_pages);
-}
-
-void
-print_sp (struct sup_page *page)
-{
-  printf("Page at %p:\n", page);
-  printf("File: %p\n", page->file);
-  printf("zero_bytes: %i\n", page->zero_bytes);
-  printf("read_bytes: %i\n", page->read_bytes);
-  printf("addr: %p\n", page->user_addr);
-  printf("swapped: %i\n", page->is_swapped);
-
-  ASSERT(page->read_bytes <= PGSIZE);
-  ASSERT(page->zero_bytes <= PGSIZE);
 }
