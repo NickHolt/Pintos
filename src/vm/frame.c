@@ -97,6 +97,9 @@ evict_frame (void)
 
   /* Pick a suitable candidate frame */
   choice = select_frame_to_evict ();
+
+  lock_release (&eviction_lock);
+
   if (choice == NULL)
     PANIC ("No frames could be evicted.");
 
@@ -128,8 +131,6 @@ evict_frame (void)
     }
 
   memset (choice->page, 0, PGSIZE);
-
-  lock_release (&eviction_lock);
 
   /* Set the page as writable if the corresponding page table entry is
      writable */

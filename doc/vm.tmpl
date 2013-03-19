@@ -117,10 +117,15 @@ TODO: more detail, check that this is actually correct
 
 We use multiple locks around the various critical sections in this process to
 ensure proper synchronisation. When we allocate a frame, we make a call to
-palloc_get_page. This called is locked by the frame_lock. We also use the frame
-lock to synchronise the call to hash_insert when inserting a new frame in the
-frame table, because the hash table is not synchronised internally for this
-function.
+palloc_get_page. This called is locked by the frame_lock.
+
+We also use the frame lock to synchronise the call to list_push_back when
+inserting a new frame in the frame table, because the list is not synchronised
+internally for this function.
+
+If the frame(s) need to be allocated by evicting a frame, then we use another
+lock (the eviction_lock) to ensure that the same frame will not be picked for
+eviction by two different processes.
 
 ---- RATIONALE ----
 
@@ -210,8 +215,22 @@ table a maximum of 4 times in the worst case.
 When the frame is taken from Q for P to use, we call pagedir_clear_page, which
 removes Q's ownership of the frame. We can do this because we store the a
 pointer to the thread which owns the frame in the frame struct. This allows
-us to look up the thread's page directory. We then change the thread pointer
-in the frame struct to point to P instead of Q.
+us to look up the thread's page directory.
+
+We also update the entry in the supplemental page table which was associated
+with the data in the frame when Q owned the frame. If we've swapped out the
+data from Q's frame, then we set the swap_index member of the supplemental
+page table entry to keep track of this for a time where we will want to swap
+the data back. We also mark if the data was writeable by checking the page
+table entry and performing a bitwise AND operation with the PTE_W bit. We also
+mark the page as not being loaded using the is_loaded flag (required for case
+analysis in the page fault handler).
+
+Finally, we update the properties of the struct frame which represents the
+frame that is changing hands. We change the thread pointer from a pointer to
+P to a pointer to Q, and we set the page table entry pointer and user page
+pointer to NULL. These will be set to the correct values in the call to
+pagedir_set_page, which happens in the page fault handler later on.
 
 
 >> B4: Explain your heuristic for deciding whether a page fault for an
@@ -263,12 +282,20 @@ TODO: No idea.
 >> cannot interfere by e.g. attempting to evict the frame while it is
 >> still being read in?
 
-We use frame pinning to stop this from occurring. When a frame is being
-read from the file system or swap, or is being read into swap, we set the
-frame's pinned property to true. Any frames which have this property set to
-true are ignored by the eviction algorithm. Once the crucial operation is
-complete, we reset the frame's pinned property to false, and the frame is
-now eligible for eviction again.
+We use frame pinning to stop this from occurring. When a frame is being read
+from  swap, or is being read into swap, we set the frame's pinned property to
+true. Any frames which have this property set to true are ignored by the
+eviction algorithm. Once the crucial operation is complete, we reset the
+frame's pinned property to false, and the frame is now eligible for eviction
+again.
+
+In the case of reading from the file system, we use the file system lock to
+protect the frame and the file system at the same time , as well as pinning it.
+The frame continues to be pinned for the subsequent call to memset. Before
+locking the file system, we check if the current thread holds the lock. This
+could happen the case where we fault from inside a read system call (an event
+which our design intentionally allows), and therefore the thread would hold the
+file system lock already.
 
 
 >> B8: Explain how you handle access to paged-out pages that occur
@@ -299,6 +326,13 @@ but since our frame and swap tables are global data structures, they have to
 have global synchronisation primitives. However, we tried throughout to make
 the operations that happen inside locking as small as possible, to reduce the
 wait that other processes might have.
+
+For example, in the evict_frame() function, we only use the eviction lock
+around the call to the select_frame_to_evict() function, because the race can
+occur when two processes pick the same frame as their eviction candidate. Any
+other crucial operations that require frames to be protected can be handled by
+pinning the frame that has been chosen, such as writing the contents to swap or
+to a file, or performing a memset on the data held by the frame.
 
 
              MEMORY MAPPED FILES

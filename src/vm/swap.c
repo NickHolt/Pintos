@@ -9,7 +9,6 @@
 
 struct block *block_device;
 struct bitmap *swap_slot_map;
-struct lock swap_lock;
 
 void
 init_swap_structures (void)
@@ -24,7 +23,6 @@ init_swap_structures (void)
   if ((swap_slot_map = bitmap_create (size)) == NULL)
       PANIC ("Could not allocate memory for swap table");
 
-  lock_init (&swap_lock);
 }
 
 size_t
@@ -39,14 +37,12 @@ pick_slot_and_swap (void *page)
      bitmap, so we can just multiply the index we got back by SECTORS_PER_PAGE
      to find the correct block sector to write to, and then increment this
      block sector index in each loop iteration */
-  lock_acquire (&swap_lock);
   int i = 0;
   for (; i < SECTORS_PER_PAGE; ++i)
     {
       block_write (block_device, (index * SECTORS_PER_PAGE) + i,
                    page + (BLOCK_SECTOR_SIZE * i));
     }
-  lock_release (&swap_lock);
   return index;
 }
 
@@ -59,14 +55,12 @@ free_slot (void *page, size_t index)
 
   /* This is almost identical to the loop in pick_slot_and_swap, we're just
      going the other way */
-  lock_acquire (&swap_lock);
   int i = 0;
   for (; i < SECTORS_PER_PAGE; ++i)
     {
       block_read (block_device, (index * SECTORS_PER_PAGE) + i,
                    page + (BLOCK_SECTOR_SIZE * i));
     }
-  lock_release (&swap_lock);
 }
 
 void
