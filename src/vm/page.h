@@ -9,7 +9,8 @@
 enum sup_page_type
 {
   SWAP = 1,
-  FILE = 2
+  FILE = 2,
+  FILEINSWAP = 3
 };
 
 /* Struct that holds information about a page in the supplementary page table.

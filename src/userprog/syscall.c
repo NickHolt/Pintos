@@ -296,9 +296,6 @@ syscall_done (void)
 void
 exit (int status)
 {
-  if (status == -1)
-    debug_backtrace();
-
   struct thread *exiting_thread = thread_current();
 
   /* Print the terminating message */
@@ -464,15 +461,19 @@ read (int fd, void *buffer, unsigned length, uint32_t *stack_pointer)
       struct thread *cur = thread_current ();
       struct sup_page *page = get_sup_page (&cur->supp_pt,
                                             pg_round_down (buffer));
+      /* Checking if we have to expand the stack. */
       if (page == NULL
-            && (stack_pointer - 32)  <= (uint32_t* ) buffer
-            && pagedir_get_page (cur->pagedir, buffer) == NULL)
+          && (stack_pointer - 32)  <= (uint32_t* ) buffer
+          && pagedir_get_page (cur->pagedir, buffer) == NULL)
         {
+
+          /* Run out of stack space. */
+          if (PHYS_BASE - buffer > MAXSIZE)
+            exit(-1);
+
           unsigned counter = 0;
-          while(counter < 8 * length)
-          //TODO: Fix this loop.
-          /*(buffer + counter + PGSIZE) >= stack_pointer - 32
-                && PHYS_BASE - buffer + counter + PGSIZE < MAXSIZE)*/
+          /* Ceiling of length/PG_SIZE. */
+          while (length + PGSIZE > counter)
             {
               void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
               pagedir_set_page (cur->pagedir,
@@ -492,6 +493,9 @@ read (int fd, void *buffer, unsigned length, uint32_t *stack_pointer)
 
           return length;
         }
+
+      /* Checking if the buffer is safe to write to, either it has been loaded
+         or can be loaded in a page fault. */
       else if ((page != NULL && pagedir_get_page (cur->pagedir, buffer) == NULL)
                 || (buffer + length != NULL && is_user_vaddr (buffer + length)))
         {

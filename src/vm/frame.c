@@ -146,9 +146,7 @@ evict_frame (void)
   page->is_loaded = false;
 
   /* Clear the frame from the former owner's page directory */
-  lock_acquire (&t->pd_lock);
   pagedir_clear_page (t->pagedir, page->user_addr);
-  lock_acquire (&t->pd_lock);
 
   choice->thread = cur;
   choice->pte = NULL;
