@@ -218,64 +218,67 @@ page_fault (struct intr_frame *f)
           page->is_swapped = false;
         }
     }
-      // TODO: invalid request - maybe more needed or special cases etc?
-      else if ((uint8_t *) fault_addr >= stack_pointer - 32
+  /* Stack needs expanding. */
+  else if ((uint8_t *) fault_addr >= stack_pointer - 32
             && PHYS_BASE - fault_addr + PGSIZE < MAXSIZE
             && is_user_vaddr(fault_addr)
             && page == NULL)
-        {
-          void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
-          pagedir_set_page (cur->pagedir, pg_round_down(fault_addr), new_frame,
+    {
+      void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
+      pagedir_set_page (cur->pagedir,
+                        pg_round_down(fault_addr),
+                        new_frame,
                         true);
+      return;
+    }
+  /* Kernel trying to write to user address space. */
+  else if (!user && is_user_vaddr(fault_addr))
+    exit (-1);
+  /* Memory mapped file. */
+  else
+  {
+  ASSERT (page == NULL); /* This might not be right. */
+  page = create_sup_page (NULL, 0, PGSIZE, true,
+                          pg_round_down (fault_addr), 0);
+
+  struct hash_iterator i;
+  hash_first (&i, &cur->file_map);
+  while (hash_next (&i))
+    {
+      struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
+                                         elem);
+
+      ASSERT (m != NULL);
+
+      /* This mapping is of no interest to us - no point doing further
+         inspection. */
+      if (m->addr < pg_round_down (fault_addr))
+        continue;
+
+      if (m->addr == pg_round_down (fault_addr))
+        {
+          /* Address is mapped to a file. */
+          void *frame = allocate_frame (PAL_USER | PAL_ZERO);
+
+          /* TODO: for mmap-read test, we already hold the filesystem lock.
+                  Will this always be the case? */
+
+          file_read (m->file, frame, PGSIZE);
+
+          lock_acquire (&cur->pd_lock);
+          pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                            page->writable);
+          lock_release (&cur->pd_lock);
+          page->loaded = true;
           return;
         }
-
-      else if (!user && is_user_vaddr(fault_addr))
-        exit (-1);
-      else
-      {
-      ASSERT (page == NULL); /* This might not be right. */
-      page = create_sup_page (NULL, 0, PGSIZE, true,
-                              pg_round_down (fault_addr), 0);
-
-      struct hash_iterator i;
-      hash_first (&i, &cur->file_map);
-      while (hash_next (&i))
+      else if (pg_round_down (fault_addr) <=
+               m->addr + (m->num_pages * PGSIZE))
         {
-          struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
-                                             elem);
-
-          ASSERT (m != NULL);
-
-          /* This mapping is of no interest to us - no point doing further
-             inspection. */
-          if (m->addr < pg_round_down (fault_addr))
-            continue;
-
-          if (m->addr == pg_round_down (fault_addr))
-            {
-              /* Address is mapped to a file. */
-              void *frame = allocate_frame (PAL_USER | PAL_ZERO);
-
-              /* TODO: for mmap-read test, we already hold the filesystem lock.
-                      Will this always be the case? */
-
-              file_read (m->file, frame, PGSIZE);
-
-              lock_acquire (&cur->pd_lock);
-              pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                                page->writable);
-              lock_release (&cur->pd_lock);
-              page->loaded = true;
-              return;
-            }
-          else if (pg_round_down (fault_addr) <=
-                   m->addr + (m->num_pages * PGSIZE))
-            {
-              /* Accessing a memory mapped file somewhere in its range, but
-                 not in it's first page. I think this needs implementing? */
-              NOT_REACHED ();
-            }
+          /* Accessing a memory mapped file somewhere in its range, but
+             not in it's first page. I think this needs implementing? */
+          NOT_REACHED ();
+        }
         }
 
       /* No suitable mem->file map found. This is a legit page fault, die. */
