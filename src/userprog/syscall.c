@@ -331,9 +331,7 @@ exit (int status)
       ASSERT (m != NULL);
       ASSERT (m->file != NULL);
 
-      file_close (m->file);
-      // free (m);
-      /* TODO: make this work. */
+      munmap (m->mapid);
     }
   hash_clear (&exiting_thread->file_map, NULL);
 
@@ -720,6 +718,7 @@ static void munmap (mapid_t mapping)
           lock_filesystem ();
           file_write_at (f, m->addr, PGSIZE, 0);
           release_filesystem ();
+          // palloc_free_page ()
         }
     }
   else
@@ -728,6 +727,6 @@ static void munmap (mapid_t mapping)
     }
 
   hash_delete (&thread_current()->file_map, e);
-  file_close (f);
-  free (m);
+  // file_close (f);
+  // free (m);
 }

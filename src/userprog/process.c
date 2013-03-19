@@ -345,7 +345,6 @@ process_exit (void)
   /* Destory the thread's suplementary page table */
   reclaim_pages (&cur->supp_pt);
 
-  ASSERT (hash_empty (&cur->file_map));
   hash_destroy (&cur->file_map, NULL);
 
   /* Destory and free the list of child threads. Keep a temporaty pointer
