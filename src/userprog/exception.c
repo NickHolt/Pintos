@@ -254,52 +254,50 @@ page_fault (struct intr_frame *f)
   else if (!user && is_user_vaddr(fault_addr))
     exit (-1);
   /* Memory mapped file. */
-  else
+  else if (is_mapped (fault_addr))
     {
+      /* Read the relevant page from the file and copy it into a new page
+         at pg_round_down (fault_addr). */
+
       ASSERT (page == NULL); /* This might not be right. */
+
       page = create_sup_page (NULL, 0, PGSIZE, true,
                               pg_round_down (fault_addr), 0);
 
-      struct hash_iterator i;
-      hash_first (&i, &cur->file_map);
-      while (hash_next (&i))
+      struct mapid_node *m = addr_to_map (fault_addr);
+      ASSERT (m != NULL); /* Otherwise, is_mapped () would have failed. */
+
+      if (write)
+        m->touched = true;
+
+      if (m->addr == pg_round_down (fault_addr))
         {
-          struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
-                                             elem);
+          /* We're on a page boundary. */
 
-          ASSERT (m != NULL);
+          void *frame = allocate_frame (PAL_USER | PAL_ZERO);
 
-          /* This mapping is of no interest to us - no point doing further
-             inspection. */
-          if (m->addr < pg_round_down (fault_addr))
-            continue;
+          /* TODO: for mmap-read test, we already hold the filesystem lock.
+                  Will this always be the case? */
 
-          if (m->addr == pg_round_down (fault_addr))
-            {
-              /* Address is mapped to a file. */
-              void *frame = allocate_frame (PAL_USER | PAL_ZERO);
+          file_read (m->file, frame, PGSIZE);
 
-              /* TODO: for mmap-read test, we already hold the filesystem lock.
-                      Will this always be the case? */
+          /*printf ("pagedir_set_page (%p, %p, %p, %i)\n", cur->pagedir,
+                  page->user_addr, frame, page->writable);*/
 
-              file_read (m->file, frame, PGSIZE);
+          pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                            page->writable);
+          return;
+        }
+      else
+        {
+          /* Accessing a memory mapped file somewhere in its range, but
+             not in it's first page. I think this needs implementing? */
 
-              lock_acquire (&cur->pd_lock);
-              pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                                page->writable);
-              lock_release (&cur->pd_lock);
-              page->is_loaded = true;
-              return;
-            }
-          else if (pg_round_down (fault_addr) <=
-                   m->addr + (m->num_pages * PGSIZE))
-            {
-              /* Accessing a memory mapped file somewhere in its range, but
-                 not in it's first page. I think this needs implementing? */
-              NOT_REACHED ();
-            }
-          }
-
+          NOT_REACHED ();
+        }
+    }
+  else
+    {
       /* No suitable mem->file map found. This is a legit page fault, die. */
       printf ("Page fault at %p: %s error %s page in %s context.\n",
               fault_addr,
