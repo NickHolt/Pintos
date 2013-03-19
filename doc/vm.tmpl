@@ -213,7 +213,10 @@ in the frame struct to point to P instead of Q.
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
 
-TODO: Dan
+The address is believed to be a stack extension if it is within 32 bytes of the
+stack pointer, the page is not in the page table and has not been allocated
+yet. The address is also checked to make sure it is less than PHYS_BASE - it is
+a valid user address, and that the expansion will not make to stack too large.
 
 ---- SYNCHRONIZATION ----
 
@@ -269,8 +272,8 @@ now eligible for eviction again.
 >> into physical memory, or do you use some other design?  How do you
 >> gracefully handle attempted accesses to invalid virtual addresses?
 
-TODO: Dan I think, maybe these frames can be pinned? Also comment at
-      exception.c:182 might well be relevant
+We check the page exists in the table and is in user memory when reading into
+a buffer, otherwise the exception is left to deal with any paged out memory.
 
 
 ---- RATIONALE ----

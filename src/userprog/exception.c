@@ -221,7 +221,6 @@ page_fault (struct intr_frame *f)
   /* Stack needs expanding. */
   else if ((uint8_t *) fault_addr >= stack_pointer - 32
             && PHYS_BASE - fault_addr + PGSIZE < MAXSIZE
-            && is_user_vaddr(fault_addr)
             && page == NULL)
     {
       void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
