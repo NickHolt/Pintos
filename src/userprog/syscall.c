@@ -38,7 +38,7 @@ static int next_fd = 2;
 /* TODO: maybe move the filesystem locking into a more central location, now it
          is used in multiple places? */
 
-struct lock filesys_lock;
+static struct lock filesys_lock;
 
 void lock_filesystem (void)
 {
