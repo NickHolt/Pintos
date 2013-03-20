@@ -185,6 +185,8 @@ page_fault (struct intr_frame *f)
 
             /* filesystem lock will only be acquired if current thread does not
                hold it. This prevents issues when coming from a read syscall */
+
+            pin_frame_by_page (frame);
             lock_filesystem ();
             file_seek (page->file, page->offset);
             if (file_read (page->file, frame, page->read_bytes)
@@ -193,7 +195,6 @@ page_fault (struct intr_frame *f)
 
             release_filesystem ();
 
-            pin_frame_by_page (frame);
             memset (frame + page->read_bytes, 0, page->zero_bytes);
             unpin_frame_by_page (frame);
 
