@@ -9,7 +9,7 @@
 #include "userprog/syscall.h"
 #include "vm/swap.h"
 
-static void free_sup_page (struct hash_elem *, void * UNUSED);
+static void free_sup_pages (struct hash_elem *, void *aux);
 
 struct sup_page*
 create_sup_page (struct file *f, off_t offset, size_t zero_bytes,

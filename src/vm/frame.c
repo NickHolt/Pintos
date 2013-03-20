@@ -27,7 +27,6 @@ static struct lock frame_lock;
 static struct lock eviction_lock;
 
 static struct frame *select_frame_to_evict (void);
-static bool save_evicted_frame (struct frame *);
 static void *evict_frame (void);
 static void pin_frame (struct frame *);
 static void unpin_frame (struct frame *);
@@ -200,8 +199,12 @@ select_frame_to_evict ()
               !pagedir_is_accessed (owner->pagedir, choice->user_addr))
             {
               lock_release (&owner->pd_lock);
+
+              lock_acquire (&frame_lock);
               list_remove (e);
               list_push_back (&frame_table, e);
+              lock_release (&frame_lock);
+
               return choice;
             }
 
