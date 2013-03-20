@@ -8,9 +8,9 @@
 
 >> Fill in the names and email addresses of your group members.
 
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
-FirstName LastName <email@domain.example>
+Owen Davies tod11@doc.ic.ac.uk
+Daniel Hertz dh611@doc.ic.ac.uk
+Charlie Hothersall-Thomas cjh111@doc.ic.ac.uk
 
 ---- PRELIMINARIES ----
 
@@ -261,10 +261,11 @@ pagedir_set_page, which happens in the page fault handler later on.
 >> invalid virtual address should cause the stack to be extended into
 >> the page that faulted.
 
-The address is believed to be a stack extension if it is within 32 bytes of the
-stack pointer, the page is not in the page table and has not been allocated
-yet. The address is also checked to make sure it is less than PHYS_BASE - it is
-a valid user address, and that the expansion will not make to stack too large.
+First the handler checks if the page is in the page table, and thus could be
+swapped in from the filesystem. If the fault address is less than stack pointer
+- 32, the maximum for a PUSH/PUSHA instruction, the stack has not already grown
+too large and the page does not exist in the suplimentary page table, it is
+assumed that we need to increase the size of the stack.
 
 ---- SYNCHRONIZATION ----
 
@@ -341,7 +342,10 @@ file system lock already.
 >> gracefully handle attempted accesses to invalid virtual addresses?
 
 We check the page exists in the table and is in user memory when reading into
-a buffer, otherwise the exception is left to deal with any paged out memory.
+a buffer, and the system call exits with an error code if the address is
+invalid. Otherwise the page fault exception is left to bring in any paged out
+frames. This is also true if the stack needs expanding, as that is also in the
+page fault handler.
 
 
 ---- RATIONALE ----
