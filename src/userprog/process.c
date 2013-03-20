@@ -93,19 +93,22 @@ process_execute (const char *file_name)
 
 /* TODO: move these somewhere more logical. */
 static unsigned
-mapid_hash (const struct hash_elem *m_, void *aux UNUSED)
+mapping_hash (const struct hash_elem *m_, void *aux UNUSED)
 {
-  struct mapid_node *m = hash_entry (m_, struct mapid_node, elem);
+  struct mapping *m = hash_entry (m_, struct mapping, elem);
+
+  ASSERT (m != NULL);
+
   return hash_bytes (&m->addr, sizeof m->addr);
 }
 
 static bool
-mapid_less (const struct hash_elem *a_ UNUSED,
+mapping_less (const struct hash_elem *a_ UNUSED,
             const struct hash_elem *b_ UNUSED,
             void *aux UNUSED)
 {
-  struct mapid_node *a = hash_entry (a_, struct mapid_node, elem);
-  struct mapid_node *b = hash_entry (b_, struct mapid_node, elem);
+  struct mapping *a = hash_entry (a_, struct mapping, elem);
+  struct mapping *b = hash_entry (b_, struct mapping, elem);
 
   ASSERT (a != NULL);
   ASSERT (b != NULL);
@@ -113,10 +116,13 @@ mapid_less (const struct hash_elem *a_ UNUSED,
   return a->addr < b->addr;
 }
 
-void mapid_destroy (struct hash_elem *m_, void *aux UNUSED)
+void mapping_destroy (struct hash_elem *m_, void *aux UNUSED)
 {
-  struct mapid_node *m = hash_entry (m_, struct mapid_node, elem);
+  struct mapping *m = hash_entry (m_, struct mapping, elem);
+
   ASSERT (m != NULL);
+
+  file_close (m->file);
   free (m);
 }
 
@@ -133,7 +139,7 @@ start_process (void *args_)
   hash_init (&thread_current ()->supp_pt, sup_pt_hash_func, sup_pt_less_func,
              NULL);
 
-  hash_init (&thread_current ()->file_map, mapid_hash, mapid_less, NULL);
+  hash_init (&thread_current ()->file_map, mapping_hash, mapping_less, NULL);
   thread_current()->next_mapid = 0;
 
   /* Initialize interrupt frame and load executable. */

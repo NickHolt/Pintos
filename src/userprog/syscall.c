@@ -326,13 +326,13 @@ exit (int status)
   while (hash_next (&i))
     {
       struct hash_elem *e = hash_cur (&i);
-      struct mapid_node *m = hash_entry (e, struct mapid_node, elem);
+      struct mapping *m = hash_entry (e, struct mapping, elem);
 
       ASSERT (m != NULL);
 
       munmap (m->mapid, false);
     }
-  hash_clear (&exiting_thread->file_map, mapid_destroy);
+  hash_clear (&exiting_thread->file_map, mapping_destroy);
 
   thread_exit();
 }
@@ -594,14 +594,14 @@ is_mapped (void *addr)
   return addr_to_map (addr) != NULL;
 }
 
-struct mapid_node *
+struct mapping *
 addr_to_map (void *addr)
 {
   struct hash_iterator i;
   hash_first (&i, &thread_current ()->file_map);
   while (hash_next (&i))
     {
-      struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
+      struct mapping *m = hash_entry (hash_cur (&i), struct mapping,
                                          elem);
 
       ASSERT (m != NULL);
@@ -637,7 +637,7 @@ mmap (int fd, void *addr)
      file) overlaps an already-mapped page, or spreads into kernel address
      space. */
   int offset;
-  struct mapid_node mn;
+  struct mapping mn;
   int num_pages = 0;
   for (offset = 0; offset < length; offset += PGSIZE)
     {
@@ -663,7 +663,7 @@ mmap (int fd, void *addr)
       ++num_pages;
     }
 
-  struct mapid_node *m = malloc (sizeof (struct mapid_node));
+  struct mapping *m = malloc (sizeof (struct mapping));
   if (m == NULL)
     PANIC ("Failed to allocate memory for file mapping.");
 
@@ -682,19 +682,17 @@ mmap (int fd, void *addr)
 static void munmap (mapid_t mapping, bool del_and_free)
 {
   struct hash_elem *e = NULL;
-  struct mapid_node *m = NULL;
+  struct mapping *m = NULL;
 
   /* Have to loop through because we're searching by mapid, not the key
      (addr). */
-  /* TODO: can avoid loop by hashing by mapid instead. No point hashing by addr
-           since I'll have to iterate to look across page boundaries anyway. */
   struct hash_iterator i;
   hash_first (&i, &thread_current ()->file_map);
   while (hash_next (&i))
     {
       e = hash_cur (&i);
 
-      struct mapid_node *found = hash_entry (e, struct mapid_node, elem);
+      struct mapping *found = hash_entry (e, struct mapping, elem);
       ASSERT (found != NULL);
 
       if (found->mapid == mapping)
@@ -706,26 +704,28 @@ static void munmap (mapid_t mapping, bool del_and_free)
 
   /* TODO: should there be an exit (-1) if munmap gets called on an unmapped
            mapid? */
-
-  struct file *f = m->file;
-
-  /* TODO: have per-page touched flag rather than rewriting the whole file if
-           just one page has been touched? */
-  if (m->touched)
+  if (m != NULL)
     {
-      int i;
-      for (i = 0; i < m->num_pages; ++i)
+      struct file *f = m->file;
+
+      /* TODO: have per-page touched flag rather than rewriting the whole file
+               if just one page has been touched? */
+      if (m->touched)
         {
-          lock_filesystem ();
-          file_write_at (f, m->addr, PGSIZE, PGSIZE * i);
-          release_filesystem ();
+          int i;
+          for (i = 0; i < m->num_pages; ++i)
+            {
+              lock_filesystem ();
+              file_write_at (f, m->addr, PGSIZE, PGSIZE * i);
+              release_filesystem ();
+            }
         }
-    }
 
-  if (del_and_free)
-    {
-      hash_delete (&thread_current()->file_map, e);
-      free (m);
-      file_close (f);
+      if (del_and_free)
+        {
+          hash_delete (&thread_current()->file_map, e);
+          file_close (f);
+          free (m);
+        }
     }
 }

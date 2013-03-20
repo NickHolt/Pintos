@@ -9,12 +9,12 @@ tid_t process_execute (const char *file_name);
 int process_wait (tid_t);
 void process_exit (void);
 void process_activate (void);
-void mapid_destroy (struct hash_elem *m_, void *aux UNUSED);
+void mapping_destroy (struct hash_elem *m_, void *aux UNUSED);
 
 #define MAXARGS 100
 
 /* TODO: move this somewhere more logical. */
-struct mapid_node {
+struct mapping {
   mapid_t mapid;
   struct file *file;
   void *addr;

@@ -200,54 +200,29 @@ page_fault (struct intr_frame *f)
 
       pagedir_set_page (cur->pagedir, page->user_addr, frame, page->writable);
     }
-  else if (is_mapped (fault_addr))
+  else if (page == NULL && is_mapped (fault_addr))
     {
-      /* Read the relevant page from the file and copy it into a new page
-         at pg_round_down (fault_addr). */
+      /* Read the relevant page from the file and copy it into a new page. */
 
-      ASSERT (page == NULL); /* This might not be right. */
       page = create_zero_page (pg_round_down (fault_addr));
 
-      struct mapid_node *m = addr_to_map (fault_addr);
-      ASSERT (m != NULL); /* Otherwise, is_mapped () would have failed. */
+      struct mapping *m = addr_to_map (fault_addr);
 
       if (write)
         m->touched = true;
 
-      if (m->addr == pg_round_down (fault_addr))
-        {
-          /* We're on a page boundary. */
+      void *frame = allocate_frame (PAL_USER | PAL_ZERO);
 
-          void *frame = allocate_frame (PAL_USER | PAL_ZERO);
+      /* TODO: filesys lock acquire/release? */
 
-          /* TODO: for mmap-read test, we already hold the filesystem lock.
-                  Will this always be the case? */
+      int offset = (pg_round_down (fault_addr) - m->addr) * PGSIZE;
+      file_read_at (m->file, frame, PGSIZE, offset);
 
-          file_read (m->file, frame, PGSIZE);
-
-          pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                            page->writable);
-          return;
-        }
-      else
-        {
-          /* Accessing a memory mapped file somewhere in its range, but
-             not in it's first page. */
-
-          void *frame = allocate_frame (PAL_USER | PAL_ZERO);
-
-          /* TODO: acquire filesys? */
-          int offset = (pg_round_down (fault_addr) - m->addr) * PGSIZE;
-          file_read_at (m->file, frame, PGSIZE, offset);
-
-          pagedir_set_page (cur->pagedir, page->user_addr, frame,
-                            page->writable);
-          return;
-        }
+      pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                        page->writable);
     }
   else
     {
-      /* No suitable mem->file map found. This is a legit page fault, die. */
       printf ("Page fault at %p: %s error %s page in %s context.\n",
               fault_addr,
               not_present ? "not present" : "rights violation",

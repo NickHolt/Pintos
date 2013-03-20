@@ -15,7 +15,7 @@ void exit (int status);
 void lock_filesystem (void);
 void release_filesystem (void);
 bool is_mapped (void *addr);
-struct mapid_node * addr_to_map (void *addr);
+struct mapping * addr_to_map (void *addr);
 
 #define MAX_PUTBUF 512
 
