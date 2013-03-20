@@ -103,9 +103,8 @@ mapping_hash (const struct hash_elem *m_, void *aux UNUSED)
 }
 
 static bool
-mapping_less (const struct hash_elem *a_ UNUSED,
-            const struct hash_elem *b_ UNUSED,
-            void *aux UNUSED)
+mapping_less (const struct hash_elem *a_, const struct hash_elem *b_,
+              void *aux UNUSED)
 {
   struct mapping *a = hash_entry (a_, struct mapping, elem);
   struct mapping *b = hash_entry (b_, struct mapping, elem);
@@ -125,7 +124,7 @@ void mapping_destroy (struct hash_elem *m_, void *aux UNUSED)
   lock_filesystem ();
   file_close (m->file);
   release_filesystem ();
-  
+
   free (m);
 }
 
