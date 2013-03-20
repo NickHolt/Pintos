@@ -11,14 +11,15 @@
 #include "threads/pte.h"
 #include <bitmap.h>
 
-struct frame {
-  struct list_elem elem; /* Hash table element. */
-  void *page;            /* Page occupying this frame. */
-  struct thread* thread; /* Owner of this frame. */
-  uint8_t *user_addr;    /* Stored to associate frames and sup_pt entries */
-  uint32_t *pte;         /* Page table entry */
-  bool pinned;           /* Is the frame pinned? */
-};
+struct frame
+  {
+    struct list_elem elem; /* Hash table element. */
+    void *page;            /* Page occupying this frame. */
+    struct thread* thread; /* Owner of this frame. */
+    uint8_t *user_addr;    /* Stored to associate frames and sup_pt entries */
+    uint32_t *pte;         /* Page table entry */
+    bool pinned;           /* Is the frame pinned? */
+  };
 
 struct list frame_table;
 
@@ -130,21 +131,21 @@ evict_frame (void)
       page->type = page->type | SWAP;
     }
 
-  memset (choice->page, 0, PGSIZE);
-
   /* Set the page as writable if the corresponding page table entry is
      writable */
   page->swap_index = swap_index;
   page->swap_writable = *(choice->pte) & PTE_W;
 
-  page->is_loaded = false;
-
-  /* Clear the frame from the former owner's page directory */
-  pagedir_clear_page (t->pagedir, page->user_addr);
-
   choice->thread = cur;
   choice->pte = NULL;
   choice->user_addr = NULL;
+
+  /* Clear the frame from the former owner's page directory */
+  lock_acquire (&t->pd_lock);
+  pagedir_clear_page (t->pagedir, page->user_addr);
+  lock_release (&t->pd_lock);
+
+  page->is_loaded = false;
 
   return choice->page;
 }

@@ -32,14 +32,17 @@ FirstName LastName <email@domain.example>
 
 struct sup_page
   {
-    struct file *file;
-    bool writable;
+    void *user_addr;
+    enum sup_page_type type;
+    bool is_loaded;
+    struct file * file;
     off_t offset;
-    size_t zero_bytes;
-    size_t read_bytes;
-    uint8_t *user_addr;
-    bool is_swapped;
+    uint32_t read_bytes;
+    uint32_t zero_bytes;
+    bool writable;
+
     size_t swap_index;
+    bool swap_writable;
 
     struct hash_elem pt_elem;
   };
@@ -61,15 +64,15 @@ supp_pt is the supplemental page table for the thread. pd_lock is a primitive
 used to synchronise access to the threads page directory.
 
 
-struct block *block_device;
+enum sup_page_type
+{
+  SWAP = 1,
+  FILE = 2,
+  FILEINSWAP = 3
+};
 
-The block device used to manage swapping.
-
-
-struct bitmap *swap_slot_map;
-
-The bitmap used to manage swap slots. We perform operations on this data
-structure to reserve or free a swap slot on the block device.
+This enumeration keeps track of different types of supplemental page table
+entry. It is indexed from 1 to allow easier bitwise operations on the values.
 
 
 ---- ALGORITHMS ----
@@ -105,10 +108,13 @@ free the frame we just allocated.
 >> kernel and user virtual addresses that alias a single frame, or
 >> alternatively how do you avoid the issue?
 
-We only ever make calls to pagedir_is_dirty via user virtual addresses, so we
-avoid the aliasing issue. This is also true of calls to pagedir_is_accessed.
+Throughout our code, we keep track of the user virtual address of a frame
+inside our frame struct. Whenever we manipulate a page we always use the
+virtual address of the frame. This means that we only ever set pages as
+accessed or dirty using the user virtual address, which gets round any
+potential aliasing issues that could arise from accessing pages by both
+kernel and user address.
 
-TODO: more detail, check that this is actually correct
 
 ---- SYNCHRONIZATION ----
 
@@ -161,25 +167,43 @@ cycle, because we know the size of a block device.
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
 struct frame {
-  struct hash_elem elem;
+  struct list_elem elem;
   void *page;
-  tid_t thread;
+  struct thread* thread;
   uint8_t *user_addr;
-  uint32_t *pt_entry;
+  uint32_t *pte;
   bool pinned;
-  bool from_file;
 };
 
 The structure representing a frame, keeping track of various properties.
+
 
 static struct lock frame_lock;
 
 The lock used to ensure proper synchronisation when allocating frames and
 accessing the frame_table hash.
 
+
+static struct lock eviction_lock;
+
+This lock is used to ensure that only one process is ever selecting a frame
+for eviction.
+
+
 static struct hash frame_table;
 
 The global frame table.
+
+
+struct block *block_device;
+
+The block device used to manage swapping.
+
+
+struct bitmap *swap_slot_map;
+
+The bitmap used to manage swap slots. We perform operations on this data
+structure to reserve or free a swap slot on the block device.
 
 ---- ALGORITHMS ----
 
@@ -274,7 +298,15 @@ between the lock being acquired and being released.
 >> the page during the eviction process?  How do you avoid a race
 >> between P evicting Q's frame and Q faulting the page back in?
 
-TODO: No idea.
+TODO: First half
+
+We ensure there is no race between P and Q in two ways. Firstly, we clear the
+frame as late as possible - we get the data from the frame into swap, set all
+the various properties of our data structures and the clear the frame from
+the page directory just before we read the new data into the frame. Performing
+the eviction process in this order means that Q will not try to fault the page
+back in midway through the eviction process, because it will still have
+access to the frame.
 
 
 >> B7: Suppose a page fault in process P causes a page to be read from
