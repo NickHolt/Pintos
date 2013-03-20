@@ -225,9 +225,6 @@ page_fault (struct intr_frame *f)
 
           file_read (m->file, frame, PGSIZE);
 
-          /*printf ("pagedir_set_page (%p, %p, %p, %i)\n", cur->pagedir,
-                  page->user_addr, frame, page->writable);*/
-
           pagedir_set_page (cur->pagedir, page->user_addr, frame,
                             page->writable);
           return;
@@ -235,9 +232,17 @@ page_fault (struct intr_frame *f)
       else
         {
           /* Accessing a memory mapped file somewhere in its range, but
-             not in it's first page. I think this needs implementing? */
+             not in it's first page. */
 
-          NOT_REACHED ();
+          void *frame = allocate_frame (PAL_USER | PAL_ZERO);
+
+          /* TODO: acquire filesys? */
+          int offset = (pg_round_down (fault_addr) - m->addr) * PGSIZE;
+          file_read_at (m->file, frame, PGSIZE, offset);
+
+          pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                            page->writable);
+          return;
         }
     }
   else

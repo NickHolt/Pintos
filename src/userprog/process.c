@@ -113,6 +113,13 @@ mapid_less (const struct hash_elem *a_ UNUSED,
   return a->addr < b->addr;
 }
 
+void mapid_destroy (struct hash_elem *m_, void *aux UNUSED)
+{
+  struct mapid_node *m = hash_entry (m_, struct mapid_node, elem);
+  ASSERT (m != NULL);
+  free (m);
+}
+
 /* A thread function that loads a user process and starts it
    running. */
 static void

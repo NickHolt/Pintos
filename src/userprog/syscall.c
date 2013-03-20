@@ -29,7 +29,7 @@ static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
 static void close (int fd);
 static mapid_t mmap (int fd, void *addr);
-static void munmap (mapid_t mapping);
+static void munmap (mapid_t mapping, bool del_and_free);
 
 static struct hash fd_hash;
 static int next_fd = 2;
@@ -258,7 +258,7 @@ syscall_handler (struct intr_frame *f)
 
           case SYS_MUNMAP:
             if (is_safe_user_ptr (stack_pointer + 1))
-              munmap (*(stack_pointer + 1));
+              munmap (*(stack_pointer + 1), true);
             break;
 
           default:
@@ -325,15 +325,14 @@ exit (int status)
   hash_first (&i, &exiting_thread->file_map);
   while (hash_next (&i))
     {
-      struct mapid_node *m = hash_entry (hash_cur (&i), struct mapid_node,
-                                         elem);
+      struct hash_elem *e = hash_cur (&i);
+      struct mapid_node *m = hash_entry (e, struct mapid_node, elem);
 
       ASSERT (m != NULL);
-      ASSERT (m->file != NULL);
 
-      munmap (m->mapid);
+      munmap (m->mapid, false);
     }
-  hash_clear (&exiting_thread->file_map, NULL);
+  hash_clear (&exiting_thread->file_map, mapid_destroy);
 
   thread_exit();
 }
@@ -680,10 +679,10 @@ mmap (int fd, void *addr)
   return m->mapid;
 }
 
-static void munmap (mapid_t mapping)
+static void munmap (mapid_t mapping, bool del_and_free)
 {
-  struct mapid_node *m = NULL;
   struct hash_elem *e = NULL;
+  struct mapid_node *m = NULL;
 
   /* Have to loop through because we're searching by mapid, not the key
      (addr). */
@@ -697,6 +696,7 @@ static void munmap (mapid_t mapping)
 
       struct mapid_node *found = hash_entry (e, struct mapid_node, elem);
       ASSERT (found != NULL);
+
       if (found->mapid == mapping)
         {
           m = found;
@@ -706,27 +706,26 @@ static void munmap (mapid_t mapping)
 
   /* TODO: should there be an exit (-1) if munmap gets called on an unmapped
            mapid? */
-  ASSERT (m != NULL); /* Temporary. */
 
   struct file *f = m->file;
-  ASSERT (f != NULL);
 
-  if (m->num_pages == 1)
+  /* TODO: have per-page touched flag rather than rewriting the whole file if
+           just one page has been touched? */
+  if (m->touched)
     {
-      if (m->touched)
+      int i;
+      for (i = 0; i < m->num_pages; ++i)
         {
           lock_filesystem ();
-          file_write_at (f, m->addr, PGSIZE, 0);
+          file_write_at (f, m->addr, PGSIZE, PGSIZE * i);
           release_filesystem ();
-          // palloc_free_page ()
         }
     }
-  else
-    {
-      NOT_REACHED ();
-    }
 
-  hash_delete (&thread_current()->file_map, e);
-  // file_close (f);
-  // free (m);
+  if (del_and_free)
+    {
+      hash_delete (&thread_current()->file_map, e);
+      free (m);
+      file_close (f);
+    }
 }

@@ -98,11 +98,11 @@ pass tests/vm/page-shuffle
 pass tests/vm/mmap-read  
 pass tests/vm/mmap-close  
 pass tests/vm/mmap-unmap  
-FAIL tests/vm/mmap-overlap  
-FAIL tests/vm/mmap-twice  
+pass tests/vm/mmap-overlap  
+pass tests/vm/mmap-twice  
 pass tests/vm/mmap-write  
 pass tests/vm/mmap-exit  
-FAIL tests/vm/mmap-shuffle  
+pass tests/vm/mmap-shuffle  
 pass tests/vm/mmap-bad-fd  
 pass tests/vm/mmap-clean  
 pass tests/vm/mmap-inherit  
