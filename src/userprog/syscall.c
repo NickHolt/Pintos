@@ -13,7 +13,12 @@
 #include <hash.h>
 #include "threads/malloc.h"
 #include "threads/palloc.h"
+#include "vm/frame.h"
 #include "vm/page.h"
+#include "userprog/exception.h"
+#include <string.h>
+#include "vm/swap.h"
+
 
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);
@@ -23,7 +28,7 @@ static bool create (const char *file, unsigned initial_size);
 static bool remove (const char *file);
 static int open (const char *file);
 static int filesize (int fd);
-static int read (int fd, void *buffer, unsigned length);
+static int read (int fd_ptr, void *buffer, unsigned length, uint32_t *stack_pointer);
 static int write (int fd, const void *buffer, unsigned size);
 static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
@@ -42,12 +47,14 @@ struct lock filesys_lock;
 
 void lock_filesystem (void)
 {
-  lock_acquire (&filesys_lock);
+  if (!lock_held_by_current_thread (&filesys_lock))
+    lock_acquire (&filesys_lock);
 }
 
 void release_filesystem (void)
 {
-  lock_release (&filesys_lock);
+  if (lock_held_by_current_thread (&filesys_lock))
+    lock_release (&filesys_lock);
 }
 
 struct fd_node
@@ -166,7 +173,7 @@ syscall_handler (struct intr_frame *f)
   ASSERT (f != NULL);
   ASSERT (f->esp != NULL);
 
-  int *stack_pointer = f->esp;
+  uint32_t *stack_pointer = f->esp;
 
   if (is_safe_user_ptr (stack_pointer))
     {
@@ -219,11 +226,13 @@ syscall_handler (struct intr_frame *f)
             if (is_safe_user_ptr (stack_pointer + 1) &&
                 is_safe_user_ptr (stack_pointer + 2) &&
                 is_safe_user_ptr (stack_pointer + 3))
-              f->eax = read (*(stack_pointer + 1),
-                             (void *) *(stack_pointer + 2),
-                             *(stack_pointer + 3));
-            break;
-
+                  {
+                    f->eax = read (*(stack_pointer + 1),
+                                   (void *) *(stack_pointer + 2),
+                                   *(stack_pointer + 3),
+                                   stack_pointer);
+                    break;
+                  }
           case SYS_WRITE:
             if (is_safe_user_ptr (stack_pointer + 1) &&
                 is_safe_user_ptr (stack_pointer + 2) &&
@@ -262,6 +271,7 @@ syscall_handler (struct intr_frame *f)
             break;
 
           default:
+            printf("%i\n", syscall_number);
             NOT_REACHED ();
         }
     }
@@ -453,12 +463,40 @@ filesize (int fd)
    bytes actually read, or -1 if the file could not be read.
    fd == 0 reads from the keyboard using input_getc(). */
 static int
-read (int fd, void *buffer, unsigned length)
+read (int fd, void *buffer, unsigned length, uint32_t *stack_pointer)
 {
   if (fd == STDOUT_FILENO)
-    exit (-1);
-  else if (is_safe_user_ptr (buffer) && is_safe_user_ptr (buffer + length))
     {
+      exit (-1);
+    }
+  else if (is_user_vaddr (buffer))
+    {
+      struct thread *cur = thread_current ();
+      struct sup_page *page = get_sup_page (&cur->supp_pt,
+                                            pg_round_down (buffer));
+      /* Checking if we have to expand the stack. */
+      if (page == NULL
+          && (stack_pointer - 32)  <= (uint32_t* ) buffer
+          && pagedir_get_page (cur->pagedir, buffer) == NULL)
+        {
+
+          /* Run out of stack space. */
+          if (PHYS_BASE - buffer > MAXSIZE)
+            exit(-1);
+
+          unsigned counter = 0;
+          /* Ceiling of length/PG_SIZE. */
+          while (length + PGSIZE > counter)
+            {
+              void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
+              pagedir_set_page (cur->pagedir,
+                                pg_round_down(buffer + counter),
+                                new_frame,
+                                true);
+              counter += PGSIZE;
+            }
+        }
+
       if (fd == STDIN_FILENO)
         {
           unsigned i = 0;
@@ -468,7 +506,11 @@ read (int fd, void *buffer, unsigned length)
 
           return length;
         }
-      else
+
+      /* Checking if the buffer is safe to write to, either it has been loaded
+         or can be loaded in a page fault. */
+      else if ((page != NULL && pagedir_get_page (cur->pagedir, buffer) == NULL)
+                || (buffer + length != NULL && is_user_vaddr (buffer + length)))
         {
           lock_filesystem ();
           int size = file_read (fd_to_file (fd), buffer, length);
@@ -476,8 +518,7 @@ read (int fd, void *buffer, unsigned length)
           return size;
         }
     }
-
-  NOT_REACHED ();
+  exit (-1);
 }
 
 /* Writes size bytes from buffer to the open file fd. Returns the number of
@@ -585,7 +626,6 @@ close (int fd)
   release_filesystem ();
 }
 
-
 /* Returns true iff a given address is mapped to a file in the current
    thread. */
 bool
@@ -672,7 +712,8 @@ mmap (int fd, void *addr)
   return m->mapid;
 }
 
-static void munmap (mapid_t mapping, bool del_and_free)
+static void
+munmap (mapid_t mapping, bool del_and_free)
 {
   struct hash_elem *e = NULL;
   struct mapping *m = NULL;

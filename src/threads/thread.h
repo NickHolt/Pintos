@@ -129,7 +129,7 @@ struct thread
 #ifdef VM
     /* Used by vm/page.c */
     struct hash supp_pt;                /* Supplemental page table. */
-
+    struct lock pd_lock;
 
     struct hash file_map;               /* Maps mapids to files. */
     int next_mapid;                     /* Used in mapid allocation. */

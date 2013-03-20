@@ -9,6 +9,7 @@
 #include "userprog/syscall.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 #include "filesys/file.h"
 #include "userprog/pagedir.h"
 #include <string.h>
@@ -136,6 +137,7 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
+  uint8_t *stack_pointer = f->esp;
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -158,7 +160,8 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  if (pg_round_down (fault_addr) == NULL)
+  /* if the page fault it caused by a write violation, exit the process*/
+  if (pg_round_down (fault_addr) == NULL || !not_present)
     {
       exit (-1);
       /* TODO: not entirely happy about this. Should we not be printing a
@@ -168,43 +171,95 @@ page_fault (struct intr_frame *f)
   struct thread *cur = thread_current ();
 
   struct sup_page *page = get_sup_page (&cur->supp_pt,
-                                        pg_round_down (fault_addr));
+                                        pg_round_down(fault_addr));
 
-  if (page != NULL && not_present && is_user_vaddr (fault_addr))
+  if (page != NULL && !page->is_loaded && is_user_vaddr(fault_addr))
     {
-      void *frame = NULL;
-      /* TODO: could be clever with bitwise operations here to remove if
-               statement, but perhaps would make it less clear. */
-      if (page->zero_bytes == PGSIZE)
+      uint8_t *frame = NULL;
+
+      switch (page->type)
         {
-          frame = allocate_frame (PAL_USER | PAL_ZERO);
-          /* No need to memset here because it's done in palloc_get_page(). */
+          case FILE:
+            /* Page data is in the file system */
+            frame = allocate_frame (PAL_USER);
+
+            /* filesystem lock will only be acquired if current thread does not
+               hold it. This prevents issues when coming from a read syscall */
+
+            pin_frame_by_page (frame);
+            lock_filesystem ();
+            file_seek (page->file, page->offset);
+            if (file_read (page->file, frame, page->read_bytes)
+                          != (int) page->read_bytes)
+              free_frame (frame);
+
+            release_filesystem ();
+
+            memset (frame + page->read_bytes, 0, page->zero_bytes);
+            unpin_frame_by_page (frame);
+
+            lock_acquire (&cur->pd_lock);
+            if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                                   page->writable))
+              free_frame (frame);
+
+            lock_release (&cur->pd_lock);
+
+            page->is_loaded = true;
+            break;
+
+          case FILE | SWAP:
+          case SWAP:
+            /* Page data is in a swap slot */
+            frame = allocate_frame (PAL_USER);
+
+            lock_acquire (&cur->pd_lock);
+            if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
+                                   page->swap_writable))
+              free_frame (frame);
+
+            lock_release (&cur->pd_lock);
+
+            pin_frame_by_page (frame);
+            free_slot (page->user_addr, page->swap_index);
+            unpin_frame_by_page (frame);
+
+            if (page->type == SWAP)
+                hash_delete (&cur->supp_pt, &page->pt_elem);
+
+            if (page->type == (FILE | SWAP))
+              {
+                page->type = FILE;
+                page->is_loaded = true;
+              }
+            break;
+
+          default:
+            break;
         }
-      else
-        {
-          /* Later there will be a case for swapping, but for now it's just
-             reading from the file system. */
-
-          frame = allocate_frame (PAL_USER);
-
-          lock_filesystem ();
-
-          file_seek (page->file, page->offset);
-          if (file_read (page->file, frame, page->read_bytes) !=
-              (int) page->read_bytes)
-            free_frame (frame);
-
-          release_filesystem ();
-          memset (frame + page->read_bytes, 0, page->zero_bytes);
-        }
-
-      pagedir_set_page (cur->pagedir, page->user_addr, frame, page->writable);
     }
+  /* Stack needs expanding. */
+  else if ((uint8_t *) fault_addr >= stack_pointer - 32
+            && PHYS_BASE - fault_addr + PGSIZE < MAXSIZE
+            && page == NULL)
+    {
+      void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
+      pagedir_set_page (cur->pagedir,
+                        pg_round_down(fault_addr),
+                        new_frame,
+                        true);
+      return;
+    }
+  /* Kernel trying to write to user address space. */
+  else if (!user && is_user_vaddr(fault_addr))
+    exit (-1);
+  /* Memory mapped file. */
   else if (page == NULL && is_mapped (fault_addr))
     {
       /* Read the relevant page from the file and copy it into a new page. */
 
-      page = create_zero_page (pg_round_down (fault_addr));
+      page = create_sup_page (NULL, 0, PGSIZE, true,
+                              pg_round_down (fault_addr), 0);
 
       struct mapping *m = addr_to_map (fault_addr);
 
@@ -233,5 +288,4 @@ page_fault (struct intr_frame *f)
               user ? "user" : "kernel");
       kill (f);
     }
-
 }

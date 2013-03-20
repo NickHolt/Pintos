@@ -14,6 +14,10 @@
 #include "filesys/filesys.h"
 #include "userprog/syscall.h"
 #endif
+#ifdef VM
+#include "vm/swap.h"
+#include "vm/frame.h"
+#endif
 
 /* Keyboard control register port. */
 #define CONTROL_REG 0x64
@@ -94,6 +98,11 @@ shutdown_power_off (void)
 #ifdef FILESYS
   filesys_done ();
   syscall_done ();
+#endif
+
+#ifdef VM
+  //frame_done ();
+  //destroy_swap_map ();
 #endif
 
   print_stats ();

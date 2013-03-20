@@ -270,7 +270,6 @@ sup_pt_less_func (const struct hash_elem *a, const struct hash_elem *b,
 
 #endif
 
-
 /* Waits for thread TID to die and returns its exit status.  If
    it was terminated by the kernel (i.e. killed due to an
    exception), returns -1.  If TID is invalid or if it was not a
@@ -336,13 +335,12 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
-
   struct thread *cur = thread_current ();
-
   uint32_t *pd;
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
+
   pd = cur->pagedir;
   if (pd != NULL)
     {
@@ -676,14 +674,10 @@ lazy_load (struct file *file, off_t ofs, uint8_t *upage,
       struct sup_page *new;
       /* Either demand the full page from the file, create a zero page, or
          create a partially filled page from the file */
-      if (page_read_bytes == PGSIZE)
-          new = create_full_page (file, ofs, writable, upage);
-      else if (page_zero_bytes == PGSIZE)
-          new = create_zero_page (upage);
-      else
-          new = create_partial_page (file, ofs, zero_bytes, writable, upage, read_bytes);
+      new = create_sup_page (file, ofs, page_zero_bytes, writable, upage,
+                             page_read_bytes);
 
-      if (!add_sup_page (new))
+      if (!add_sup_page (&thread_current()->supp_pt, new))
         return false;
 
       /* Advance. */

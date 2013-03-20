@@ -17,6 +17,7 @@ After that: eviction, swapping, sharing. (Anything else?)
 Current test status
 -------------------
 
+pass tests/filesys/base/syn-write  
 pass tests/userprog/args-none  
 pass tests/userprog/args-single  
 pass tests/userprog/args-multiple  
@@ -49,7 +50,7 @@ pass tests/userprog/close-stdout
 pass tests/userprog/close-bad-fd  
 pass tests/userprog/read-normal  
 pass tests/userprog/read-bad-ptr  
-FAIL tests/userprog/read-boundary  
+pass tests/userprog/read-boundary  
 pass tests/userprog/read-zero  
 pass tests/userprog/read-stdout  
 pass tests/userprog/read-bad-fd  
@@ -79,16 +80,16 @@ pass tests/userprog/bad-read2
 pass tests/userprog/bad-write2  
 pass tests/userprog/bad-jump  
 pass tests/userprog/bad-jump2  
-FAIL tests/vm/pt-grow-stack  
-FAIL tests/vm/pt-grow-pusha  
+pass tests/vm/pt-grow-stack  
+pass tests/vm/pt-grow-pusha  
 pass tests/vm/pt-grow-bad  
-FAIL tests/vm/pt-big-stk-obj  
+pass tests/vm/pt-big-stk-obj  
 pass tests/vm/pt-bad-addr  
 pass tests/vm/pt-bad-read  
 pass tests/vm/pt-write-code  
-FAIL tests/vm/pt-write-code2  
-FAIL tests/vm/pt-grow-stk-sc  
-FAIL tests/vm/page-linear  
+pass tests/vm/pt-write-code2  
+pass tests/vm/pt-grow-stk-sc  
+pass tests/vm/page-linear  
 FAIL tests/vm/page-parallel  
 FAIL tests/vm/page-merge-seq  
 FAIL tests/vm/page-merge-par  
@@ -125,5 +126,5 @@ pass tests/filesys/base/sm-seq-block
 pass tests/filesys/base/sm-seq-random  
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
-FAIL tests/filesys/base/syn-write  
-16 of 109 tests failed.
+pass tests/filesys/base/syn-write  
+5 of 109 tests failed.  
