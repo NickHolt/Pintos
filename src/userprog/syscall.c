@@ -622,16 +622,15 @@ mmap (int fd, void *addr)
       !is_user_vaddr (addr) || pg_ofs (addr) != 0)
     return -1;
 
-  lock_filesystem ();
-
   struct file *file = fd_to_file (fd);
+
+
+  lock_filesystem ();
   int length = file_length (file);
+  release_filesystem ();
 
   if (length == 0)
-    {
-      release_filesystem ();
       return -1;
-    }
 
   /* Fail if the range of pages to be mapped (based on the given addr and size
      file) overlaps an already-mapped page, or spreads into kernel address
@@ -641,25 +640,17 @@ mmap (int fd, void *addr)
   int num_pages = 0;
   for (offset = 0; offset < length; offset += PGSIZE)
     {
-      /* TODO: this works, but are there cases that mean I should actually
-               check the supp_pt instead? */
       if (pagedir_get_page (thread_current ()->pagedir, addr + offset) ||
           is_mapped (addr + offset))
-        {
-          release_filesystem ();
           return -1;
-        }
 
       mn.addr = addr + offset; /* This is definitely page-aligned since the
                                   initial value of addr is, and we're adding a
                                   multiple of PGSIZE each time. */
       struct hash_elem *e = hash_find (&thread_current ()->file_map, &mn.elem);
       if (e != NULL || !is_user_vaddr (addr + offset))
-        {
           /* Already mapped, or we're about to spread into kernel space. */
-          release_filesystem ();
           return -1;
-        }
       ++num_pages;
     }
 
@@ -668,13 +659,15 @@ mmap (int fd, void *addr)
     PANIC ("Failed to allocate memory for file mapping.");
 
   m->mapid = thread_current ()->next_mapid++;
-  m->file = file_reopen (file); /* TODO: close this somewhere */
+
+  lock_filesystem ();
+  m->file = file_reopen (file);
+  release_filesystem ();
+
   m->addr = addr;
   m->num_pages = num_pages;
   m->touched = false;
   hash_insert (&thread_current ()->file_map, &m->elem);
-
-  release_filesystem ();
 
   return m->mapid;
 }
@@ -702,8 +695,6 @@ static void munmap (mapid_t mapping, bool del_and_free)
         }
     }
 
-  /* TODO: should there be an exit (-1) if munmap gets called on an unmapped
-           mapid? */
   if (m != NULL)
     {
       struct file *f = m->file;
@@ -724,8 +715,17 @@ static void munmap (mapid_t mapping, bool del_and_free)
       if (del_and_free)
         {
           hash_delete (&thread_current()->file_map, e);
+
+          lock_filesystem ();
           file_close (f);
+          release_filesystem ();
+
           free (m);
         }
+    }
+  else
+    {
+      /* mapid does not exist. */
+      exit (-1);
     }
 }

@@ -122,7 +122,10 @@ void mapping_destroy (struct hash_elem *m_, void *aux UNUSED)
 
   ASSERT (m != NULL);
 
+  lock_filesystem ();
   file_close (m->file);
+  release_filesystem ();
+  
   free (m);
 }
 

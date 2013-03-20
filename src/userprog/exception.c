@@ -208,15 +208,18 @@ page_fault (struct intr_frame *f)
 
       struct mapping *m = addr_to_map (fault_addr);
 
+      ASSERT (m != NULL);
+
       if (write)
         m->touched = true;
 
       void *frame = allocate_frame (PAL_USER | PAL_ZERO);
 
-      /* TODO: filesys lock acquire/release? */
-
       int offset = (pg_round_down (fault_addr) - m->addr) * PGSIZE;
+
+      lock_filesystem ();
       file_read_at (m->file, frame, PGSIZE, offset);
+      release_filesystem ();
 
       pagedir_set_page (cur->pagedir, page->user_addr, frame,
                         page->writable);
