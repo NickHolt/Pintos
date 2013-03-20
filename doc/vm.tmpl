@@ -298,15 +298,19 @@ between the lock being acquired and being released.
 >> the page during the eviction process?  How do you avoid a race
 >> between P evicting Q's frame and Q faulting the page back in?
 
-TODO: First half
+Each process has a lock associated with its page directory. Whenever a thread
+modifies it's page directory or another thread's page directory, this lock must
+be acquired. This means that if P selects Q's frame for eviction, P will
+acquire a lock on Q's page directory for the call to pagedir_clear_page, and Q
+will not be able to progress until P has finished the eviction operation.
 
-We ensure there is no race between P and Q in two ways. Firstly, we clear the
-frame as late as possible - we get the data from the frame into swap, set all
-the various properties of our data structures and the clear the frame from
-the page directory just before we read the new data into the frame. Performing
-the eviction process in this order means that Q will not try to fault the page
-back in midway through the eviction process, because it will still have
-access to the frame.
+We ensure there is no race between P and Q by clearing  the frame as late as
+possible - we get the data from the frame into swap, set all the various
+properties of our data structures and the clear the frame from the page
+directory just before we read the new data into the frame. Performing the
+eviction process in this order means that Q will not try to fault the page back
+in midway through the eviction process, because it will still have access to
+the frame.
 
 
 >> B7: Suppose a page fault in process P causes a page to be read from
