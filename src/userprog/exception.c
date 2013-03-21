@@ -14,6 +14,7 @@
 #include "userprog/pagedir.h"
 #include <string.h>
 #include "userprog/process.h"
+#include <bitmap.h>
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -253,6 +254,7 @@ page_fault (struct intr_frame *f)
   /* Kernel trying to write to user address space. */
   else if (!user && is_user_vaddr(fault_addr))
     exit (-1);
+    /* TODO: what about the printed error message? */
   /* Memory mapped file. */
   else if (page == NULL && is_mapped (fault_addr))
     {
@@ -265,12 +267,14 @@ page_fault (struct intr_frame *f)
 
       ASSERT (m != NULL);
 
-      if (write)
-        m->touched = true;
-
       void *frame = allocate_frame (PAL_USER | PAL_ZERO);
+      int offset = (pg_round_down (fault_addr) - m->addr);
 
-      int offset = (pg_round_down (fault_addr) - m->addr) * PGSIZE;
+      if (write)
+        {
+          int page_num = offset / PGSIZE;
+          bitmap_set (m->dirty_pages, page_num, true);
+        }
 
       lock_filesystem ();
       file_read_at (m->file, frame, PGSIZE, offset);

@@ -19,7 +19,7 @@ struct mapping {
   struct file *file;
   void *addr;
   int num_pages;
-  bool touched;
+  struct bitmap *dirty_pages;
   struct hash_elem elem;
 };
 

@@ -23,6 +23,7 @@
 #include "vm/page.h"
 #include "userprog/syscall.h"
 #endif
+#include <bitmap.h>
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -124,6 +125,8 @@ void mapping_destroy (struct hash_elem *m_, void *aux UNUSED)
   lock_filesystem ();
   file_close (m->file);
   release_filesystem ();
+
+  bitmap_destroy (m->dirty_pages);
 
   free (m);
 }

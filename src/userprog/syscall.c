@@ -18,6 +18,7 @@
 #include "userprog/exception.h"
 #include <string.h>
 #include "vm/swap.h"
+#include <bitmap.h>
 
 
 static void syscall_handler (struct intr_frame *f);
@@ -38,10 +39,6 @@ static void munmap (mapid_t mapping, bool del_and_free);
 
 static struct hash fd_hash;
 static int next_fd = 2;
-
-
-/* TODO: maybe move the filesystem locking into a more central location, now it
-         is used in multiple places? */
 
 static struct lock filesys_lock;
 
@@ -98,6 +95,9 @@ static void
 destructor_func (struct hash_elem *e_, void *aux UNUSED)
 {
   struct fd_node *e = hash_entry (e_, struct fd_node, hash_elem);
+
+  ASSERT (e != NULL);
+
   free (e);
 }
 
@@ -646,7 +646,7 @@ addr_to_map (void *addr)
 
       ASSERT (m != NULL);
 
-      if (m->addr == pg_round_down (addr) ||
+      if (m->addr <= pg_round_down (addr) &&
           pg_round_down (addr) < m->addr + (m->num_pages * PGSIZE))
         return m;
     }
@@ -706,7 +706,7 @@ mmap (int fd, void *addr)
 
   m->addr = addr;
   m->num_pages = num_pages;
-  m->touched = false;
+  m->dirty_pages = bitmap_create (num_pages);
   hash_insert (&thread_current ()->file_map, &m->elem);
 
   return m->mapid;
@@ -740,18 +740,15 @@ munmap (mapid_t mapping, bool del_and_free)
     {
       struct file *f = m->file;
 
-      /* TODO: have per-page touched flag rather than rewriting the whole file
-               if just one page has been touched? */
-      if (m->touched)
-        {
-          int i;
-          for (i = 0; i < m->num_pages; ++i)
-            {
-              lock_filesystem ();
-              file_write_at (f, m->addr, PGSIZE, PGSIZE * i);
-              release_filesystem ();
-            }
-        }
+      /* Write any dirty pages back to the file. */
+      int i;
+      for (i = 0; i < bitmap_size (m->dirty_pages); ++i)
+        if (bitmap_test (m->dirty_pages, i))
+          {
+            lock_filesystem ();
+            file_write_at (f, m->addr, PGSIZE, PGSIZE * i);
+            release_filesystem ();
+          }
 
       if (del_and_free)
         {
@@ -760,6 +757,8 @@ munmap (mapid_t mapping, bool del_and_free)
           lock_filesystem ();
           file_close (f);
           release_filesystem ();
+
+          bitmap_destroy (m->dirty_pages);
 
           free (m);
         }
