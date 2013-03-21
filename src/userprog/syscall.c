@@ -29,7 +29,8 @@ static bool create (const char *file, unsigned initial_size);
 static bool remove (const char *file);
 static int open (const char *file);
 static int filesize (int fd);
-static int read (int fd_ptr, void *buffer, unsigned length, uint32_t *stack_pointer);
+static int read (int fd_ptr, void *buffer, unsigned length,
+                 void *stack_pointer);
 static int write (int fd, const void *buffer, unsigned size);
 static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
@@ -296,6 +297,8 @@ syscall_done (void)
 void
 exit (int status)
 {
+  if (status == -1)
+    debug_backtrace();
   struct thread *exiting_thread = thread_current();
 
   /* Print the terminating message */
@@ -463,7 +466,7 @@ filesize (int fd)
    bytes actually read, or -1 if the file could not be read.
    fd == 0 reads from the keyboard using input_getc(). */
 static int
-read (int fd, void *buffer, unsigned length, uint32_t *stack_pointer)
+read (int fd, void *buffer, unsigned length, void *stack_pointer)
 {
   if (fd == STDOUT_FILENO)
     {
@@ -474,26 +477,27 @@ read (int fd, void *buffer, unsigned length, uint32_t *stack_pointer)
       struct thread *cur = thread_current ();
       struct sup_page *page = get_sup_page (&cur->supp_pt,
                                             pg_round_down (buffer));
-      /* Checking if we have to expand the stack. */
-      if (page == NULL
-          && (stack_pointer - 32)  <= (uint32_t* ) buffer
-          && pagedir_get_page (cur->pagedir, buffer) == NULL)
-        {
 
+      /* Checking if we have to expand the stack. */
+      if (page == NULL &&
+          (stack_pointer - 32)  <= buffer + length &&
+          pagedir_get_page (cur->pagedir, buffer) == NULL)
+        {
           /* Run out of stack space. */
           if (PHYS_BASE - buffer > MAXSIZE)
-            exit(-1);
+            exit (-1);
 
-          unsigned counter = 0;
+          void *buffer_down = pg_round_down (buffer);
+
           /* Ceiling of length/PG_SIZE. */
-          while (length + PGSIZE > counter)
+          unsigned counter;
+          for (counter = 0; counter < length + PGSIZE; counter += PGSIZE)
             {
               void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
               pagedir_set_page (cur->pagedir,
-                                pg_round_down(buffer + counter),
+                                buffer_down + counter,
                                 new_frame,
                                 true);
-              counter += PGSIZE;
             }
         }
 
@@ -507,10 +511,9 @@ read (int fd, void *buffer, unsigned length, uint32_t *stack_pointer)
           return length;
         }
 
-      /* Checking if the buffer is safe to write to, either it has been loaded
+      /*  if the buffer is safe to write to, either it has been loaded
          or can be loaded in a page fault. */
-      else if ((page != NULL && pagedir_get_page (cur->pagedir, buffer) == NULL)
-                || (buffer + length != NULL && is_user_vaddr (buffer + length)))
+      else
         {
           lock_filesystem ();
           int size = file_read (fd_to_file (fd), buffer, length);
@@ -518,7 +521,8 @@ read (int fd, void *buffer, unsigned length, uint32_t *stack_pointer)
           return size;
         }
     }
-  exit (-1);
+
+  NOT_REACHED ();
 }
 
 /* Writes size bytes from buffer to the open file fd. Returns the number of

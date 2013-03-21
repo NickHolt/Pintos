@@ -138,7 +138,7 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
-  uint8_t *stack_pointer = f->esp;
+  void *stack_pointer = f->esp;
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -234,13 +234,13 @@ page_fault (struct intr_frame *f)
           return;
         }
       /* Stack needs expanding. */
-      else if ((uint8_t *) fault_addr >= stack_pointer - 32
-                && PHYS_BASE - fault_addr + PGSIZE < MAXSIZE
-                && page == NULL)
+      else if (page == NULL && 
+                stack_pointer - 32 <= fault_addr &&
+                PHYS_BASE - fault_addr + PGSIZE < MAXSIZE)
         {
           void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
           pagedir_set_page (cur->pagedir,
-                            pg_round_down(fault_addr),
+                            pg_round_down (fault_addr),
                             new_frame,
                             true);
           return;
@@ -259,7 +259,7 @@ page_fault (struct intr_frame *f)
           ASSERT (m != NULL);
 
           void *frame = allocate_frame (PAL_USER | PAL_ZERO);
-          int offset = (pg_round_down (fault_addr) - m->addr);
+          int offset = pg_round_down (fault_addr) - m->addr;
 
           if (write)
             {
