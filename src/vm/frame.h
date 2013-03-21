@@ -1,5 +1,5 @@
-#ifndef frame_H
-#define frame_H
+#ifndef FRAME_H
+#define FRAME_H
 
 #include "threads/thread.h"
 #include "threads/palloc.h"
@@ -10,5 +10,6 @@ void free_frame (void *);
 void set_user_address (void*, uint32_t *, void *);
 void pin_frame_by_page (void* kpage);
 void unpin_frame_by_page (void* kpage);
+void reclaim_frames (struct thread *t);
 
 #endif /* vm/frame.h */

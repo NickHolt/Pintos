@@ -356,6 +356,7 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+      reclaim_frames (cur);
     }
 
   /* Destory the thread's suplementary page table */

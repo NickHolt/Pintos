@@ -91,7 +91,7 @@ pass tests/vm/pt-write-code2
 pass tests/vm/pt-grow-stk-sc  
 pass tests/vm/page-linear  
 FAIL tests/vm/page-parallel  
-FAIL tests/vm/page-merge-seq  
+pass tests/vm/page-merge-seq  
 FAIL tests/vm/page-merge-par  
 FAIL tests/vm/page-merge-stk  
 FAIL tests/vm/page-merge-mm  
@@ -127,4 +127,4 @@ pass tests/filesys/base/sm-seq-random
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
 pass tests/filesys/base/syn-write  
-5 of 109 tests failed.  
+4 of 109 tests failed.  

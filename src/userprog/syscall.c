@@ -741,7 +741,7 @@ munmap (mapid_t mapping, bool del_and_free)
       struct file *f = m->file;
 
       /* Write any dirty pages back to the file. */
-      int i;
+      size_t i;
       for (i = 0; i < bitmap_size (m->dirty_pages); ++i)
         if (bitmap_test (m->dirty_pages, i))
           {

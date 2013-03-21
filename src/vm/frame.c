@@ -55,6 +55,8 @@ allocate_frame (enum palloc_flags flags)
         PANIC ("Failed to allocate memory for frame.");
 
       f->thread = thread_current ();
+      ASSERT (f->thread != NULL && f->thread->magic == 0xcd6abf4b);
+
       f->page = page;
       f->pinned = false;
 
@@ -136,6 +138,8 @@ evict_frame (void)
   page->swap_writable = *(choice->pte) & PTE_W;
 
   choice->thread = cur;
+  ASSERT (cur != NULL && cur->magic == 0xcd6abf4b);
+
   choice->pte = NULL;
   choice->user_addr = NULL;
 
@@ -150,7 +154,7 @@ evict_frame (void)
 }
 
 static struct frame *
-select_frame_to_evict ()
+select_frame_to_evict (void)
 {
   struct frame *choice = NULL;
   struct list_elem *e;
@@ -171,6 +175,12 @@ select_frame_to_evict ()
 
           struct thread* owner = choice->thread;
           lock_acquire (&owner->pd_lock);
+
+          ASSERT (owner != NULL);
+          ASSERT (owner->pagedir != NULL);
+
+          ASSERT (owner != NULL && owner->magic == 0xcd6abf4b);
+
           if (!pagedir_is_dirty (owner->pagedir, choice->user_addr) &&
               !pagedir_is_accessed (owner->pagedir, choice->user_addr))
             {
@@ -288,4 +298,29 @@ get_frame (void* page)
   lock_release (&frame_lock);
 
   return f;
+}
+
+void
+reclaim_frames (struct thread *t)
+{
+  struct frame *f;
+  struct list_elem *e;
+  struct list_elem *next = NULL;
+
+  lock_acquire (&frame_lock);
+  for (e = list_begin (&frame_table); e != list_end (&frame_table);
+       e = next)
+    {
+      next = list_next (e);
+
+      f = list_entry (e, struct frame, elem);
+      ASSERT (f != NULL);
+
+      if (f->thread == t)
+        {
+          list_remove (e);
+          free (f);
+        }
+    }
+  lock_release (&frame_lock);
 }
