@@ -167,6 +167,7 @@ page_fault (struct intr_frame *f)
 
       struct sup_page *page = get_sup_page (&cur->supp_pt,
                                             pg_round_down (fault_addr));
+
       if (page != NULL && !page->is_loaded && is_user_vaddr (fault_addr))
         {
           uint8_t *frame = NULL;
@@ -177,9 +178,9 @@ page_fault (struct intr_frame *f)
                 /* Page data is in the file system */
                 frame = allocate_frame (PAL_USER);
 
-                /* filesystem lock will only be acquired if current thread does
-                   not hold it. This prevents issues when coming from a read
-                   syscall. */
+                /* The file-system lock will only be acquired if current
+                   thread does not hold it. This prevents issues when coming
+                   from a read system call. */
 
                 pin_frame_by_page (frame);
                 lock_filesystem ();
@@ -193,6 +194,8 @@ page_fault (struct intr_frame *f)
                 memset (frame + page->read_bytes, 0, page->zero_bytes);
                 unpin_frame_by_page (frame);
 
+                /* Add the frame with its new data to the page directory of
+                   the current thread */
                 lock_acquire (&cur->pd_lock);
                 if (!pagedir_set_page (cur->pagedir, page->user_addr, frame,
                                        page->writable))
@@ -215,14 +218,18 @@ page_fault (struct intr_frame *f)
 
                 lock_release (&cur->pd_lock);
 
+                /* Load the data into the frame from the swap slot */
                 pin_frame_by_page (frame);
                 free_slot (page->user_addr, page->swap_index);
                 unpin_frame_by_page (frame);
 
+                /* If the page was just a swap page then we can delete it
+                   since its only purpose was to reference a frame with swap
+                   swap data. If it was file data in swap, then mark it as a
+                   loaded file */
                 if (page->type == SWAP)
                   hash_delete (&cur->supp_pt, &page->pt_elem);
-
-                if (page->type == (FILE | SWAP))
+                else if (page->type == (FILEINSWAP))
                   {
                     page->type = FILE;
                     page->is_loaded = true;
@@ -234,14 +241,12 @@ page_fault (struct intr_frame *f)
         }
       /* Stack needs expanding. */
       else if (page == NULL &&
-                stack_pointer - 32 <= fault_addr &&
-                PHYS_BASE - fault_addr - PGSIZE < MAXSIZE)
+               stack_pointer - 32 <= fault_addr &&
+               PHYS_BASE - fault_addr - PGSIZE < MAXSIZE)
         {
           void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
-          pagedir_set_page (cur->pagedir,
-                            pg_round_down (fault_addr),
-                            new_frame,
-                            true);
+          pagedir_set_page (cur->pagedir, pg_round_down (fault_addr),
+                            new_frame, true);
           return;
         }
       /* Memory mapped file. */

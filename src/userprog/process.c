@@ -159,7 +159,8 @@ start_process (void *args_)
       current->parent->child_status = (success) ? LOADED : FAILED;
 
       lock_acquire (&current->parent->cond_lock);
-      cond_signal (&current->parent->child_waiter, &current->parent->cond_lock);
+      cond_signal (&current->parent->child_waiter,
+                   &current->parent->cond_lock);
       lock_release (&current->parent->cond_lock);
     }
 
@@ -296,8 +297,8 @@ process_wait (tid_t child_tid)
              break;
          }
 
-      /* The thread with tid CHILD_TID is not a direct child
-         of the current thread */
+      /* The thread with tid CHILD_TID is not a direct child of the
+         current thread */
       if (child == NULL)
           return -1;
       else

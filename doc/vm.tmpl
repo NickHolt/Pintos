@@ -81,27 +81,27 @@ entry. It is indexed from 1 to allow easier bitwise operations on the values.
 >> if any, that contains the data of a given page.
 
 When a page needs to be accessed, the function get_sup_page is called. This
-takes the user virtual address that has been accessed, and returns the entry in
-the entry in the current thread's supplemental page table that matches this
+takes the user virtual address that has been accessed, and returns the entry
+in the entry in the current thread's supplemental page table that matches this
 address. If there is not a frame loaded then we need to allocate a frame from
 the frame table. Once we have our supplemental page table entry, and we have
-checked that the address we faulted on is a valid user virtual address, then we
-can look at the properties of the entry to see what to do next.
+checked that the address we faulted on is a valid user virtual address, then
+we can look at the properties of the entry to see what to do next.
 
-If the number of zero bytes in the page is equal to PGSIZE, then we just
-allocate a frame from the zero pool. If this isn't true, then we check if the
-is_swapped flag is set. If it isn't then the data is in the file system. We
-get a frame from the user pool, lock the file system, and read the data from the
+We switch on the "type" property of the supplemental page table entry to work
+out what to do next. If the page data is in the file system, then we get a
+frame from the user pool, lock the file system, and read the data from the
 appropriate file into the frame we just allocated. If we need to set any
-remaining bytes to zero then we do that with a memset call.
+remaining bytes to zero then we do that with a memset call. Finally, we lock
+the current thread's page directory, and call pagedir_set_page to add the
+frame to the thread's page directory. If this call fails then we free the
+frame we just allocated.
 
-If the is_swapped flag is set to true, then we allocate a frame from the user
+If the page data is in a swap slot, then we allocate a frame from the user
 pool again, but this time we call free_slot (from swap.c), passing the swap
-index stored in the page table entry.
-
-Finally, we lock the current thread's page directory, and call pagedir_set_page
-to add the frame to the thread's page directory. If this call fails then we
-free the frame we just allocated.
+index stored in the page table entry. After this, if the supplemental page
+table entry represented file data in a swap slot, then we mark the entry as a
+loaded file again.
 
 
 >> A3: How does your code coordinate accessed and dirty bits between
@@ -132,6 +132,7 @@ internally for this function.
 If the frame(s) need to be allocated by evicting a frame, then we use another
 lock (the eviction_lock) to ensure that the same frame will not be picked for
 eviction by two different processes.
+
 
 ---- RATIONALE ----
 
@@ -219,9 +220,9 @@ can be chosen. If a frame does not fall into this category either, then it's
 access bit is set to false (it is given a "second chance"), and it is moved
 to the back of the queue.
 
-If no frame is chosen after these two loops, then we repeat the two loops. This
-time though, there will be multiple frames with their accessed bit set to 0,
-which means that they will get hit in one of the two loops.
+If no frame is chosen after these two loops, then we repeat the two loops.
+This time though, there will be multiple frames with their accessed bit set
+to 0, which means that they will get hit in one of the two loops.
 
 We totally ignore frames that are pinned. If they are pinned then they are in
 the middle of being swapped in or out, and we want to protect them during this
@@ -262,10 +263,13 @@ pagedir_set_page, which happens in the page fault handler later on.
 >> the page that faulted.
 
 First the handler checks if the page is in the page table, and thus could be
-swapped in from the filesystem. If the fault address is less than stack pointer
-- 32, the maximum for a PUSH/PUSHA instruction, the stack has not already grown
-too large and the page does not exist in the suplimentary page table, it is
-assumed that we need to increase the size of the stack.
+swapped in from the file-system. Then we check if fault address is less than
+or equal to 32 bytes below the stack pointer, since the PUSHA instruction can
+push 32 bytes of data at once. Finally, we check that adding a new page to
+the stack wouldn't make the stack larger than the maximum allowed size (which
+we have decided to set at 8MB). If all of these conditions are met, then we
+allocate a new frame to increase the size of the stack.
+
 
 ---- SYNCHRONIZATION ----
 
@@ -300,8 +304,8 @@ between the lock being acquired and being released.
 >> between P evicting Q's frame and Q faulting the page back in?
 
 Each process has a lock associated with its page directory. Whenever a thread
-modifies it's page directory or another thread's page directory, this lock must
-be acquired. This means that if P selects Q's frame for eviction, P will
+modifies it's page directory or another thread's page directory, this lock
+must be acquired. This means that if P selects Q's frame for eviction, P will
 acquire a lock on Q's page directory for the call to pagedir_clear_page, and Q
 will not be able to progress until P has finished the eviction operation.
 
@@ -309,9 +313,9 @@ We ensure there is no race between P and Q by clearing  the frame as late as
 possible - we get the data from the frame into swap, set all the various
 properties of our data structures and the clear the frame from the page
 directory just before we read the new data into the frame. Performing the
-eviction process in this order means that Q will not try to fault the page back
-in midway through the eviction process, because it will still have access to
-the frame.
+eviction process in this order means that Q will not try to fault the page
+back in midway through the eviction process, because it will still have
+access to the frame.
 
 
 >> B7: Suppose a page fault in process P causes a page to be read from
@@ -327,12 +331,13 @@ frame's pinned property to false, and the frame is now eligible for eviction
 again.
 
 In the case of reading from the file system, we use the file system lock to
-protect the frame and the file system at the same time , as well as pinning it.
+protect the frame and the file system at the same time, as well as pinning it.
+
 The frame continues to be pinned for the subsequent call to memset. Before
 locking the file system, we check if the current thread holds the lock. This
 could happen the case where we fault from inside a read system call (an event
-which our design intentionally allows), and therefore the thread would hold the
-file system lock already.
+which our design intentionally allows), and therefore the thread would hold
+the file system lock already.
 
 
 >> B8: Explain how you handle access to paged-out pages that occur
@@ -361,18 +366,18 @@ We fall somewhere in the middle on this one. We have global locks for the
 frame and swap tables and for the file system, but then we have individual
 locks for the page directory of each thread.
 
-We made this choice because we wanted to allow as much parallelism as possible,
-but since our frame and swap tables are global data structures, they have to
-have global synchronisation primitives. However, we tried throughout to make
-the operations that happen inside locking as small as possible, to reduce the
-wait that other processes might have.
+We made this choice because we wanted to allow as much parallelism as
+possible, but since our frame and swap tables are global data structures,
+they have to have global synchronisation primitives. However, we tried
+throughout to make the operations that happen inside locking as small as
+possible, to reduce the wait that other processes might have.
 
 For example, in the evict_frame() function, we only use the eviction lock
 around the call to the select_frame_to_evict() function, because the race can
 occur when two processes pick the same frame as their eviction candidate. Any
 other crucial operations that require frames to be protected can be handled by
-pinning the frame that has been chosen, such as writing the contents to swap or
-to a file, or performing a memset on the data held by the frame.
+pinning the frame that has been chosen, such as writing the contents to swap
+or to a file, or performing a memset on the data held by the frame.
 
 
              MEMORY MAPPED FILES
