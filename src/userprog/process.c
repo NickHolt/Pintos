@@ -24,6 +24,7 @@
 #include "userprog/syscall.h"
 #endif
 #include <bitmap.h>
+#include "vm/mmap.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -90,45 +91,6 @@ process_execute (const char *file_name)
     }
 
   return tid;
-}
-
-/* TODO: move these somewhere more logical. */
-static unsigned
-mapping_hash (const struct hash_elem *m_, void *aux UNUSED)
-{
-  struct mapping *m = hash_entry (m_, struct mapping, elem);
-
-  ASSERT (m != NULL);
-
-  return hash_bytes (&m->addr, sizeof m->addr);
-}
-
-static bool
-mapping_less (const struct hash_elem *a_, const struct hash_elem *b_,
-              void *aux UNUSED)
-{
-  struct mapping *a = hash_entry (a_, struct mapping, elem);
-  struct mapping *b = hash_entry (b_, struct mapping, elem);
-
-  ASSERT (a != NULL);
-  ASSERT (b != NULL);
-
-  return a->addr < b->addr;
-}
-
-void mapping_destroy (struct hash_elem *m_, void *aux UNUSED)
-{
-  struct mapping *m = hash_entry (m_, struct mapping, elem);
-
-  ASSERT (m != NULL);
-
-  lock_filesystem ();
-  file_close (m->file);
-  release_filesystem ();
-
-  bitmap_destroy (m->dirty_pages);
-
-  free (m);
 }
 
 /* A thread function that loads a user process and starts it

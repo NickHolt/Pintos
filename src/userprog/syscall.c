@@ -15,11 +15,11 @@
 #include "threads/palloc.h"
 #include "vm/frame.h"
 #include "vm/page.h"
+#include "vm/mmap.h"
 #include "userprog/exception.h"
 #include <string.h>
 #include "vm/swap.h"
 #include <bitmap.h>
-
 
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);
@@ -676,7 +676,6 @@ mmap (int fd, void *addr)
 
   struct file *file = fd_to_file (fd);
 
-
   lock_filesystem ();
   int length = file_length (file);
   release_filesystem ();
@@ -684,25 +683,18 @@ mmap (int fd, void *addr)
   if (length == 0)
       return -1;
 
-  /* Fail if the range of pages to be mapped (based on the given addr and size
-     file) overlaps an already-mapped page, or spreads into kernel address
+  /* Fail if the range of pages to be mapped (based on the given addr and file
+     size) overlaps an already-mapped page, or spreads into kernel address
      space. */
   int offset;
-  struct mapping mn;
   int num_pages = 0;
   for (offset = 0; offset < length; offset += PGSIZE)
     {
-      if (pagedir_get_page (thread_current ()->pagedir, addr + offset) ||
+      if (!is_user_vaddr (addr + offset) ||
+          pagedir_get_page (thread_current ()->pagedir, addr + offset) ||
           is_mapped (addr + offset))
-          return -1;
+        return -1;
 
-      mn.addr = addr + offset; /* This is definitely page-aligned since the
-                                  initial value of addr is, and we're adding a
-                                  multiple of PGSIZE each time. */
-      struct hash_elem *e = hash_find (&thread_current ()->file_map, &mn.elem);
-      if (e != NULL || !is_user_vaddr (addr + offset))
-          /* Already mapped, or we're about to spread into kernel space. */
-          return -1;
       ++num_pages;
     }
 
@@ -718,7 +710,6 @@ mmap (int fd, void *addr)
 
   m->addr = addr;
   m->num_pages = num_pages;
-  m->dirty_pages = bitmap_create (num_pages);
   hash_insert (&thread_current ()->file_map, &m->elem);
 
   return m->mapid;
@@ -753,12 +744,13 @@ munmap (mapid_t mapping, bool del_and_free)
       struct file *f = m->file;
 
       /* Write any dirty pages back to the file. */
-      size_t i;
-      for (i = 0; i < bitmap_size (m->dirty_pages); ++i)
-        if (bitmap_test (m->dirty_pages, i))
+      int i;
+      for (i = 0; i < m->num_pages; ++i)
+        if (pagedir_is_dirty (thread_current ()->pagedir,
+                              m->addr + (PGSIZE * i)))
           {
             lock_filesystem ();
-            file_write_at (f, m->addr, PGSIZE, PGSIZE * i);
+            file_write_at (f, m->addr + (PGSIZE * i), PGSIZE, PGSIZE * i);
             release_filesystem ();
           }
 
@@ -769,8 +761,6 @@ munmap (mapid_t mapping, bool del_and_free)
           lock_filesystem ();
           file_close (f);
           release_filesystem ();
-
-          bitmap_destroy (m->dirty_pages);
 
           free (m);
         }

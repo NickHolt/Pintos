@@ -8,8 +8,8 @@
 
 >> Fill in the names and email addresses of your group members.
 
-Owen Davies tod11@doc.ic.ac.uk
-Daniel Hertz dh611@doc.ic.ac.uk
+Owen Davies               tod11@doc.ic.ac.uk
+Daniel Hertz              dh611@doc.ic.ac.uk
 Charlie Hothersall-Thomas cjh111@doc.ic.ac.uk
 
 ---- PRELIMINARIES ----
@@ -123,7 +123,7 @@ kernel and user address.
 
 We use multiple locks around the various critical sections in this process to
 ensure proper synchronisation. When we allocate a frame, we make a call to
-palloc_get_page. This called is locked by the frame_lock.
+palloc_get_page(). This called is locked by the frame_lock.
 
 We also use the frame lock to synchronise the call to list_push_back when
 inserting a new frame in the frame table, because the list is not synchronised
@@ -191,20 +191,21 @@ This lock is used to ensure that only one process is ever selecting a frame
 for eviction.
 
 
-static struct hash frame_table;
+static struct list frame_table;
 
 The global frame table.
 
 
-struct block *block_device;
+static struct block *block_device;
 
 The block device used to manage swapping.
 
 
-struct bitmap *swap_slot_map;
+static struct bitmap *swap_slot_map;
 
 The bitmap used to manage swap slots. We perform operations on this data
 structure to reserve or free a swap slot on the block device.
+
 
 ---- ALGORITHMS ----
 
@@ -214,9 +215,9 @@ structure to reserve or free a swap slot on the block device.
 We use the second chance page replacement algorithm to choose a frame to
 evict. This involves iterating through the frame table twice: the first
 iteration checks for any frames which are neither dirty nor accessed. If a
-frame that matches this criteria is found, it is chosen. Otherwise, we move
+frame that matches these criteria is found, it is chosen. Otherwise, we move
 onto the second iteration, where frames which are not accessed but are dirty
-can be chosen. If a frame does not fall into this category either, then it's
+can be chosen. If a frame does not fall into this category either, then its
 access bit is set to false (it is given a "second chance"), and it is moved
 to the back of the queue.
 
@@ -281,21 +282,19 @@ allocate a new frame to increase the size of the stack.
 The frame table and the swap table are both global data structures, and they
 both have a lock associated with them. The supplemental page table is
 implemented on a per thread level, and a thread will only ever perform delete
-and insert operations on it's own supplemental page table, so a lock or
+and insert operations on its own supplemental page table, so a lock or
 similar is not required here.
 
 The same cannot be said of a thread's page directory. In the eviction process,
 a thread could clear a page from another thread's page directory, so this
 requires some internal synchronisation. We implemented this in the form of
-another lock in the thread structure.
+another lock in the thread structure: pd_lock.
 
-We also use the file system locks outside of the file system related system
-calls now - the file system is locked when data from a file is read into
-a frame.
-
-To try and avoid a deadlock in this situation, we made sure that the critical
-section was as small as possible; only the file system operations happen
-between the lock being acquired and being released.
+The file system lock is now used in exception.c and mmap.c, as well as just
+in syscall.c for the file system-related system calls. This is to ensure that
+file system operations are atomic whenever data from a file is read into a
+frame. We made sure that the critical sections are always as small as possible; only the file system operations happen between the lock being acquired and being
+released.
 
 
 >> B6: A page fault in process P can cause another process Q's frame
@@ -304,12 +303,12 @@ between the lock being acquired and being released.
 >> between P evicting Q's frame and Q faulting the page back in?
 
 Each process has a lock associated with its page directory. Whenever a thread
-modifies it's page directory or another thread's page directory, this lock
+modifies its page directory or another thread's page directory, this lock
 must be acquired. This means that if P selects Q's frame for eviction, P will
 acquire a lock on Q's page directory for the call to pagedir_clear_page, and Q
 will not be able to progress until P has finished the eviction operation.
 
-We ensure there is no race between P and Q by clearing  the frame as late as
+We ensure there is no race between P and Q by clearing the frame as late as
 possible - we get the data from the frame into swap, set all the various
 properties of our data structures and the clear the frame from the page
 directory just before we read the new data into the frame. Performing the
@@ -324,7 +323,7 @@ access to the frame.
 >> still being read in?
 
 We use frame pinning to stop this from occurring. When a frame is being read
-from  swap, or is being read into swap, we set the frame's pinned property to
+from swap, or is being read into swap, we set the frame's pinned property to
 true. Any frames which have this property set to true are ignored by the
 eviction algorithm. Once the crucial operation is complete, we reset the
 frame's pinned property to false, and the frame is now eligible for eviction
@@ -406,6 +405,35 @@ or to a file, or performing a memset on the data held by the frame.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+typedef int mapid_t;
+
+Type definition for the map region identifier, returned from a call to mmap().
+
+struct mapping
+  {
+    mapid_t mapid;
+    struct file *file;
+    void *addr;
+    int num_pages;
+    struct hash_elem elem;
+  };
+
+A mapping from a map ID to a file. This struct also holds the address at which
+the mapping starts (page-aligned), and the number of pages the mapping spans.
+
+struct thread
+  {
+    ...
+    struct hash file_map;               /* Maps mapids to files. */
+    int next_mapid;                     /* Used in mapid allocation. */
+    ...
+  };
+
+Each thread has a hash which contains mapping structs as detailed above, since
+mmap maps are stored and allocated at a per-thread level. The next_mapid
+variable is used to ensure each mapping belonging to a thread has a unique ID.
+
+
 ---- ALGORITHMS ----
 
 >> C2: Describe how memory mapped files integrate into your virtual
@@ -414,6 +442,33 @@ or to a file, or performing a memset on the data held by the frame.
 
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
+
+In mmap(), there are several safety checks before the mapping is allocated. In
+an error case, we return -1. Or, in the case that the given fd is invalid,
+the call to fd_to_file() will exit the thread. After the initial simple checks
+on the given address (i.e. it is non-null and page-aligned), we then try to find
+a mapping which already spans the given address.
+
+This search is implemented in a for loop, which looks at the address of each
+page we are about to map, and ensures that:
+
+  i) it is in user space,
+  ii) there is no entry for it in the thread's page directory,
+  iii) it is not already used in an existing mapping.
+
+The first two checks are trivial, and the third check is implemented in a call
+to is_mapped(), a helper function which returns true iff the given address is
+mapped to a file in the current thread. is_mapped() works with a call to
+addr_to_map(), which linearly searches the thread's file_map hash for a mapping
+whose range contains the given address. Unfortunately we can not take advantage
+of the hash table data structure when searching, and instead must do a linear
+search, since mappings hold only their start address and size in pages.
+
+If either of the three checks above fails, we return -1 from mmap and no mapping
+is allocated. The for loop also cleverly calculates the number of pages required
+for the memory mapped file, effectively calculating the ceiling of the file's
+size divided by PGSIZE.
+
 
 ---- RATIONALE ----
 

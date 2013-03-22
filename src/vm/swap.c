@@ -7,8 +7,8 @@
 /* This is always 2, but for neatness we define it here */
 #define SECTORS_PER_PAGE (PGSIZE / BLOCK_SECTOR_SIZE)
 
-struct block *block_device;
-struct bitmap *swap_slot_map;
+static struct block *block_device;
+static struct bitmap *swap_slot_map;
 
 void
 init_swap_structures (void)

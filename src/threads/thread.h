@@ -127,10 +127,11 @@ struct thread
 #endif
 
 #ifdef VM
-    /* Used by vm/page.c */
+    /* Used by vm/page.c. */
     struct hash supp_pt;                /* Supplemental page table. */
     struct lock pd_lock;
 
+    /* Used by userprog/syscall.c. */
     struct hash file_map;               /* Maps mapids to files. */
     int next_mapid;                     /* Used in mapid allocation. */
 #endif

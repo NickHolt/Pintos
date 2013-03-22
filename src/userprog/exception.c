@@ -10,6 +10,7 @@
 #include "vm/page.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "vm/mmap.h"
 #include "filesys/file.h"
 #include "userprog/pagedir.h"
 #include <string.h>
@@ -264,12 +265,6 @@ page_fault (struct intr_frame *f)
 
           void *frame = allocate_frame (PAL_USER | PAL_ZERO);
           int offset = pg_round_down (fault_addr) - m->addr;
-
-          if (write)
-            {
-              int page_num = offset / PGSIZE;
-              bitmap_set (m->dirty_pages, page_num, true);
-            }
 
           lock_filesystem ();
           file_read_at (m->file, frame, PGSIZE, offset);

@@ -92,9 +92,9 @@ pass tests/vm/pt-grow-stk-sc
 pass tests/vm/page-linear  
 FAIL tests/vm/page-parallel  
 pass tests/vm/page-merge-seq  
-pass tests/vm/page-merge-par  
+FAIL tests/vm/page-merge-par  
 pass tests/vm/page-merge-stk  
-FAIL tests/vm/page-merge-mm  
+pass tests/vm/page-merge-mm  
 pass tests/vm/page-shuffle  
 pass tests/vm/mmap-read  
 pass tests/vm/mmap-close  
