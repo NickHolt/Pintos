@@ -355,17 +355,17 @@ just like what would happen normally. Otherwise, after checking that the
 address of the data is within 32 bytes of the stack pointer, we go through and
 add as many pages as we need to the stack. We do this by allocating for the
 page at the start address of the data, and then looping up the stack, checking
-if each page has been paged in already, until we reached one that has been
+if each page has been paged in already, until we reach one that has been
 paged in.
 
-To make sure that invalid virtual addresses are not accessed. We check whether
+To make sure that invalid virtual addresses are not accessed, we check whether
 the start address of the data is a valid user address before any of the above
 checks are made. If the address is invalid, then we exit with a -1 status code.
-We used to call our function is_safe_user_ptr here, but that exits if the data
+We used to call our function is_safe_user_ptr() here, but that exits if the data
 has not been paged in, so this would not be suitable for the new demand paging
 system. When we are looping through the stack to see if pages are paged in, we
 also check to see if the address we have reached is still a valid user address.
-If it is not, then we kick out of the loo, since we must have reached the top
+If it is not, then we kick out of the loop, since we must have reached the top
 of the stack.
 
 
@@ -461,6 +461,20 @@ file_map. We cannot use hashing here, since the fault address is not necessarily
 the start address of the mapping (recall that a mapping struct only contains the
 start address and size.) As with all other calls to file system methods, we
 acquire the file system lock when reading the data from the file.
+
+Data are written back to the file by the munmap() system call in syscall.c. This
+function can be called by a user program, but is also called implicitly on each
+remaining mapping whenever a thread exits, similar to the implicit closing of
+open file handles.
+
+munmap() only writes back the data that was actually modified in memory. This is
+implemented by looping through each page covered by the mapping, and querying
+the page directory to discover whether or not the page is dirty, with a call to
+pagedir_is_dirty(). For each dirty page, we acquire the file system lock, and
+write that page of data back to the file. This is similar to how the frame
+allocator handles eviction using accessed and dirty bits, except when writing
+back to memory mapped files we are only interested in whether or not the pages
+are dirty (i.e. the data have been modified), not if it has been read or not.
 
 
 >> C3: Explain how you determine whether a new file mapping overlaps
