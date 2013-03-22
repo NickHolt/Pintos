@@ -21,7 +21,7 @@ struct frame
     bool pinned;           /* Is the frame pinned? */
   };
 
-struct list frame_table;
+static struct list frame_table;
 
 static struct lock frame_lock;
 static struct lock eviction_lock;

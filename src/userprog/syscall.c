@@ -15,11 +15,11 @@
 #include "threads/palloc.h"
 #include "vm/frame.h"
 #include "vm/page.h"
+#include "vm/mmap.h"
 #include "userprog/exception.h"
 #include <string.h>
 #include "vm/swap.h"
 #include <bitmap.h>
-
 
 static void syscall_handler (struct intr_frame *f);
 static void halt (void);

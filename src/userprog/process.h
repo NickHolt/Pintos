@@ -13,14 +13,4 @@ void mapping_destroy (struct hash_elem *m_, void *aux UNUSED);
 
 #define MAXARGS 100
 
-/* TODO: move this somewhere more logical. */
-struct mapping
-  {
-    mapid_t mapid;
-    struct file *file;
-    void *addr;
-    int num_pages;
-    struct hash_elem elem;
-  };
-
 #endif /* userprog/process.h */

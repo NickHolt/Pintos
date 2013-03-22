@@ -10,6 +10,7 @@
 #include "vm/page.h"
 #include "vm/frame.h"
 #include "vm/swap.h"
+#include "vm/mmap.h"
 #include "filesys/file.h"
 #include "userprog/pagedir.h"
 #include <string.h>
