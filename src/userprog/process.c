@@ -126,8 +126,6 @@ void mapping_destroy (struct hash_elem *m_, void *aux UNUSED)
   file_close (m->file);
   release_filesystem ();
 
-  bitmap_destroy (m->dirty_pages);
-
   free (m);
 }
 

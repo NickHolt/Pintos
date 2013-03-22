@@ -237,7 +237,6 @@ page_fault (struct intr_frame *f)
                 stack_pointer - 32 <= fault_addr &&
                 PHYS_BASE - fault_addr - PGSIZE < MAXSIZE)
         {
-          //printf("exception: %p\n", fault_addr);
           void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
           pagedir_set_page (cur->pagedir,
                             pg_round_down (fault_addr),
@@ -260,12 +259,6 @@ page_fault (struct intr_frame *f)
 
           void *frame = allocate_frame (PAL_USER | PAL_ZERO);
           int offset = pg_round_down (fault_addr) - m->addr;
-
-          if (write)
-            {
-              int page_num = offset / PGSIZE;
-              bitmap_set (m->dirty_pages, page_num, true);
-            }
 
           lock_filesystem ();
           file_read_at (m->file, frame, PGSIZE, offset);

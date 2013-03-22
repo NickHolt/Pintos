@@ -720,7 +720,6 @@ mmap (int fd, void *addr)
 
   m->addr = addr;
   m->num_pages = num_pages;
-  m->dirty_pages = bitmap_create (num_pages);
   hash_insert (&thread_current ()->file_map, &m->elem);
 
   return m->mapid;
@@ -755,12 +754,13 @@ munmap (mapid_t mapping, bool del_and_free)
       struct file *f = m->file;
 
       /* Write any dirty pages back to the file. */
-      size_t i;
-      for (i = 0; i < bitmap_size (m->dirty_pages); ++i)
-        if (bitmap_test (m->dirty_pages, i))
+      int i;
+      for (i = 0; i < m->num_pages; ++i)
+        if (pagedir_is_dirty (thread_current ()->pagedir,
+                              m->addr + (PGSIZE * i)))
           {
             lock_filesystem ();
-            file_write_at (f, m->addr, PGSIZE, PGSIZE * i);
+            file_write_at (f, m->addr + (PGSIZE * i), PGSIZE, PGSIZE * i);
             release_filesystem ();
           }
 
@@ -771,8 +771,6 @@ munmap (mapid_t mapping, bool del_and_free)
           lock_filesystem ();
           file_close (f);
           release_filesystem ();
-
-          bitmap_destroy (m->dirty_pages);
 
           free (m);
         }
