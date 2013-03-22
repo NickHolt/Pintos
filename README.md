@@ -92,8 +92,8 @@ pass tests/vm/pt-grow-stk-sc
 pass tests/vm/page-linear  
 FAIL tests/vm/page-parallel  
 pass tests/vm/page-merge-seq  
-FAIL tests/vm/page-merge-par  
-FAIL tests/vm/page-merge-stk  
+pass tests/vm/page-merge-par
+pass tests/vm/page-merge-stk
 FAIL tests/vm/page-merge-mm  
 pass tests/vm/page-shuffle  
 pass tests/vm/mmap-read  
@@ -127,4 +127,4 @@ pass tests/filesys/base/sm-seq-random
 pass tests/filesys/base/syn-read  
 pass tests/filesys/base/syn-remove  
 pass tests/filesys/base/syn-write  
-4 of 109 tests failed.  
+2 of 109 tests failed.
