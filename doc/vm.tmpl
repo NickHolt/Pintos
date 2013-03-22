@@ -88,20 +88,20 @@ the frame table. Once we have our supplemental page table entry, and we have
 checked that the address we faulted on is a valid user virtual address, then we
 can look at the properties of the entry to see what to do next.
 
-If the number of zero bytes in the page is equal to PGSIZE, then we just
-allocate a frame from the zero pool. If this isn't true, then we check if the
-is_swapped flag is set. If it isn't then the data is in the file system. We
-get a frame from the user pool, lock the file system, and read the data from the
+We switch on the "type" property of the supplemental page table entry to work
+out what to do next. If the page data is in the file system, then we get a
+frame from the user pool, lock the file system, and read the data from the
 appropriate file into the frame we just allocated. If we need to set any
-remaining bytes to zero then we do that with a memset call.
+remaining bytes to zero then we do that with a memset call. Finally, we lock
+the current thread's page directory, and call pagedir_set_page to add the frame
+to the thread's page directory. If this call fails then we free the frame we
+just allocated.
 
-If the is_swapped flag is set to true, then we allocate a frame from the user
+If the page data is in a swap slot, then we allocate a frame from the user
 pool again, but this time we call free_slot (from swap.c), passing the swap
-index stored in the page table entry.
-
-Finally, we lock the current thread's page directory, and call pagedir_set_page
-to add the frame to the thread's page directory. If this call fails then we
-free the frame we just allocated.
+index stored in the page table entry. After this, if the supplemental page
+table entry represented file data in a swap slot, then we mark the entry as a
+loaded file again.
 
 
 >> A3: How does your code coordinate accessed and dirty bits between
@@ -132,6 +132,7 @@ internally for this function.
 If the frame(s) need to be allocated by evicting a frame, then we use another
 lock (the eviction_lock) to ensure that the same frame will not be picked for
 eviction by two different processes.
+
 
 ---- RATIONALE ----
 
@@ -262,10 +263,13 @@ pagedir_set_page, which happens in the page fault handler later on.
 >> the page that faulted.
 
 First the handler checks if the page is in the page table, and thus could be
-swapped in from the filesystem. If the fault address is less than stack pointer
-- 32, the maximum for a PUSH/PUSHA instruction, the stack has not already grown
-too large and the page does not exist in the suplimentary page table, it is
-assumed that we need to increase the size of the stack.
+swapped in from the file-system. Then we check if fault address is less than or
+equal to 32 bytes below the stack pointer, since the PUSHA instruction can push
+32 bytes of data at once. Finally, we check that adding a new page to the stack
+wouldn't make the stack larger than the maximum allowed size (which we have
+decided to set at 8MB). If all of these conditions are met, then we allocate a
+new frame to increase the size of the stack.
+
 
 ---- SYNCHRONIZATION ----
 

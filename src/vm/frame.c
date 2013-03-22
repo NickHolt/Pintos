@@ -57,8 +57,6 @@ allocate_frame (enum palloc_flags flags)
         PANIC ("Failed to allocate memory for frame.");
 
       f->thread = thread_current ();
-      ASSERT (f->thread != NULL && f->thread->magic == 0xcd6abf4b);
-
       f->page = page;
       f->pinned = false;
 
@@ -120,7 +118,7 @@ evict_frame (void)
     }
 
   size_t swap_index = 0;
-  /* Swap the data out if the frame is dirty or if the data connot be reloaded
+  /* Swap the data out if the frame is dirty or if the data cannot be reloaded
      from a file */
   if (pagedir_is_dirty (t->pagedir, page->user_addr) || (page->type != FILE))
     {
@@ -134,14 +132,12 @@ evict_frame (void)
       page->type = page->type | SWAP;
     }
 
-  /* Set the page as writable if the corresponding page table entry is
-     writable */
+  /* Set the page as writeable if the corresponding page table entry is
+     writeable */
   page->swap_index = swap_index;
   page->swap_writable = *(choice->pte) & PTE_W;
 
   choice->thread = cur;
-  ASSERT (cur != NULL && cur->magic == 0xcd6abf4b);
-
   choice->pte = NULL;
   choice->user_addr = NULL;
 
@@ -177,11 +173,6 @@ select_frame_to_evict (void)
 
           struct thread* owner = choice->thread;
           lock_acquire (&owner->pd_lock);
-
-          ASSERT (owner != NULL);
-          ASSERT (owner->pagedir != NULL);
-
-          ASSERT (owner != NULL && owner->magic == 0xcd6abf4b);
 
           if (!pagedir_is_dirty (owner->pagedir, choice->user_addr) &&
               !pagedir_is_accessed (owner->pagedir, choice->user_addr))
@@ -282,6 +273,7 @@ unpin_frame_by_page (void* kpage)
   f->pinned = false;
 }
 
+/* Get a frame from its page address */
 static struct frame*
 get_frame (void* page)
 {
@@ -303,6 +295,8 @@ get_frame (void* page)
   return f;
 }
 
+/* Remove any frames from the frame table that are owned by the given thread.
+   Called by process_exit() */
 void
 reclaim_frames (struct thread *t)
 {

@@ -11,32 +11,36 @@
 
 static void free_sup_pages (struct hash_elem *, void *aux);
 
+/* Create a struct sup_page and fill in its properties */
 struct sup_page*
 create_sup_page (struct file *f, off_t offset, size_t zero_bytes,
                  bool writable, uint8_t *addr, size_t read_bytes)
 {
-  struct sup_page *partial_page = malloc (sizeof (struct sup_page));
-  if (partial_page == NULL)
+  struct sup_page *page = malloc (sizeof (struct sup_page));
+  if (page == NULL)
     PANIC ("Failed to allocate memory in create_full_page()");
 
-  partial_page->file = f;
-  partial_page->type = FILE;
-  partial_page->writable = writable;
-  partial_page->offset = offset;
-  partial_page->zero_bytes = zero_bytes;
-  partial_page->read_bytes = read_bytes;
-  partial_page->user_addr = addr;
-  partial_page->is_loaded = false;
+  page->file = f;
+  page->type = FILE;
+  page->writable = writable;
+  page->offset = offset;
+  page->zero_bytes = zero_bytes;
+  page->read_bytes = read_bytes;
+  page->user_addr = addr;
+  page->is_loaded = false;
 
-  return partial_page;
+  return page;
 }
 
+/* Returns null if PAGE is successfully added to PT */
 bool
 add_sup_page (struct hash *pt, struct sup_page *page)
 {
   return hash_insert (pt, &page->pt_elem) == NULL;
 }
 
+/* Find the sup_page in PT which has the address ADDR. Return a null pointer
+   if the sup_page is not found */
 struct sup_page*
 get_sup_page (struct hash *pt, uint8_t *addr)
 {
