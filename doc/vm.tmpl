@@ -345,11 +345,28 @@ the file system lock already.
 >> into physical memory, or do you use some other design?  How do you
 >> gracefully handle attempted accesses to invalid virtual addresses?
 
-We check the page exists in the table and is in user memory when reading into
-a buffer, and the system call exits with an error code if the address is
-invalid. Otherwise the page fault exception is left to bring in any paged out
-frames. This is also true if the stack needs expanding, as that is also in the
-page fault handler.
+In the read system call, there is the possibility that data will be read into a
+page that is not currently paged in. We catch this before we attempt to read a
+file into data that is not paged.
+
+Firstly we check if there is a supplemental page table entry for the data. If
+there is, then we allow the page fault handler to page in any required pages,
+just like what would happen normally. Otherwise, after checking that the
+address of the data is within 32 bytes of the stack pointer, we go through and
+add as many pages as we need to the stack. We do this by allocating for the
+page at the start address of the data, and then looping up the stack, checking
+if each page has been paged in already, until we reached one that has been
+paged in.
+
+To make sure that invalid virtual addresses are not accessed. We check whether
+the start address of the data is a valid user address before any of the above
+checks are made. If the address is invalid, then we exit with a -1 status code.
+We used to call our function is_safe_user_ptr here, but that exits if the data
+has not been paged in, so this would not be suitable for the new demand paging
+system. When we are looping through the stack to see if pages are paged in, we
+also check to see if the address we have reached is still a valid user address.
+If it is not, then we kick out of the loo, since we must have reached the top
+of the stack.
 
 
 ---- RATIONALE ----
