@@ -253,7 +253,7 @@ page_fault (struct intr_frame *f)
       /* Memory mapped file. */
       else if (page == NULL && is_mapped (fault_addr))
         {
-          /* Read the relevant page from the file and copy it into a new
+          /* Read the relevant data from the file and copy it into a new
              page. */
 
           page = create_sup_page (NULL, 0, PGSIZE, true,

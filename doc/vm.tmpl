@@ -423,6 +423,29 @@ variable is used to ensure each mapping belonging to a thread has a unique ID.
 >> memory subsystem.  Explain how the page fault and eviction
 >> processes differ between swap pages and other pages.
 
+As with demand paging, our memory mapped files implementation takes place in
+the page fault handler in exception.c. When a not present page fault occurs,
+one of the cases we look for before erroring is whether the fault address is
+mapped by a mapping inside the current thread's file_map.
+
+If the fault address is indeed part of a memory mapped file, we then read the
+relevant PGSIZE bytes of data from the file and store them in a new page. This
+page is created with a call to create_sup_page(), so that our supplemental page
+table can keep track of it, and is mapped to a newly-allocated frame in the
+current thread's page directory with a call to pagedir_set_page().
+
+The frame is allocated with a call to allocate_frame() in vm/frame.c, which
+handles any eviction and swapping that needs to take place. We ensure that the
+frame is zeroed on allocation to cover the case where there isn't enough file
+data to fill an entire page. In this case, the trailing bits must be set to 0.
+
+The relevant mapping is found with a linear search through the thread's
+file_map. We cannot use hashing here, since the fault address is not necessarily
+the start address of the mapping (recall that a mapping struct only contains the
+start address and size.) As with all other calls to file system methods, we
+acquire the file system lock when reading the data from the file.
+
+
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
 

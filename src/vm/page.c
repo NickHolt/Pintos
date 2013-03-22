@@ -18,7 +18,7 @@ create_sup_page (struct file *f, off_t offset, size_t zero_bytes,
 {
   struct sup_page *page = malloc (sizeof (struct sup_page));
   if (page == NULL)
-    PANIC ("Failed to allocate memory in create_full_page()");
+    PANIC ("Failed to allocate memory in create_sup_page()");
 
   page->file = f;
   page->type = FILE;
@@ -47,8 +47,7 @@ get_sup_page (struct hash *pt, uint8_t *addr)
   struct sup_page temp;
   temp.user_addr = addr;
 
-  struct hash_elem *temp_elem
-    = hash_find (pt, &temp.pt_elem);
+  struct hash_elem *temp_elem = hash_find (pt, &temp.pt_elem);
 
   if (temp_elem == NULL)
     return NULL;
