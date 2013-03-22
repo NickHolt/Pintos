@@ -474,32 +474,38 @@ read (int fd, void *buffer, unsigned length, void *stack_pointer)
     }
   else if (is_user_vaddr (buffer))
     {
+      void *rd_buffer = pg_round_down (buffer);
+
       struct thread *cur = thread_current ();
-      struct sup_page *page = get_sup_page (&cur->supp_pt,
-                                            pg_round_down (buffer));
+      struct sup_page *page = get_sup_page (&cur->supp_pt, rd_buffer);
+
       /* Checking if we have to expand the stack. */
-      if (page == NULL &&
-          stack_pointer - 32 <= buffer)
+      if (page == NULL && stack_pointer - 32 <= buffer)
         {
           /* Run out of stack space. */
           if (PHYS_BASE - buffer > MAXSIZE)
             exit (-1);
 
-          void *buffer_down = pg_round_down (buffer);
-          /* Ceiling of length/PG_SIZE. */
-          unsigned counter;
-          for (counter = 0; buffer_down + counter < PHYS_BASE;
-                counter += PGSIZE)
+          /* Check if we need to expand the stack for the first page that the
+             buffer starts of */
+          if (pagedir_get_page (cur->pagedir, rd_buffer) == NULL)
             {
-              if (pagedir_get_page (cur->pagedir, buffer_down + counter) == NULL)
-                {
-                  //printf("Syscall:   %p\n", buffer_down + counter);
-                  void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
-                  pagedir_set_page (cur->pagedir,
-                                    buffer_down + counter,
-                                    new_frame,
-                                    true);
-                }
+              void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
+              pagedir_set_page (cur->pagedir, rd_buffer, new_frame, true);
+            }
+
+          /* Loop up the stack, checking if we need to grow the stack at that
+             point, until we reach PHYS_BASE or the current page is already
+             loaded */
+          unsigned counter;
+          for (counter = PGSIZE;
+               is_user_vaddr (rd_buffer + counter) &&
+               pagedir_get_page (cur->pagedir, rd_buffer + counter) == NULL;
+               counter += PGSIZE)
+            {
+              void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
+              pagedir_set_page (cur->pagedir, rd_buffer + counter,
+                                new_frame, true);
             }
         }
 
@@ -513,7 +519,7 @@ read (int fd, void *buffer, unsigned length, void *stack_pointer)
           return length;
         }
 
-      /*  if the buffer is safe to write to, either it has been loaded
+      /* If the buffer is safe to write to, either it has been loaded
          or can be loaded in a page fault. */
       else
         {

@@ -40,6 +40,8 @@ frame_init (void)
   lock_init (&eviction_lock);
 }
 
+/* Get a frame by calling palloc_get_page and allocating a struct frame. If
+   no frame is available, evict a frame and use that */
 void *
 allocate_frame (enum palloc_flags flags)
 {
@@ -230,6 +232,7 @@ select_frame_to_evict (void)
   return NULL;
 }
 
+/* Remove a frame struct from the frame table and free it */
 void
 free_frame (void *page)
 {

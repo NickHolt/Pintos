@@ -220,7 +220,7 @@ page_fault (struct intr_frame *f)
                 unpin_frame_by_page (frame);
 
                 if (page->type == SWAP)
-                    hash_delete (&cur->supp_pt, &page->pt_elem);
+                  hash_delete (&cur->supp_pt, &page->pt_elem);
 
                 if (page->type == (FILE | SWAP))
                   {
@@ -233,7 +233,7 @@ page_fault (struct intr_frame *f)
           return;
         }
       /* Stack needs expanding. */
-      else if (page == NULL && 
+      else if (page == NULL &&
                 stack_pointer - 32 <= fault_addr &&
                 PHYS_BASE - fault_addr - PGSIZE < MAXSIZE)
         {
