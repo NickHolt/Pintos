@@ -297,8 +297,8 @@ syscall_done (void)
 void
 exit (int status)
 {
-  if (status == -1)
-    debug_backtrace();
+  /*if (status == -1)
+    debug_backtrace();*/
   struct thread *exiting_thread = thread_current();
 
   /* Print the terminating message */
@@ -477,27 +477,29 @@ read (int fd, void *buffer, unsigned length, void *stack_pointer)
       struct thread *cur = thread_current ();
       struct sup_page *page = get_sup_page (&cur->supp_pt,
                                             pg_round_down (buffer));
-
       /* Checking if we have to expand the stack. */
       if (page == NULL &&
-          (stack_pointer - 32)  <= buffer + length &&
-          pagedir_get_page (cur->pagedir, buffer) == NULL)
+          stack_pointer - 32 <= buffer)
         {
           /* Run out of stack space. */
           if (PHYS_BASE - buffer > MAXSIZE)
             exit (-1);
 
           void *buffer_down = pg_round_down (buffer);
-
           /* Ceiling of length/PG_SIZE. */
           unsigned counter;
-          for (counter = 0; counter < length + PGSIZE; counter += PGSIZE)
+          for (counter = 0; buffer_down + counter < PHYS_BASE;
+                counter += PGSIZE)
             {
-              void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
-              pagedir_set_page (cur->pagedir,
-                                buffer_down + counter,
-                                new_frame,
-                                true);
+              if (pagedir_get_page (cur->pagedir, buffer_down + counter) == NULL)
+                {
+                  //printf("Syscall:   %p\n", buffer_down + counter);
+                  void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
+                  pagedir_set_page (cur->pagedir,
+                                    buffer_down + counter,
+                                    new_frame,
+                                    true);
+                }
             }
         }
 
@@ -521,8 +523,10 @@ read (int fd, void *buffer, unsigned length, void *stack_pointer)
           return size;
         }
     }
-
-  NOT_REACHED ();
+  else
+    {
+      exit (-1);
+    }
 }
 
 /* Writes size bytes from buffer to the open file fd. Returns the number of

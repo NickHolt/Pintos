@@ -167,7 +167,6 @@ page_fault (struct intr_frame *f)
 
       struct sup_page *page = get_sup_page (&cur->supp_pt,
                                             pg_round_down (fault_addr));
-
       if (page != NULL && !page->is_loaded && is_user_vaddr (fault_addr))
         {
           uint8_t *frame = NULL;
@@ -236,8 +235,9 @@ page_fault (struct intr_frame *f)
       /* Stack needs expanding. */
       else if (page == NULL && 
                 stack_pointer - 32 <= fault_addr &&
-                PHYS_BASE - fault_addr + PGSIZE < MAXSIZE)
+                PHYS_BASE - fault_addr - PGSIZE < MAXSIZE)
         {
+          //printf("exception: %p\n", fault_addr);
           void *new_frame = allocate_frame (PAL_USER | PAL_ZERO);
           pagedir_set_page (cur->pagedir,
                             pg_round_down (fault_addr),
