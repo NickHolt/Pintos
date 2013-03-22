@@ -178,9 +178,9 @@ page_fault (struct intr_frame *f)
                 /* Page data is in the file system */
                 frame = allocate_frame (PAL_USER);
 
-                /* filesystem lock will only be acquired if current thread does
-                   not hold it. This prevents issues when coming from a read
-                   syscall. */
+                /* The file-system lock will only be acquired if current
+                   thread does not hold it. This prevents issues when coming
+                   from a read system call. */
 
                 pin_frame_by_page (frame);
                 lock_filesystem ();

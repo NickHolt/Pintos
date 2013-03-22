@@ -56,6 +56,8 @@ get_sup_page (struct hash *pt, uint8_t *addr)
     return hash_entry (temp_elem, struct sup_page, pt_elem);
 }
 
+/* Remove the supplemental page table entry from the current thread's
+   supplemental page table */
 void
 delete_sup_page (struct sup_page *page)
 {
@@ -69,6 +71,7 @@ free_sup_pages (struct hash_elem *page_elem, void *aux UNUSED)
   free (page);
 }
 
+/* Clean up the hash table */
 void
 reclaim_pages (struct hash *pt)
 {

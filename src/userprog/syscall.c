@@ -166,8 +166,8 @@ is_safe_user_ptr (const void *ptr)
 }
 
 /* Switch on the system call numbers defined in lib/syscall-nr.h, and call the
-   appropriate system call. If the system call returns something, then put that
-   value in f->eax. */
+   appropriate system call. If the system call returns something, then put
+   that value in f->eax. */
 static void
 syscall_handler (struct intr_frame *f)
 {
@@ -297,8 +297,6 @@ syscall_done (void)
 void
 exit (int status)
 {
-  /*if (status == -1)
-    debug_backtrace();*/
   struct thread *exiting_thread = thread_current();
 
   /* Print the terminating message */
@@ -381,8 +379,8 @@ wait (pid_t pid)
   return process_wait (pid);
 }
 
-/* Creates a new file called file initially initial_size bytes in size. Returns
-   true iff successful. */
+/* Creates a new file called file initially initial_size bytes in size.
+   Returns true iff successful. */
 static bool
 create (const char *file, unsigned initial_size)
 {
@@ -462,8 +460,8 @@ filesize (int fd)
   return length;
 }
 
-/* Reads size bytes from the file open as fd into buffer. Returns the number of
-   bytes actually read, or -1 if the file could not be read.
+/* Reads size bytes from the file open as fd into buffer. Returns the number
+   of bytes actually read, or -1 if the file could not be read.
    fd == 0 reads from the keyboard using input_getc(). */
 static int
 read (int fd, void *buffer, unsigned length, void *stack_pointer)
@@ -590,8 +588,8 @@ seek (int fd, unsigned position)
   release_filesystem ();
 }
 
-/* Returns the position of the next byte to be read or written in open file fd,
-   expressed in bytes from the beginning of the file. */
+/* Returns the position of the next byte to be read or written in open file
+   fd, expressed in bytes from the beginning of the file. */
 static unsigned
 tell (int fd)
 {
@@ -601,9 +599,9 @@ tell (int fd)
   return next;
 }
 
-/* Closes file descriptor fd. Exiting or terminating a process implicitly closes
-   all its open file descriptors, as if by calling this function for each
-   one. */
+/* Closes file descriptor fd. Exiting or terminating a process implicitly
+   closes all its open file descriptors, as if by calling this function for
+   each one. */
 static void
 close (int fd)
 {
