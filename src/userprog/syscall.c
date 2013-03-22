@@ -676,7 +676,6 @@ mmap (int fd, void *addr)
 
   struct file *file = fd_to_file (fd);
 
-
   lock_filesystem ();
   int length = file_length (file);
   release_filesystem ();
@@ -684,25 +683,18 @@ mmap (int fd, void *addr)
   if (length == 0)
       return -1;
 
-  /* Fail if the range of pages to be mapped (based on the given addr and size
-     file) overlaps an already-mapped page, or spreads into kernel address
+  /* Fail if the range of pages to be mapped (based on the given addr and file
+     size) overlaps an already-mapped page, or spreads into kernel address
      space. */
   int offset;
-  struct mapping mn;
   int num_pages = 0;
   for (offset = 0; offset < length; offset += PGSIZE)
     {
-      if (pagedir_get_page (thread_current ()->pagedir, addr + offset) ||
+      if (!is_user_vaddr (addr + offset) ||
+          pagedir_get_page (thread_current ()->pagedir, addr + offset) ||
           is_mapped (addr + offset))
-          return -1;
+        return -1;
 
-      mn.addr = addr + offset; /* This is definitely page-aligned since the
-                                  initial value of addr is, and we're adding a
-                                  multiple of PGSIZE each time. */
-      struct hash_elem *e = hash_find (&thread_current ()->file_map, &mn.elem);
-      if (e != NULL || !is_user_vaddr (addr + offset))
-          /* Already mapped, or we're about to spread into kernel space. */
-          return -1;
       ++num_pages;
     }
 

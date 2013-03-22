@@ -388,6 +388,35 @@ or to a file, or performing a memset on the data held by the frame.
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+typedef int mapid_t;
+
+Type definition for the map region identifier, returned from a call to mmap().
+
+struct mapping
+  {
+    mapid_t mapid;
+    struct file *file;
+    void *addr;
+    int num_pages;
+    struct hash_elem elem;
+  };
+
+A mapping from a map ID to a file. This struct also holds the address at which
+the mapping starts (page-aligned), and the number of pages the mapping spans.
+
+struct thread
+  {
+    ...
+    struct hash file_map;               /* Maps mapids to files. */
+    int next_mapid;                     /* Used in mapid allocation. */
+    ...
+  };
+
+Each thread has a hash which contains mapping structs as detailed above, since
+mmap maps are stored and allocated at a per-thread level. The next_mapid
+variable is used to ensure each mapping belonging to a thread has a unique ID.
+
+
 ---- ALGORITHMS ----
 
 >> C2: Describe how memory mapped files integrate into your virtual
@@ -396,6 +425,33 @@ or to a file, or performing a memset on the data held by the frame.
 
 >> C3: Explain how you determine whether a new file mapping overlaps
 >> any existing segment.
+
+In mmap(), there are several safety checks before the mapping is allocated. In
+an error case, we return -1. Or, in the case that the given fd is invalid,
+the call to fd_to_file() will exit the thread. After the initial simple checks
+on the given address (i.e. it is non-null and page-aligned), we then try to find
+a mapping which already spans the given address.
+
+This search is implemented in a for loop, which looks at the address of each
+page we are about to map, and ensures that:
+
+  i) it is in user space,
+  ii) there is no entry for it in the thread's page directory,
+  iii) it is not already used in an existing mapping.
+
+The first two checks are trivial, and the third check is implemented in a call
+to is_mapped(), a helper function which returns true iff the given address is
+mapped to a file in the current thread. is_mapped() works with a call to
+addr_to_map(), which linearly searches the thread's file_map hash for a mapping
+whose range contains the given address. Unfortunately we can not take advantage
+of the hash table data structure when searching, and instead must do a linear
+search, since mappings hold only their start address and size in pages.
+
+If either of the three checks above fails, we return -1 from mmap and no mapping
+is allocated. The for loop also cleverly calculates the number of pages required
+for the memory mapped file, effectively calculating the ceiling of the file's
+size divided by PGSIZE.
+
 
 ---- RATIONALE ----
 
