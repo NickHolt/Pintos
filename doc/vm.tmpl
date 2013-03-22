@@ -516,6 +516,27 @@ size divided by PGSIZE.
 >> implementation either does or does not share much of the code for
 >> the two situations.
 
+Our implementation does not share any code for handling both demand paging and
+memory mapped files - each of these cases is handled separately in different
+mutually-exclusive cases in the page fault handler, as well as stack growth.
+
+Since both a thread's supplemental page table and file map both map user
+addresses to files, we could have stored mmap mappings inside the supplemental
+page table, thus removing the need for a thread's file_map, which would have
+led to a reduction in lines of code. However, we decided against this, since
+a sup_page struct holds a lot more data than a mapping struct, which would have
+caused a lot of memory to be redundant and wasted when using the supplemental
+page table to store mmap mappings as well.
+
+Sharing the supplemental page table between demand paging and memory mapped
+files would also have had significant performance impacts in the memory
+mapped files system. Due to the linear searching of the hash in addr_to_map(),
+we want the hash to be as small as possible, to increase our chances of finding
+the relevant element quickly. Searching the entire supplemental page table
+purely for mmap mappings would therefore have been very slow, leading to our
+decision to isolate the implementation of demand paging and memory mapped files.
+
+
                SURVEY QUESTIONS
                ================
 
